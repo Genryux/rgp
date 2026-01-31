@@ -1,0 +1,24 @@
+{
+  "name": "rgp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "postcss ./src/input.css -o ./src/output.css",
+    "watch:css": "postcss ./src/input.css -o ./src/output.css --watch",
+    "build": "npm run build:css",
+    "dev": "npm run watch:css",
+    "serve": "http-server ./src -p 8080 -o"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "autoprefixer": "^10.4.24",
+    "http-server": "^14.1.1",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "tailwindcss": "^4.1.18"
+  }
+}
