@@ -52,9 +52,8 @@ npm run serve
 rgp/
 ├── src/
 │   ├── index.html      # Main HTML file
-│   └── input.css       # Tailwind CSS source
-├── dist/
-│   └── output.css      # Compiled CSS (generated)
+│   ├── input.css       # Tailwind CSS source
+│   └── output.css      # Compiled CSS (generated, not committed)
 ├── tailwind.config.js  # Tailwind configuration
 ├── postcss.config.js   # PostCSS configuration
 └── package.json        # Dependencies and scripts
@@ -83,8 +82,7 @@ The site uses Tailwind's utility classes. You can add custom CSS in `src/input.c
 The site is static and can be deployed to any static hosting service:
 
 1. Build the CSS: `npm run build`
-2. Upload the `src/` folder (with `index.html`) and `dist/` folder to your hosting service
-3. Ensure the CSS path in `index.html` correctly points to `../dist/output.css`
+2. Upload the `src/` folder (containing `index.html` and `output.css`) to your hosting service
 
 ### Deployment Options
 

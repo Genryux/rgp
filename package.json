@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build:css": "postcss ./src/input.css -o ./dist/output.css",
-    "watch:css": "postcss ./src/input.css -o ./dist/output.css --watch",
+    "build:css": "postcss ./src/input.css -o ./src/output.css",
+    "watch:css": "postcss ./src/input.css -o ./src/output.css --watch",
     "build": "npm run build:css",
     "dev": "npm run watch:css",
     "serve": "http-server ./src -p 8080 -o"
