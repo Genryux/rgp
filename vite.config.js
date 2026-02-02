@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   root: 'src',
+  base: '/rgp/', // GitHub Pages base path (replace with your repo name)
   build: {
     outDir: '../dist',
     emptyOutDir: true,

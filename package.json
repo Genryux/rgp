@@ -6,7 +6,7 @@
   "scripts": {
     "build:css": "postcss ./src/input.css -o ./src/output.css",
     "watch:css": "postcss ./src/input.css -o ./src/output.css --watch",
-    "build": "npm run build:css",
+    "build": "vite build",
     "dev": "vite",
     "serve": "vite preview"
   },
