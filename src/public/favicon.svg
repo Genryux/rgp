@@ -1,0 +1,5 @@
+<!-- Favicon SVG for RGP Films & Studio -->
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <rect width="32" height="32" fill="#141414"/>
+  <text x="16" y="22" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="#FFD700" text-anchor="middle">RGP</text>
+</svg>

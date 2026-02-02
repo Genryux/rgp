@@ -1,205 +1,434 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RGP - Static Single Page Site</title>
-    <link rel="stylesheet" href="output.css">
+
+    <!-- Primary Meta Tags -->
+    <title>RGP Films & Studio | Professional Photography & Videography Services</title>
+    <meta name="title" content="RGP Films & Studio | Professional Photography & Videography Services">
+    <meta name="description"
+        content="RGP Films & Studio offers professional photography and videography services. Turning moments into masterpieces. Book your session today for weddings, events, portraits, and commercial photography.">
+    <meta name="keywords"
+        content="photography, videography, film studio, professional photographer, wedding photography, event photography, portrait photography, RGP Films, RGP Studio">
+    <meta name="author" content="RGP Films & Studio">
+    <meta name="robots" content="index, follow">
+    <meta name="language" content="English">
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://www.rgpfilms.com/">
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/jpeg" href="./public/images/logo.jpg?v=2">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.rgpfilms.com/">
+    <meta property="og:title" content="RGP Films & Studio | Professional Photography & Videography Services">
+    <meta property="og:description"
+        content="RGP Films & Studio offers professional photography and videography services. Turning moments into masterpieces. Book your session today.">
+    <meta property="og:image" content="https://www.rgpfilms.com/public/images/hero-bg.jpg">
+    <meta property="og:site_name" content="RGP Films & Studio">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://www.rgpfilms.com/">
+    <meta property="twitter:title" content="RGP Films & Studio | Professional Photography & Videography Services">
+    <meta property="twitter:description"
+        content="RGP Films & Studio offers professional photography and videography services. Turning moments into masterpieces. Book your session today.">
+    <meta property="twitter:image" content="https://www.rgpfilms.com/public/images/hero-bg.jpg">
+
+    <!-- Structured Data / Schema.org -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ProfessionalService",
+      "name": "RGP Films & Studio",
+      "description": "Professional photography and videography services for weddings, events, portraits, and commercial projects.",
+      "url": "https://www.rgpfilms.com/",
+      "logo": "https://www.rgpfilms.com/public/images/logo.jpg",
+      "image": "https://www.rgpfilms.com/public/images/hero-bg.jpg",
+      "priceRange": "$$",
+      "servesCuisine": "Photography, Videography, Film Production",
+      "sameAs": [
+        "https://www.facebook.com/profile.php?id=61586681783932"
+      ]
+    }
+    </script>
+
+    <script type="module" src="/main.js"></script>
+    <!-- Cloudflare Turnstile -->
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+
+<body class="bg-[#141414] min-h-screen relative">
     <!-- Navigation -->
-    <nav class="bg-white shadow-lg">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="flex justify-between items-center py-4">
-                <div class="flex items-center space-x-2">
-                    <div class="text-2xl font-bold text-indigo-600">RGP</div>
-                </div>
-                <div class="hidden md:flex space-x-6">
-                    <a href="#home" class="text-gray-700 hover:text-indigo-600 transition duration-300">Home</a>
-                    <a href="#about" class="text-gray-700 hover:text-indigo-600 transition duration-300">About</a>
-                    <a href="#features" class="text-gray-700 hover:text-indigo-600 transition duration-300">Features</a>
-                    <a href="#contact" class="text-gray-700 hover:text-indigo-600 transition duration-300">Contact</a>
-                </div>
+    <nav class="absolute top-0 left-0 w-screen">
+        <div class="max-w-6xl mx-auto py-2 px-4 z-50">
+            <div class="hidden md:flex justify-between items-center space-x-6">
+                <div class="text-2xl font-bold text-[#f8f8f8]">RGP</div>
+                <a href="#about"
+                    class="text-[#f8f8f8] font-nuosu hover:text-[#FFD700] transition duration-300 z-50">SERVICES</a>
+                <a href="#contact"
+                    class="text-[#f8f8f8] font-nuosu hover:text-[#FFD700] transition duration-300 z-50">CONTACT</a>
             </div>
         </div>
     </nav>
 
     <!-- Hero Section -->
-    <section id="home" class="py-20">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="text-center">
-                <h1 class="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-                    Welcome to <span class="text-indigo-600">RGP</span>
+    <section id="home" class="flex flex-col justify-start items-center relative h-screen md:h-[1200px]">
+
+        <div class="h-full md:h-[60%] w-full flex gap-8 justify-between md:justify-center items-center">
+            <div class="text-center w-full md:w-1/2 select-none mt-20 ">
+                <h1 class="text-[20px] w-full md:text-[28px] text-[#f8f8f8] mb-6 flex flex-col md:gap-2">
+                    <div class="flex items-end pl-8 md:pl-20 gap-2  w-full">
+                        <span class="font-nuosu">Turning</span>
+                        <span class="text-[#FFD700] text-[60px]/8 md:text-[100px]/11 font-italianno">Moments</span>
+                    </div>
+                    <div class="flex gap-2 justify-end pr-8 md:pr-14 ">
+                        <span class="font-nuosu mt-2">into</span>
+                        <span class="text-[#FFD700] font-bebas text-[50px]/20 md:text-[100px]/32">Masterpiece.</span>
+                    </div>
                 </h1>
-                <p class="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-                    A modern, responsive static single page site built with Tailwind CSS
-                </p>
-                <div class="flex justify-center gap-4">
-                    <button class="bg-indigo-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-300 shadow-lg">
-                        Get Started
-                    </button>
-                    <button class="bg-white text-indigo-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition duration-300 shadow-lg border-2 border-indigo-600">
-                        Learn More
-                    </button>
+            </div>
+            <div class="hidden md:flex justify-center items-center md:w-1/2 md:h-full select-none">
+                <div class="md:w-[45%] md:h-[55%] mt-20 rounded-md overflow-hidden">
+                    <img src="./public/images/main-shot.jpg"
+                        class="md:w-full md:h-full object-cover object-[25%_60%] shadow-lg"
+                        alt="RGP Films & Studio professional photography showcase">
                 </div>
             </div>
+        </div>
+
+        <div class="h-full md:h-auto w-full flex flex-col justify-start items-center overflow-hidden">
+            <!-- Carousel -->
+            <div class="md:h-auto w-full flex-nowrap animate-scroll bg-transparent">
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:h-[230px] md:w-[350px] rounded-md overflow-hidden shadow-lg">
+                    <img src="./public/images/1.jpg" class="w-full h-full object-cover object-center"
+                        alt="Birthday photography by RGP Films">
+                </div>
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:w-[350px] md:h-[230px] rounded-md overflow-hidden">
+                    <img src="./public/images/2.jpg" class="w-full h-full object-cover object-center"
+                        alt="Christening photography by RGP Films">
+                </div>
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:w-[350px] md:h-[230px] rounded-md overflow-hidden shadow-lg">
+                    <img src="./public/images/3.jpg" class="w-full h-full object-cover object-[50%_55%]"
+                        alt="Product photography by RGP Films">
+                </div>
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:w-[350px] md:h-[230px] rounded-md overflow-hidden">
+                    <img src="./public/images/4.jpg" class="w-full h-full object-cover object-center"
+                        alt="Creative photography by RGP Films">
+                </div>
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:w-[350px] md:h-[230px] rounded-md overflow-hidden shadow-lg">
+                    <img src="./public/images/5.jpg" class="w-full h-full object-cover object-center"
+                        alt="Portrait photography by RGP Films">
+                </div>
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:w-[350px] md:h-[230px] rounded-md overflow-hidden">
+                    <img src="./public/images/6.jpg" class="w-full h-full object-cover object-center"
+                        alt="Graduation photography by RGP Films">
+                </div>
+                <!-- Duplicate items for seamless loop -->
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:h-[230px] md:w-[350px] rounded-md overflow-hidden">
+                    <img src="./public/images/1.jpg" class="w-full h-full object-cover object-center"
+                        alt="Birthday photography by RGP Films">
+                </div>
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:w-[350px] md:h-[230px] rounded-md overflow-hidden">
+                    <img src="./public/images/2.jpg" class="w-full h-full object-cover object-center"
+                        alt="Christening photography by RGP Films">
+                </div>
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:w-[350px] md:h-[230px] rounded-md overflow-hidden">
+                    <img src="./public/images/3.jpg" class="w-full h-full  object-cover object-[50%_55%]"
+                        alt="Product photography by RGP Films">
+                </div>
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:w-[350px] md:h-[230px] rounded-md overflow-hidden">
+                    <img src="./public/images/4.jpg" class="w-full h-full object-cover object-center"
+                        alt="Creative photography by RGP Films">
+                </div>
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:w-[350px] md:h-[230px] rounded-md overflow-hidden">
+                    <img src="./public/images/5.jpg" class="w-full h-full object-cover object-center"
+                        alt="Portrait photography by RGP Films">
+                </div>
+                <div
+                    class="bg-purple-500 flex-shrink-0 h-[180px] w-[280px] md:w-[350px] md:h-[230px] rounded-md overflow-hidden">
+                    <img src="./public/images/6.jpg" class="w-full h-full object-cover object-center"
+                        alt="Graduation photography by RGP Films">
+                </div>
+            </div>
+            <!-- CTA -->
+            <div class="bg-[#141414] h-full md:h-auto w-screen flex flex-col justify-center items-center gap-4 md:p-20">
+                <a href="#contact"
+                    class="bg-[#f8f8f8] p-4 font-nuosu text-[#141414] cursor-pointer hover:bg-gray-200 transition duration-300">BOOK
+                    NOW</a>
+                <p class="font-nuosu text-[#818181] text-center">Lorem ipsum dolor sit amet consectetur adipiscing elit.
+                </p>
+            </div>
+        </div>
+
+        <div
+            class="h-[60%] md:h-[70%] w-screen absolute top-0 left-0 -z-20 bg-linear-to-b from-transparent to-[#141414]">
+        </div>
+        <div
+            class="h-screen md:h-[70%] w-screen absolute top-0 left-0 -z-10 bg-radial-[at_70%_50%] from-[#141414]/10 from-5% via-[#141414]/20 via-25% to-[#141414]/30 to-95%">
+        </div>
+        <div class="absolute top-0 left-0 -z-40 h-[60%] md:h-[70%] w-screen overflow-hidden">
+            <img src="./public/images/hero-bg.jpg"
+                class="h-full w-full md:h-full md:w-full object-cover object-[30%_0%] md:object-cover md:object-[90%_0%]"
+                alt="RGP Films & Studio hero background image">
         </div>
     </section>
 
     <!-- About Section -->
-    <section id="about" class="py-20 bg-white">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="text-center mb-16">
-                <h2 class="text-4xl font-bold text-gray-900 mb-4">About Us</h2>
-                <p class="text-xl text-gray-600 max-w-2xl mx-auto">
-                    We create beautiful, functional websites with modern technologies
+    <section id="about" class="py-10 md:py-20 bg-white">
+        <div class="w-full md:w-screen mx-auto px-4 md:px-0">
+            <div class="text-center mb-8 md:mb-16 flex flex-col justify-center items-center">
+                <h2
+                    class="text-2xl md:text-3xl font-bold text-[#141414] mb-4 font-nuosu flex flex-col justify-center items-center gap-1">
+                    Our best services
+                    <div class="h-[2px] w-full bg-[#DDBA00]"></div>
+                </h2>
+                <p class="text-base md:text-lg text-gray-600 max-w-2xl mx-auto font-nuosu px-4">
+                    Lorem ipsum dolor sit amet consectetur adipiscing elit.
                 </p>
             </div>
-            <div class="grid md:grid-cols-3 gap-8">
-                <div class="text-center p-6">
-                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Fast</h3>
-                    <p class="text-gray-600">Lightning-fast load times and performance</p>
-                </div>
-                <div class="text-center p-6">
-                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Responsive</h3>
-                    <p class="text-gray-600">Works perfectly on all devices and screen sizes</p>
-                </div>
-                <div class="text-center p-6">
-                    <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"></path>
-                        </svg>
-                    </div>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Modern</h3>
-                    <p class="text-gray-600">Built with the latest web technologies</p>
-                </div>
+            <div
+                class="flex flex-row flex-nowrap overflow-x-auto justify-start md:justify-center gap-2 md:gap-4 w-full mb-8 md:mb-12 px-4 md:px-0 pb-2 scrollbar-hide">
+                <button
+                    class="tab-btn active px-4 md:px-8 py-2 md:py-3 rounded-full bg-gray-200 text-gray-800 font-nuosu text-xs md:text-sm hover:bg-gray-300 transition-all duration-300 whitespace-nowrap flex-shrink-0"
+                    data-index="0">
+                    Birthdays
+                </button>
+                <button
+                    class="tab-btn px-4 md:px-8 py-2 md:py-3 rounded-full bg-transparent text-gray-800 font-nuosu text-xs md:text-sm hover:bg-gray-200 transition-all duration-300 whitespace-nowrap flex-shrink-0"
+                    data-index="1">
+                    Christening
+                </button>
+                <button
+                    class="tab-btn px-4 md:px-8 py-2 md:py-3 rounded-full bg-transparent text-gray-800 font-nuosu text-xs md:text-sm hover:bg-gray-200 transition-all duration-300 whitespace-nowrap flex-shrink-0"
+                    data-index="2">
+                    Product Shoot
+                </button>
+                <button
+                    class="tab-btn px-4 md:px-8 py-2 md:py-3 rounded-full bg-transparent text-gray-800 font-nuosu text-xs md:text-sm hover:bg-gray-200 transition-all duration-300 whitespace-nowrap flex-shrink-0"
+                    data-index="3">
+                    Creative Shoot
+                </button>
+                <button
+                    class="tab-btn px-4 md:px-8 py-2 md:py-3 rounded-full bg-transparent text-gray-800 font-nuosu text-xs md:text-sm hover:bg-gray-200 transition-all duration-300 whitespace-nowrap flex-shrink-0"
+                    data-index="4">
+                    Portrait Shoot
+                </button>
+                <button
+                    class="tab-btn px-4 md:px-8 py-2 md:py-3 rounded-full bg-transparent text-gray-800 font-nuosu text-xs md:text-sm hover:bg-gray-200 transition-all duration-300 whitespace-nowrap flex-shrink-0"
+                    data-index="5">
+                    Graduation Coverage
+                </button>
+                <button
+                    class="tab-btn px-4 md:px-8 py-2 md:py-3 rounded-full bg-transparent text-gray-800 font-nuosu text-xs md:text-sm hover:bg-gray-200 transition-all duration-300 whitespace-nowrap flex-shrink-0"
+                    data-index="6">
+                    Other Events
+                </button>
             </div>
-        </div>
-    </section>
 
-    <!-- Features Section -->
-    <section id="features" class="py-20 bg-gradient-to-br from-indigo-50 to-blue-50">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="text-center mb-16">
-                <h2 class="text-4xl font-bold text-gray-900 mb-4">Features</h2>
-                <p class="text-xl text-gray-600 max-w-2xl mx-auto">
-                    Everything you need for a modern website
-                </p>
-            </div>
-            <div class="grid md:grid-cols-2 gap-8">
-                <div class="bg-white p-8 rounded-lg shadow-lg">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Tailwind CSS</h3>
-                    <p class="text-gray-600 mb-4">
-                        Utility-first CSS framework for rapid UI development with a focus on flexibility and customization.
-                    </p>
-                    <ul class="space-y-2 text-gray-600">
-                        <li class="flex items-start">
-                            <svg class="w-5 h-5 text-indigo-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                            Highly customizable
-                        </li>
-                        <li class="flex items-start">
-                            <svg class="w-5 h-5 text-indigo-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                            Responsive design utilities
-                        </li>
-                        <li class="flex items-start">
-                            <svg class="w-5 h-5 text-indigo-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                            Production-ready
-                        </li>
-                    </ul>
+            <div class="carousel-viewport relative w-full overflow-hidden h-[380px] md:h-[550px]">
+                <div class="carousel-track flex items-center h-full">
+                    <!-- Images will be positioned by JavaScript -->
+                    <div class="carousel-item cursor-pointer rounded-lg md:rounded-2xl overflow-hidden shadow-lg md:shadow-xl transition-all duration-500"
+                        data-index="0">
+                        <img src="./public/images/1.jpg" class="w-full h-full object-cover" alt="Birthdays">
+                    </div>
+                    <div class="carousel-item cursor-pointer rounded-lg md:rounded-2xl overflow-hidden shadow-lg md:shadow-xl transition-all duration-500"
+                        data-index="1">
+                        <img src="./public/images/2.jpg" class="w-full h-full object-cover" alt="Christening">
+                    </div>
+                    <div class="carousel-item cursor-pointer rounded-lg md:rounded-2xl overflow-hidden shadow-lg md:shadow-xl transition-all duration-500"
+                        data-index="2">
+                        <img src="./public/images/3.jpg" class="w-full h-full object-cover" alt="Product Shoot">
+                    </div>
+                    <div class="carousel-item cursor-pointer rounded-lg md:rounded-2xl overflow-hidden shadow-lg md:shadow-xl transition-all duration-500"
+                        data-index="3">
+                        <img src="./public/images/4.jpg" class="w-full h-full object-cover" alt="Creative Shoot">
+                    </div>
+                    <div class="carousel-item cursor-pointer rounded-lg md:rounded-2xl overflow-hidden shadow-lg md:shadow-xl transition-all duration-500"
+                        data-index="4">
+                        <img src="./public/images/5.jpg" class="w-full h-full object-cover" alt="Portrait Shoot">
+                    </div>
+                    <div class="carousel-item cursor-pointer rounded-lg md:rounded-2xl overflow-hidden shadow-lg md:shadow-xl transition-all duration-500"
+                        data-index="5">
+                        <img src="./public/images/6.jpg" class="w-full h-full object-cover" alt="Graduation Coverage">
+                    </div>
+                    <div class="carousel-item cursor-pointer rounded-lg md:rounded-2xl overflow-hidden shadow-lg md:shadow-xl transition-all duration-500 bg-gray-300 flex items-center justify-center"
+                        data-index="6">
+                        <img src="https://placehold.co/900x500/e5e7eb/9ca3af?text=Other+Events"
+                            class="w-full h-full object-cover" alt="Other Events">
+                    </div>
                 </div>
-                <div class="bg-white p-8 rounded-lg shadow-lg">
-                    <h3 class="text-2xl font-bold text-gray-900 mb-4">Static & Fast</h3>
-                    <p class="text-gray-600 mb-4">
-                        A static single page site that loads instantly and requires no server-side processing.
-                    </p>
-                    <ul class="space-y-2 text-gray-600">
-                        <li class="flex items-start">
-                            <svg class="w-5 h-5 text-indigo-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                            No backend required
-                        </li>
-                        <li class="flex items-start">
-                            <svg class="w-5 h-5 text-indigo-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                            Easy deployment
-                        </li>
-                        <li class="flex items-start">
-                            <svg class="w-5 h-5 text-indigo-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                            </svg>
-                            SEO friendly
-                        </li>
-                    </ul>
+
+                <!-- Pagination dots -->
+                <div
+                    class="absolute bottom-4 md:bottom-8 left-1/2 transform -translate-x-1/2 flex gap-1.5 md:gap-2 z-20">
+                    <span
+                        class="dot w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-800 cursor-pointer transition-all duration-300"
+                        data-index="0"></span>
+                    <span
+                        class="dot w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-400 cursor-pointer transition-all duration-300"
+                        data-index="1"></span>
+                    <span
+                        class="dot w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-400 cursor-pointer transition-all duration-300"
+                        data-index="2"></span>
+                    <span
+                        class="dot w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-400 cursor-pointer transition-all duration-300"
+                        data-index="3"></span>
+                    <span
+                        class="dot w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-400 cursor-pointer transition-all duration-300"
+                        data-index="4"></span>
+                    <span
+                        class="dot w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-400 cursor-pointer transition-all duration-300"
+                        data-index="5"></span>
+                    <span
+                        class="dot w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-400 cursor-pointer transition-all duration-300"
+                        data-index="6"></span>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- Contact Section -->
-    <section id="contact" class="py-20 bg-white">
-        <div class="max-w-4xl mx-auto px-4">
-            <div class="text-center mb-16">
-                <h2 class="text-4xl font-bold text-gray-900 mb-4">Get in Touch</h2>
-                <p class="text-xl text-gray-600">
-                    We'd love to hear from you
-                </p>
-            </div>
-            <div class="bg-gradient-to-br from-indigo-50 to-blue-50 p-8 rounded-lg shadow-lg">
-                <form class="space-y-6">
-                    <div>
-                        <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Name</label>
-                        <input type="text" id="name" name="name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+    <section id="contact" class="py-20 bg-[#1a1a1a]">
+        <div class="max-w-6xl mx-auto px-8">
+            <div class="flex flex-col md:flex-row gap-16">
+                <!-- Left Column - Contact Info -->
+                <div class="md:w-1/2 flex flex-col justify-start items-start">
+                    <h2
+                        class="text-3xl font-bold text-[#f8f8f8] mb-4 font-nuosu w-auto flex flex-col justify-start items-start gap-1">
+                        Contact Us
+                        <div class="h-[2px] w-full bg-[#FFD700]"></div>
+                    </h2>
+                    <p class="text-gray-500 mb-12 font-nuosu">
+                        Lorem ipsum dolor sit amet consectetur adipiscing elit.
+                    </p>
+
+                    <div class="mb-8">
+                        <h3 class="text-gray-500 font-nuosu text-lg mb-2">Our Email</h3>
+                        <p class="text-[#f8f8f8] font-nuosu text-xl">rgpfilms&studio@gmail.com</p>
                     </div>
+
                     <div>
-                        <label for="email" class="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                        <input type="email" id="email" name="email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+                        <h3 class="text-gray-500 font-nuosu text-lg mb-2">Phone</h3>
+                        <p class="text-[#f8f8f8] font-nuosu text-xl">0955 369 7128</p>
                     </div>
-                    <div>
-                        <label for="message" class="block text-sm font-medium text-gray-700 mb-2">Message</label>
-                        <textarea id="message" name="message" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-600 focus:border-transparent"></textarea>
-                    </div>
-                    <div>
-                        <button type="submit" class="w-full bg-indigo-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition duration-300 shadow-lg">
-                            Send Message
-                        </button>
-                    </div>
-                </form>
+                </div>
+
+                <!-- Right Column - Contact Form -->
+                <div class="md:w-1/2">
+                    <form id="contact-form" action="https://formspree.io/f/xrelazlj" method="POST" class="space-y-6"
+                        data-turnstile-sitekey="OPTIONAL_TURNSTILE_KEY">
+                        <div>
+                            <label for="name" class="block text-sm font-nuosu text-[#f8f8f8] mb-2">Full Name</label>
+                            <input type="text" id="name" name="name" placeholder="Full Name" required
+                                class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-full text-[#f8f8f8] placeholder-gray-500 focus:outline-none focus:border-[#c9a227] transition-colors">
+                        </div>
+                        <div>
+                            <label for="email" class="block text-sm font-nuosu text-[#f8f8f8] mb-2">Email
+                                Address</label>
+                            <input type="email" id="email" name="email" placeholder="Enter your email address" required
+                                class="w-full px-4 py-2 bg-transparent border border-gray-600 rounded-full text-[#f8f8f8] placeholder-gray-500 focus:outline-none focus:border-[#c9a227] transition-colors">
+                        </div>
+                        <div>
+                            <label for="message" class="block text-sm font-nuosu text-[#f8f8f8] mb-2">Inquiry</label>
+                            <textarea id="message" name="message" rows="4" placeholder="Enter your message" required
+                                class="w-full px-4 py-3 bg-transparent border border-gray-600 rounded-2xl text-[#f8f8f8] placeholder-gray-500 focus:outline-none focus:border-[#c9a227] transition-colors resize-none"></textarea>
+                        </div>
+                        <!-- Honeypot field for spam protection (hidden from humans) -->
+                        <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off">
+                        <input type="hidden" name="_subject" value="New inquiry from RGP Films website">
+                        <!-- Cloudflare Turnstile Widget -->
+                        <div class="flex justify-center">
+                            <div class="cf-turnstile" data-sitekey="0x4AAAAAACWoufZYIOSIwagr" data-theme="dark"></div>
+                        </div>
+                        <div>
+                            <button type="submit" id="submit-btn"
+                                class="w-full bg-[#f8f8f8] text-[#1a1a1a] px-8 py-3 rounded-full font-nuosu font-semibold hover:bg-gray-200 transition duration-300">
+                                Submit
+                            </button>
+                        </div>
+                        <!-- Success/Error Messages -->
+                        <div id="form-status" class="hidden text-center font-nuosu py-2 rounded-lg"></div>
+                    </form>
+                </div>
             </div>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="bg-gray-900 text-white py-8">
-        <div class="max-w-6xl mx-auto px-4">
-            <div class="text-center">
-                <div class="text-2xl font-bold mb-4">RGP</div>
-                <p class="text-gray-400 mb-4">Built with Tailwind CSS</p>
-                <div class="flex justify-center space-x-6">
-                    <a href="#" class="text-gray-400 hover:text-white transition duration-300">Privacy</a>
-                    <a href="#" class="text-gray-400 hover:text-white transition duration-300">Terms</a>
-                    <a href="#" class="text-gray-400 hover:text-white transition duration-300">Contact</a>
+    <footer class="relative py-16 overflow-hidden">
+        <!-- Background Image -->
+        <div class="absolute inset-0 -z-10">
+            <img src="./public/images/footer.jpg" class="w-full h-full object-cover" alt="">
+            <div class="absolute inset-0 bg-[#141414]/70"></div>
+        </div>
+
+        <div class="max-w-6xl mx-auto px-8">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+                <!-- Left Side - Tagline -->
+                <div class="mb-8 md:mb-0">
+                    <h2 class="text-4xl md:text-[55px] font-bebas text-[#f8f8f8] leading-tight">
+                        TURNING <span class="text-[#FFD700]">MOMENTS</span><br>
+                        INTO <span class="text-[#FFD700]">MASTERPIECE</span>.
+                    </h2>
                 </div>
-                <p class="text-gray-500 mt-6">&copy; 2026 RGP. All rights reserved.</p>
+
+                <!-- Right Side - Contact Info -->
+                <div class="text-right self-end">
+                    <h3 class="text-xl font-nuosu text-[#f8f8f8] mb-2">
+                        RGP FILMS <span class="text-[#FFD700]">& STUDIO</span>.
+                    </h3>
+                    <p class="text-gray-400 font-nuosu mb-1">rgpstudio@gmail.com</p>
+                    <p class="text-gray-400 font-nuosu mb-4">0955 369 7128</p>
+
+                    <!-- Social Icons -->
+                    <div class="flex justify-end gap-3">
+                        <a href="#"
+                            class="w-8 h-8 rounded-full border border-gray-400 flex items-center justify-center text-gray-400 hover:text-[#FFD700] hover:border-[#FFD700] transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+                            </svg>
+                        </a>
+                        <a href="https://www.facebook.com/profile.php?id=61586681783932"
+                            class="w-8 h-8 rounded-full border border-gray-400 flex items-center justify-center text-gray-400 hover:text-[#FFD700] hover:border-[#FFD700] transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Copyright Section -->
+            <div class="mt-12 pt-8 border-t border-[#D3D3D3]">
+                <div class="flex flex-col md:flex-row justify-between items-center text-[#D3D3D3] font-nuosu text-sm">
+                    <p>&copy; 2026 RGP Films & Studio. All rights reserved.</p>
+                    <div class="flex gap-6 mt-4 md:mt-0">
+                        <a href="#" class="hover:text-[#FFD700] transition-colors">Privacy Policy</a>
+                        <a href="#" class="hover:text-[#FFD700] transition-colors">Terms of Service</a>
+                    </div>
+                </div>
             </div>
         </div>
     </footer>
 </body>
+
 </html>

@@ -1,1 +1,123 @@
+/* Google Fonts - Bebas Neue & Italianno */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Italianno&display=swap');
+
 @import "tailwindcss";
+
+/* Nuosu SIL Font */
+@font-face {
+  font-family: 'Nuosu SIL';
+  src: url('./public/fonts/NuosuSIL-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Define custom fonts using Tailwind v4 @theme directive */
+@theme {
+  --font-bebas: "Bebas Neue", sans-serif;
+  --font-italianno: "Italianno", cursive;
+  --font-nuosu: "Nuosu SIL", serif;
+}
+
+/* Smooth scrolling for navigation */
+html {
+  scroll-behavior: smooth;
+}
+
+.carousel-viewport {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.carousel-track {
+  display: flex;
+  gap: 12px;
+  transition: transform 600ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  will-change: transform;
+  align-items: center;
+}
+
+/* Mobile first - larger showcase dimensions */
+.carousel-item {
+  flex: 0 0 380px;
+  width: 380px;
+  height: 260px;
+  border-radius: 12px;
+  overflow: hidden;
+  opacity: 0.5;
+  transition: opacity 600ms ease, transform 600ms ease;
+}
+
+/* Desktop - larger dimensions */
+@media (min-width: 768px) {
+  .carousel-track {
+    gap: 20px;
+  }
+
+  .carousel-item {
+    flex: 0 0 900px;
+    width: 900px;
+    height: 500px;
+    border-radius: 16px;
+  }
+}
+
+.carousel-item img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.carousel-item.is-active {
+  opacity: 1;
+}
+
+.carousel-item.is-adjacent {
+  opacity: 0.6;
+}
+
+/* Hide scrollbar for tab buttons */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Auto-scroll animation - Mobile */
+@keyframes scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(calc(-280px * 6 - 1rem * 6));
+  }
+}
+
+/* Auto-scroll animation - Desktop */
+@media (min-width: 768px) {
+  @keyframes scroll {
+    from {
+      transform: translateX(0);
+    }
+
+    to {
+      transform: translateX(calc(-350px * 6 - 1rem * 6));
+    }
+  }
+}
+
+.animate-scroll {
+  animation: scroll 25s linear infinite;
+  display: flex;
+  gap: 1rem;
+}
+
+.animate-scroll:hover {
+  animation-play-state: paused;
+}
