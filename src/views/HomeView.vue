@@ -15,6 +15,13 @@ import TestimonialsSection from '../components/public/sections/TestimonialsSecti
 import FaqSection from '../components/public/sections/FaqSection.vue';
 import CtaSection from '../components/public/sections/CtaSection.vue';
 import ContactSection from '../components/public/sections/ContactSection.vue';
+import ProcessSection from '../components/public/sections/ProcessSection.vue';
+import TeamSection from '../components/public/sections/TeamSection.vue';
+import VenuesMarqueeSection from '../components/public/sections/VenuesMarqueeSection.vue';
+import GearSection from '../components/public/sections/GearSection.vue';
+import InstagramFeedSection from '../components/public/sections/InstagramFeedSection.vue';
+import LocationMapSection from '../components/public/sections/LocationMapSection.vue';
+import BeforeAfterSection from '../components/public/sections/BeforeAfterSection.vue';
 
 import { useSections } from '../composables/useSections';
 import { usePackages } from '../composables/usePackages';
@@ -38,6 +45,13 @@ const sectionComponents = {
   faq: FaqSection,
   cta: CtaSection,
   contact: ContactSection,
+  process: ProcessSection,
+  team: TeamSection,
+  venues: VenuesMarqueeSection,
+  gear: GearSection,
+  instagram: InstagramFeedSection,
+  location_map: LocationMapSection,
+  before_after: BeforeAfterSection,
 };
 
 onMounted(() => {
