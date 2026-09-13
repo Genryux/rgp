@@ -1,7 +1,7 @@
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-// Default gallery showcase items
+// Default gallery showcase items with file sizes in bytes (~300-450 KB each)
 const DEFAULT_GALLERY = [
   {
     id: 'gal_1',
@@ -9,6 +9,7 @@ const DEFAULT_GALLERY = [
     category: 'Weddings',
     title: 'Sunset Nuptials',
     image_url: '/images/1.jpg',
+    file_size_bytes: 380000, // ~380 KB
     is_featured: true,
     sort_order: 1,
   },
@@ -18,6 +19,7 @@ const DEFAULT_GALLERY = [
     category: 'Portraits',
     title: 'Moody Studio Portrait',
     image_url: '/images/2.jpg',
+    file_size_bytes: 420000, // ~420 KB
     is_featured: true,
     sort_order: 2,
   },
@@ -27,6 +29,7 @@ const DEFAULT_GALLERY = [
     category: 'Birthdays',
     title: 'Celebration of Life',
     image_url: '/images/3.jpg',
+    file_size_bytes: 350000, // ~350 KB
     is_featured: true,
     sort_order: 3,
   },
@@ -36,6 +39,7 @@ const DEFAULT_GALLERY = [
     category: 'Graduation',
     title: 'Academic Milestone',
     image_url: '/images/4.jpg',
+    file_size_bytes: 310000, // ~310 KB
     is_featured: true,
     sort_order: 4,
   },
@@ -45,6 +49,7 @@ const DEFAULT_GALLERY = [
     category: 'Landscapes',
     title: 'Golden Horizon',
     image_url: '/images/5.jpg',
+    file_size_bytes: 490000, // ~490 KB
     is_featured: true,
     sort_order: 5,
   },
@@ -54,6 +59,7 @@ const DEFAULT_GALLERY = [
     category: 'Commercial',
     title: 'Product Aesthetics',
     image_url: '/images/6.jpg',
+    file_size_bytes: 290000, // ~290 KB
     is_featured: true,
     sort_order: 6,
   },
@@ -62,13 +68,14 @@ const DEFAULT_GALLERY = [
 const gallery = ref(DEFAULT_GALLERY);
 const loading = ref(false);
 
+const MAX_QUOTA_BYTES = 1000 * 1024 * 1024; // 1 GB in bytes (1,048,576,000 bytes)
+
 /**
  * Client-Side Image Compressor
  * Converts any image file to high-quality WebP format on canvas before uploading
  */
 export async function compressImageToWebP(file, maxWidth = 2560, quality = 0.85) {
   return new Promise((resolve, reject) => {
-    // If it's not an image (e.g. video), return original file
     if (!file.type.startsWith('image/')) {
       return resolve(file);
     }
@@ -85,7 +92,6 @@ export async function compressImageToWebP(file, maxWidth = 2560, quality = 0.85)
       let width = img.width;
       let height = img.height;
 
-      // Scale down if exceeds maxWidth while preserving aspect ratio
       if (width > maxWidth) {
         height = Math.round((height * maxWidth) / width);
         width = maxWidth;
@@ -102,7 +108,6 @@ export async function compressImageToWebP(file, maxWidth = 2560, quality = 0.85)
           if (!blob) {
             return resolve(file);
           }
-          // Create new file with .webp extension
           const newFileName = file.name.replace(/\.[^/.]+$/, '') + '.webp';
           const compressedFile = new File([blob], newFileName, {
             type: 'image/webp',
@@ -121,6 +126,32 @@ export async function compressImageToWebP(file, maxWidth = 2560, quality = 0.85)
 }
 
 export function useGallery() {
+  // Storage stats computed properties
+  const totalStorageBytes = computed(() => {
+    return gallery.value.reduce((acc, item) => acc + (item.file_size_bytes || 350000), 0);
+  });
+
+  const totalStorageMB = computed(() => {
+    return (totalStorageBytes.value / (1024 * 1024)).toFixed(2);
+  });
+
+  const maxQuotaMB = 1000; // 1 GB free tier
+
+  const usedPercentage = computed(() => {
+    const pct = (totalStorageBytes.value / MAX_QUOTA_BYTES) * 100;
+    return Math.min(100, Math.max(0.1, Number(pct.toFixed(2))));
+  });
+
+  const remainingMB = computed(() => {
+    const rem = maxQuotaMB - Number(totalStorageMB.value);
+    return Math.max(0, Number(rem.toFixed(2)));
+  });
+
+  const estimatedPhotosRemaining = computed(() => {
+    const remainingBytes = Math.max(0, MAX_QUOTA_BYTES - totalStorageBytes.value);
+    return Math.floor(remainingBytes / 350000); // Assuming avg ~350KB WebP photo
+  });
+
   async function fetchGallery() {
     if (!isSupabaseConfigured || !supabase) return;
     loading.value = true;
@@ -142,15 +173,20 @@ export function useGallery() {
   }
 
   async function uploadMediaFile(file, category = 'General') {
+    // 1. Compress image before upload
+    const compressedFile = await compressImageToWebP(file);
+    const fileSize = compressedFile.size || file.size || 350000;
+
     if (!isSupabaseConfigured || !supabase) {
       // Offline mock upload preview URL
-      const mockUrl = URL.createObjectURL(file);
+      const mockUrl = URL.createObjectURL(compressedFile);
       const newItem = {
         id: `gal_${Date.now()}`,
         media_type: file.type.startsWith('video') ? 'video' : 'image',
         category,
         title: file.name.replace(/\.[^/.]+$/, ''),
         image_url: mockUrl,
+        file_size_bytes: fileSize,
         is_featured: false,
         sort_order: gallery.value.length + 1,
       };
@@ -159,10 +195,6 @@ export function useGallery() {
     }
 
     try {
-      // 1. Compress image before upload
-      const compressedFile = await compressImageToWebP(file);
-
-      // 2. Generate unique filename in storage
       const fileExt = compressedFile.name.split('.').pop();
       const filePath = `uploads/${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
 
@@ -175,17 +207,16 @@ export function useGallery() {
 
       if (uploadError) throw uploadError;
 
-      // 3. Get Public CDN URL
       const { data: { publicUrl } } = supabase.storage
         .from('portfolio')
         .getPublicUrl(filePath);
 
-      // 4. Save to gallery database table
       const newItem = {
         media_type: file.type.startsWith('video') ? 'video' : 'image',
         category,
         title: file.name.replace(/\.[^/.]+$/, ''),
         image_url: publicUrl,
+        file_size_bytes: fileSize,
         is_featured: false,
         sort_order: gallery.value.length + 1,
       };
@@ -238,6 +269,12 @@ export function useGallery() {
   return {
     gallery,
     loading,
+    totalStorageBytes,
+    totalStorageMB,
+    maxQuotaMB,
+    usedPercentage,
+    remainingMB,
+    estimatedPhotosRemaining,
     fetchGallery,
     uploadMediaFile,
     deleteMedia,

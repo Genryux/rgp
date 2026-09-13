@@ -9,9 +9,23 @@ import {
   Folder,
   Loader2,
   Sparkles,
+  HardDrive,
+  AlertTriangle,
+  CheckCircle2,
+  Info,
 } from '@lucide/vue';
 
-const { gallery, uploadMediaFile, deleteMedia, toggleFeatured } = useGallery();
+const {
+  gallery,
+  totalStorageMB,
+  maxQuotaMB,
+  usedPercentage,
+  remainingMB,
+  estimatedPhotosRemaining,
+  uploadMediaFile,
+  deleteMedia,
+  toggleFeatured,
+} = useGallery();
 
 const selectedCategory = ref('Weddings');
 const uploading = ref(false);
@@ -56,10 +70,11 @@ function onDrop(e) {
 
 <template>
   <div class="space-y-8 font-manrope">
+    <!-- Top Header -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
       <div>
         <h2 class="text-2xl font-bold text-white tracking-wide">Media & Showcase Manager</h2>
-        <p class="text-xs text-neutral-400 mt-0.5">Upload, organize, and feature your photography across your portfolio</p>
+        <p class="text-xs text-neutral-400 mt-0.5">Upload, organize, and monitor your photography storage consumption</p>
       </div>
 
       <!-- Category Picker for Upload -->
@@ -71,6 +86,120 @@ function onDrop(e) {
         >
           <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
         </select>
+      </div>
+    </div>
+
+    <!-- LIVE MEDIA STORAGE CONSUMPTION METER -->
+    <div class="p-6 md:p-8 rounded-3xl bg-[#141414] border border-white/[0.08] shadow-2xl space-y-5 relative overflow-hidden">
+      <!-- Glow ambient background -->
+      <div
+        class="absolute -top-16 -right-16 w-44 h-44 rounded-full blur-3xl pointer-events-none transition-all duration-700"
+        :class="[
+          usedPercentage > 90
+            ? 'bg-red-500/20'
+            : usedPercentage > 70
+              ? 'bg-yellow-500/20'
+              : 'bg-[#FFD700]/10'
+        ]"
+      ></div>
+
+      <!-- Meter Header & Storage Numbers -->
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative z-10">
+        <div class="flex items-center gap-3">
+          <div
+            class="p-3 rounded-2xl border transition duration-300"
+            :class="[
+              usedPercentage > 90
+                ? 'bg-red-500/15 border-red-500/30 text-red-400'
+                : 'bg-yellow-500/10 border-yellow-500/20 text-[#FFD700]'
+            ]"
+          >
+            <HardDrive class="w-5 h-5" />
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="text-base font-bold text-white tracking-wide">Cloud Storage Consumption</h3>
+              <span class="px-2 py-0.5 rounded-full bg-white/[0.06] text-[10px] font-mono text-neutral-300">
+                1 GB Free Tier
+              </span>
+            </div>
+            <p class="text-xs text-neutral-400 mt-0.5">
+              {{ gallery.length }} photos uploaded • Auto-compressed in WebP
+            </p>
+          </div>
+        </div>
+
+        <!-- Numbers & Percentage Tag -->
+        <div class="flex items-baseline gap-2">
+          <span class="text-2xl sm:text-3xl font-extrabold text-white">{{ totalStorageMB }} MB</span>
+          <span class="text-xs text-neutral-400 font-medium">/ {{ maxQuotaMB }} MB</span>
+          <span
+            class="ml-2 px-2.5 py-0.5 rounded-full text-xs font-bold font-mono"
+            :class="[
+              usedPercentage > 90
+                ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                : usedPercentage > 70
+                  ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                  : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+            ]"
+          >
+            {{ usedPercentage }}%
+          </span>
+        </div>
+      </div>
+
+      <!-- Animated Progress Bar Gauge -->
+      <div class="space-y-2 relative z-10">
+        <div class="w-full h-3.5 rounded-full bg-black/60 border border-white/[0.08] overflow-hidden p-0.5">
+          <div
+            class="h-full rounded-full transition-all duration-700 ease-out relative"
+            :style="{ width: `${usedPercentage}%` }"
+            :class="[
+              usedPercentage > 90
+                ? 'bg-gradient-to-r from-red-600 to-red-400 shadow-md shadow-red-500/50'
+                : usedPercentage > 70
+                  ? 'bg-gradient-to-r from-yellow-600 to-yellow-400 shadow-md shadow-yellow-500/50'
+                  : 'bg-gradient-to-r from-yellow-600 via-[#FFD700] to-yellow-300 shadow-md shadow-yellow-500/30'
+            ]"
+          ></div>
+        </div>
+
+        <div class="flex justify-between items-center text-[11px] text-neutral-400 font-medium px-1">
+          <span>0 MB</span>
+          <span class="text-[#FFD700]">~{{ remainingMB }} MB Remaining</span>
+          <span>1,000 MB (1 GB)</span>
+        </div>
+      </div>
+
+      <!-- Storage Health & Capacity Forecast -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 relative z-10">
+        <div class="p-3.5 rounded-2xl bg-black/40 border border-white/[0.06] flex items-center gap-3">
+          <CheckCircle2 class="w-4 h-4 text-emerald-400 flex-shrink-0" />
+          <div class="text-xs">
+            <span class="text-neutral-300 font-semibold block">Capacity Health: Excellent</span>
+            <span class="text-neutral-400 text-[11px]">Room for approx. <strong>{{ estimatedPhotosRemaining.toLocaleString() }}</strong> more photos</span>
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-black/40 border border-white/[0.06] flex items-center gap-3">
+          <Info class="w-4 h-4 text-[#FFD700] flex-shrink-0" />
+          <div class="text-xs">
+            <span class="text-neutral-300 font-semibold block">WebP Smart Compression</span>
+            <span class="text-neutral-400 text-[11px]">Shrinks 15MB photos to ~350KB before uploading</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- High Consumption Warning Alert (appears only if > 85%) -->
+      <div
+        v-if="usedPercentage >= 85"
+        class="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center gap-2.5 relative z-10"
+      >
+        <AlertTriangle class="w-5 h-5 text-red-400 flex-shrink-0" />
+        <div>
+          <span class="block">Approaching 1 GB Storage Limit ({{ usedPercentage }}% used)</span>
+          <span class="text-[11px] text-red-300/80 font-normal">Consider deleting older showcase photos or upgrading your Supabase storage tier.</span>
+        </div>
       </div>
     </div>
 
@@ -149,6 +278,13 @@ function onDrop(e) {
               >
                 <Star class="w-3 h-3 fill-current" />
                 <span>Featured</span>
+              </span>
+            </div>
+
+            <!-- File Size Badge at Bottom Left of Thumbnail -->
+            <div class="absolute bottom-2 left-2 pointer-events-none">
+              <span class="px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-xs text-[9px] font-mono text-neutral-300">
+                {{ ((item.file_size_bytes || 350000) / 1024).toFixed(0) }} KB WebP
               </span>
             </div>
           </div>

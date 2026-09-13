@@ -3,29 +3,43 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { useSettings } from '../../composables/useSettings';
 import { useAuth } from '../../composables/useAuth';
 
+const props = defineProps({
+  isPreview: {
+    type: Boolean,
+    default: false,
+  },
+});
+
 const { settings } = useSettings();
 const { isAuthenticated } = useAuth();
 const isScrolled = ref(false);
 const isMobileMenuOpen = ref(false);
 
 function handleScroll() {
+  if (props.isPreview) return;
   isScrolled.value = window.scrollY > 50;
 }
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll);
+  if (!props.isPreview) {
+    window.addEventListener('scroll', handleScroll);
+  }
 });
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll);
+  if (!props.isPreview) {
+    window.removeEventListener('scroll', handleScroll);
+  }
 });
 </script>
 
 <template>
   <nav
-    class="fixed top-0 left-0 w-full z-50 transition-all duration-300"
+    class="w-full transition-all duration-300"
     :class="[
-      isScrolled ? 'bg-[#141414]/90 backdrop-blur-md border-b border-white/10 shadow-lg py-3' : 'bg-transparent py-5'
+      isPreview
+        ? 'relative top-0 left-0 z-20 bg-[#141414]/90 border-b border-white/10 py-3'
+        : (isScrolled ? 'fixed top-0 left-0 z-50 bg-[#141414]/90 backdrop-blur-md border-b border-white/10 shadow-lg py-3' : 'fixed top-0 left-0 z-50 bg-transparent py-5')
     ]"
   >
     <div class="max-w-6xl mx-auto px-4 flex justify-between items-center">
@@ -43,6 +57,7 @@ onUnmounted(() => {
         <a href="#contact" class="text-[#f8f8f8] font-nuosu text-sm tracking-wider hover:text-[#FFD700] transition duration-300">CONTACT</a>
         
         <router-link
+          v-if="!isPreview"
           to="/admin"
           class="px-4 py-1.5 rounded-full border border-[#FFD700]/40 text-[#FFD700] text-xs font-medium hover:bg-[#FFD700]/10 transition duration-300"
         >
@@ -75,12 +90,6 @@ onUnmounted(() => {
       <a @click="isMobileMenuOpen = false" href="#rates" class="block text-[#f8f8f8] font-nuosu text-base hover:text-[#FFD700]">PACKAGES & RATES</a>
       <a @click="isMobileMenuOpen = false" href="#about" class="block text-[#f8f8f8] font-nuosu text-base hover:text-[#FFD700]">ABOUT</a>
       <a @click="isMobileMenuOpen = false" href="#contact" class="block text-[#f8f8f8] font-nuosu text-base hover:text-[#FFD700]">CONTACT</a>
-      <router-link
-        to="/admin"
-        class="inline-block mt-2 px-5 py-2 rounded-full border border-[#FFD700]/40 text-[#FFD700] text-sm"
-      >
-        CMS Portal
-      </router-link>
     </div>
   </nav>
 </template>

@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { useSections } from '../../../composables/useSections';
 import SectionSkeletonPreview from '../SectionSkeletonPreview.vue';
 
-// Section components for the live preview
+// Section components for full-page live rendering
 import Navbar from '../../public/Navbar.vue';
 import Footer from '../../public/Footer.vue';
 import HeroSection from '../../public/sections/HeroSection.vue';
@@ -36,19 +36,18 @@ import {
   X,
   Layers,
   Sparkles,
-  Monitor,
-  Smartphone,
-  Tablet,
+  Sliders,
   ExternalLink,
-  RotateCw,
+  ListOrdered,
 } from '@lucide/vue';
 
-const { allSections, visibleSections, saveSection, reorderSections, toggleSectionVisibility, deleteSection } = useSections();
+const { allSections, saveSection, reorderSections, toggleSectionVisibility, deleteSection } = useSections();
 
 const editingSection = ref(null);
 const isAddModalOpen = ref(false);
+const isDrawerOpen = ref(false);
+const insertAtIndex = ref(null);
 const selectedTemplateCategory = ref('All');
-const deviceMode = ref('desktop'); // 'desktop', 'tablet', 'mobile'
 
 const templateCategories = ['All', 'Showcase & Media', 'Services & Rates', 'About & Team', 'Trust & Reviews', 'Contact & Booking'];
 
@@ -340,225 +339,249 @@ function handleSaveEdit() {
   }
 }
 
+function openAddModal(index = null) {
+  insertAtIndex.value = index;
+  isAddModalOpen.value = true;
+}
+
 function handleAddSection(tpl) {
   const newSec = {
     id: `sec_${Date.now()}`,
     section_type: tpl.type,
     label: tpl.label,
     is_visible: true,
-    sort_order: allSections.value.length + 1,
+    sort_order: insertAtIndex.value !== null ? insertAtIndex.value + 1.5 : allSections.value.length + 1,
     content: JSON.parse(JSON.stringify(tpl.defaultContent)),
   };
+
+  const list = [...allSections.value];
+  if (insertAtIndex.value !== null) {
+    list.splice(insertAtIndex.value + 1, 0, newSec);
+  } else {
+    list.push(newSec);
+  }
+
   saveSection(newSec);
+  reorderSections(list.map((s) => s.id));
   isAddModalOpen.value = false;
+  insertAtIndex.value = null;
   openEdit(newSec);
 }
 </script>
 
 <template>
   <div class="space-y-6 font-manrope">
-    <!-- Top Header -->
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/[0.08] pb-4">
-      <div>
-        <h2 class="text-2xl font-bold text-white tracking-wide">Page Builder & Live Preview</h2>
-        <p class="text-xs text-neutral-400 mt-0.5">Edit sections on the left; preview your changes live on the right</p>
+    <!-- Page Builder Action Bar (Non-competing, nicely spaced) -->
+    <div class="bg-[#141414] border border-white/[0.08] rounded-3xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <!-- Drawer Toggle Button -->
+        <button
+          @click="isDrawerOpen = !isDrawerOpen"
+          class="px-4 py-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] text-white text-xs font-bold tracking-wide flex items-center gap-2 border border-white/[0.08] transition"
+        >
+          <ListOrdered class="w-4 h-4 text-[#FFD700]" />
+          <span>Layout Flow ({{ allSections.length }} Sections)</span>
+        </button>
+
+        <div class="hidden sm:flex items-center gap-2 text-xs text-neutral-400 font-medium pl-2 border-l border-white/10">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Hover over any section below to edit, reorder, or toggle</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Add Section Button -->
+        <button
+          @click="openAddModal(null)"
+          class="px-5 py-2.5 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg shadow-yellow-500/20 flex items-center gap-2"
+        >
+          <Plus class="w-4 h-4" />
+          <span>Add Section</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Side Slide-Over Drawer for Layout Reordering & Overview -->
+    <div
+      v-if="isDrawerOpen"
+      class="fixed inset-y-0 left-0 w-full sm:w-[420px] bg-[#121212] border-r border-white/[0.12] z-50 p-6 shadow-2xl overflow-y-auto space-y-6"
+    >
+      <div class="flex justify-between items-center border-b border-white/[0.08] pb-4">
+        <div>
+          <h3 class="text-lg font-bold text-white tracking-wide">Active Page Flow</h3>
+          <p class="text-xs text-neutral-400 mt-0.5">Reorder or toggle sections</p>
+        </div>
+        <button @click="isDrawerOpen = false" class="p-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition">
+          <X class="w-5 h-5" />
+        </button>
+      </div>
+
+      <!-- Drawer Section List -->
+      <div class="space-y-3">
+        <div
+          v-for="(sec, index) in allSections"
+          :key="sec.id"
+          class="p-3.5 rounded-2xl bg-black/50 border border-white/[0.08] flex items-center justify-between gap-3 hover:border-[#FFD700]/50 transition shadow-lg"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="flex flex-col gap-0.5">
+              <button
+                @click="moveUp(index)"
+                :disabled="index === 0"
+                class="text-neutral-500 hover:text-[#FFD700] disabled:opacity-20 p-0.5 transition"
+                title="Move Up"
+              >
+                <ChevronUp class="w-3.5 h-3.5" />
+              </button>
+              <button
+                @click="moveDown(index)"
+                :disabled="index === allSections.length - 1"
+                class="text-neutral-500 hover:text-[#FFD700] disabled:opacity-20 p-0.5 transition"
+                title="Move Down"
+              >
+                <ChevronDown class="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div class="min-w-0">
+              <h4 class="font-bold text-sm text-white truncate">{{ sec.label }}</h4>
+              <span class="text-[10px] text-neutral-400 uppercase tracking-wider">#{{ index + 1 }} • {{ sec.section_type }}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1.5">
+            <button
+              @click="toggleSectionVisibility(sec.id)"
+              class="p-1.5 rounded-lg text-xs font-semibold transition"
+              :class="[sec.is_visible ? 'text-emerald-400' : 'text-neutral-600']"
+              :title="sec.is_visible ? 'Visible' : 'Hidden'"
+            >
+              <component :is="sec.is_visible ? Eye : EyeOff" class="w-4 h-4" />
+            </button>
+            <button
+              @click="openEdit(sec); isDrawerOpen = false"
+              class="p-1.5 rounded-lg bg-white/[0.04] hover:bg-[#FFD700] hover:text-black text-neutral-300 text-xs transition"
+              title="Edit Content"
+            >
+              <Edit3 class="w-4 h-4" />
+            </button>
+            <button
+              @click="deleteSection(sec.id)"
+              class="p-1.5 rounded-lg text-neutral-500 hover:text-red-400 text-xs transition"
+              title="Delete Section"
+            >
+              <Trash2 class="w-4 h-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
       <button
-        @click="isAddModalOpen = true"
-        class="px-5 py-2.5 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg shadow-yellow-500/20 flex items-center gap-2"
+        @click="openAddModal(null); isDrawerOpen = false"
+        class="w-full py-3 rounded-2xl bg-[#FFD700] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg shadow-yellow-500/20 flex items-center justify-center gap-2"
       >
         <Plus class="w-4 h-4" />
-        <span>Add Section ({{ sectionTemplates.length }} Templates)</span>
+        <span>Add New Section</span>
       </button>
     </div>
 
-    <!-- Two-Column Page Builder Layout -->
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      
-      <!-- LEFT COLUMN: Section List & Controls (5 cols) -->
-      <div class="lg:col-span-5 space-y-4 max-h-[calc(100vh-180px)] overflow-y-auto pr-1">
-        <div class="flex items-center justify-between px-1">
-          <span class="text-xs font-semibold uppercase text-neutral-400 tracking-wider">
-            Active Layout Flow ({{ allSections.length }} Sections)
-          </span>
-        </div>
+    <!-- FULL PAGE LIVE VISUAL PREVIEW CANVAS (Confined & Isolated) -->
+    <div class="rounded-3xl border border-white/[0.12] bg-[#141414] overflow-hidden shadow-2xl relative select-none isolate">
+      <!-- Embedded Live Navbar (Positioned properly with isPreview prop) -->
+      <Navbar :is-preview="true" />
 
-        <div class="space-y-3">
+      <!-- Full-Width Live Section Stack with Visual Inspector Controls -->
+      <div class="space-y-0 relative">
+        <template v-for="(sec, index) in allSections" :key="sec.id">
+          <!-- Visual Section Block Wrapper with Admin Controls -->
           <div
-            v-for="(sec, index) in allSections"
-            :key="sec.id"
-            class="p-4 rounded-2xl bg-[#141414] border border-white/[0.08] flex items-center justify-between gap-3 hover:border-white/[0.18] transition shadow-lg group"
+            class="relative group transition-all duration-300 border-2"
+            :class="[
+              sec.is_visible ? 'border-transparent hover:border-[#FFD700]/70' : 'border-dashed border-red-500/30 opacity-40 hover:opacity-80'
+            ]"
           >
-            <!-- Reorder & Skeleton Mini Thumbnail -->
-            <div class="flex items-center gap-3 min-w-0">
-              <div class="flex flex-col gap-0.5">
-                <button
-                  @click="moveUp(index)"
-                  :disabled="index === 0"
-                  class="text-neutral-500 hover:text-[#FFD700] disabled:opacity-20 p-0.5 transition"
-                  title="Move Up"
-                >
-                  <ChevronUp class="w-3.5 h-3.5" />
-                </button>
-                <button
-                  @click="moveDown(index)"
-                  :disabled="index === allSections.length - 1"
-                  class="text-neutral-500 hover:text-[#FFD700] disabled:opacity-20 p-0.5 transition"
-                  title="Move Down"
-                >
-                  <ChevronDown class="w-3.5 h-3.5" />
-                </button>
-              </div>
+            <!-- Floating Inspector Pill Header on Section Hover -->
+            <div class="absolute top-4 right-6 z-30 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 flex items-center gap-1.5 bg-[#121212]/95 border border-white/[0.18] backdrop-blur-xl p-1.5 rounded-2xl shadow-2xl">
+              <!-- Label Tag -->
+              <span class="px-2.5 py-1 rounded-xl bg-white/[0.06] text-[11px] font-bold text-white flex items-center gap-1.5">
+                <span class="text-[#FFD700]">#{{ index + 1 }}</span>
+                <span>{{ sec.label }}</span>
+              </span>
 
-              <!-- Mini Skeleton Thumbnail -->
-              <div class="w-16 h-12 rounded-lg bg-black/40 border border-white/[0.06] overflow-hidden flex-shrink-0 pointer-events-none opacity-80 group-hover:opacity-100 transition">
-                <SectionSkeletonPreview :type="sec.section_type" class="h-full scale-[0.6] -my-6 -mx-4" />
-              </div>
+              <!-- Move Up -->
+              <button
+                @click="moveUp(index)"
+                :disabled="index === 0"
+                class="p-1.5 rounded-xl text-neutral-400 hover:text-[#FFD700] hover:bg-white/[0.08] disabled:opacity-20 transition"
+                title="Move Up"
+              >
+                <ChevronUp class="w-4 h-4" />
+              </button>
 
-              <!-- Title & Tag -->
-              <div class="min-w-0">
-                <h4 class="font-bold text-sm text-white truncate">{{ sec.label }}</h4>
-                <div class="flex items-center gap-2 mt-0.5">
-                  <span class="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">#{{ index + 1 }}</span>
-                  <span class="text-[10px] text-neutral-400 bg-white/[0.04] px-1.5 py-0.2 rounded font-mono">{{ sec.section_type }}</span>
-                </div>
-              </div>
-            </div>
+              <!-- Move Down -->
+              <button
+                @click="moveDown(index)"
+                :disabled="index === allSections.length - 1"
+                class="p-1.5 rounded-xl text-neutral-400 hover:text-[#FFD700] hover:bg-white/[0.08] disabled:opacity-20 transition"
+                title="Move Down"
+              >
+                <ChevronDown class="w-4 h-4" />
+              </button>
 
-            <!-- Controls -->
-            <div class="flex items-center gap-1.5 flex-shrink-0">
-              <!-- Visibility Toggle -->
+              <!-- Toggle Visibility -->
               <button
                 @click="toggleSectionVisibility(sec.id)"
-                class="p-1.5 rounded-lg text-xs font-semibold transition"
-                :class="[
-                  sec.is_visible
-                    ? 'text-emerald-400 hover:bg-emerald-500/10'
-                    : 'text-neutral-600 hover:bg-white/[0.05]'
-                ]"
-                :title="sec.is_visible ? 'Visible on site' : 'Hidden from site'"
+                class="p-1.5 rounded-xl transition"
+                :class="[sec.is_visible ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-neutral-500 hover:bg-white/10']"
+                :title="sec.is_visible ? 'Hide from public' : 'Show on public'"
               >
                 <component :is="sec.is_visible ? Eye : EyeOff" class="w-4 h-4" />
               </button>
 
-              <!-- Edit Button -->
+              <!-- Edit Content Button -->
               <button
                 @click="openEdit(sec)"
-                class="p-1.5 rounded-lg bg-white/[0.04] hover:bg-[#FFD700] hover:text-black text-neutral-300 text-xs transition"
-                title="Edit Section Content"
+                class="px-3 py-1.5 rounded-xl bg-[#FFD700] text-[#121212] text-xs font-bold hover:bg-yellow-400 transition flex items-center gap-1.5 shadow-md shadow-yellow-500/20"
               >
-                <Edit3 class="w-4 h-4" />
+                <Edit3 class="w-3.5 h-3.5" />
+                <span>Edit</span>
               </button>
 
               <!-- Delete Button -->
               <button
                 @click="deleteSection(sec.id)"
-                class="p-1.5 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-red-500/10 text-xs transition"
+                class="p-1.5 rounded-xl text-neutral-400 hover:text-red-400 hover:bg-red-500/10 transition"
                 title="Delete Section"
               >
                 <Trash2 class="w-4 h-4" />
               </button>
             </div>
+
+            <!-- The Rendered Section Component (Full Page Width) -->
+            <component
+              :is="sectionComponents[sec.section_type] || TextBlockSection"
+              :content="sec.content"
+            />
           </div>
-        </div>
+
+          <!-- Inline "Insert Section Here" Divider Button -->
+          <div class="relative py-2 flex items-center justify-center group/insert z-20">
+            <div class="absolute inset-0 flex items-center">
+              <div class="w-full border-t border-dashed border-white/10 group-hover/insert:border-[#FFD700]/50 transition"></div>
+            </div>
+            <button
+              @click="openAddModal(index)"
+              class="relative z-10 px-4 py-1 rounded-full bg-[#161616] border border-white/15 hover:border-[#FFD700] text-neutral-400 hover:text-[#FFD700] text-[11px] font-bold tracking-wider uppercase transition shadow-lg opacity-25 group-hover/insert:opacity-100 flex items-center gap-1.5 transform hover:scale-105"
+            >
+              <Plus class="w-3.5 h-3.5" />
+              <span>Insert Section Here</span>
+            </button>
+          </div>
+        </template>
       </div>
 
-      <!-- RIGHT COLUMN: Interactive Live Preview (7 cols) -->
-      <div class="lg:col-span-7 sticky top-20 space-y-3">
-        <!-- Device Control & Actions Bar -->
-        <div class="p-3 rounded-2xl bg-[#141414] border border-white/[0.08] flex items-center justify-between shadow-lg">
-          <div class="flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span class="text-xs font-semibold text-neutral-300">Live Visual Canvas</span>
-          </div>
-
-          <!-- Device Mode Buttons -->
-          <div class="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/[0.06]">
-            <button
-              @click="deviceMode = 'desktop'"
-              class="p-1.5 rounded-lg transition"
-              :class="[deviceMode === 'desktop' ? 'bg-[#FFD700] text-black shadow-sm' : 'text-neutral-400 hover:text-white']"
-              title="Desktop View"
-            >
-              <Monitor class="w-4 h-4" />
-            </button>
-            <button
-              @click="deviceMode = 'tablet'"
-              class="p-1.5 rounded-lg transition"
-              :class="[deviceMode === 'tablet' ? 'bg-[#FFD700] text-black shadow-sm' : 'text-neutral-400 hover:text-white']"
-              title="Tablet View"
-            >
-              <Tablet class="w-4 h-4" />
-            </button>
-            <button
-              @click="deviceMode = 'mobile'"
-              class="p-1.5 rounded-lg transition"
-              :class="[deviceMode === 'mobile' ? 'bg-[#FFD700] text-black shadow-sm' : 'text-neutral-400 hover:text-white']"
-              title="Mobile View"
-            >
-              <Smartphone class="w-4 h-4" />
-            </button>
-          </div>
-
-          <router-link
-            to="/"
-            target="_blank"
-            class="text-xs text-[#FFD700] hover:underline flex items-center gap-1 font-semibold"
-          >
-            <span>Full Window</span>
-            <ExternalLink class="w-3.5 h-3.5" />
-          </router-link>
-        </div>
-
-        <!-- Live Website Preview Viewport Frame -->
-        <div class="flex justify-center items-center w-full min-h-[600px] max-h-[calc(100vh-250px)] bg-neutral-950/60 rounded-3xl border border-white/[0.08] p-4 overflow-hidden shadow-2xl relative">
-          
-          <!-- Device Frame Container -->
-          <div
-            class="transition-all duration-300 overflow-y-auto bg-[#141414] border border-white/[0.12] shadow-2xl relative w-full h-[620px]"
-            :class="[
-              deviceMode === 'desktop' ? 'rounded-2xl max-w-full' : '',
-              deviceMode === 'tablet' ? 'rounded-3xl max-w-[540px]' : '',
-              deviceMode === 'mobile' ? 'rounded-[36px] max-w-[360px] border-[6px] border-neutral-800' : ''
-            ]"
-          >
-            <!-- Browser Top Mock Header for Desktop / Tablet -->
-            <div
-              v-if="deviceMode !== 'mobile'"
-              class="sticky top-0 z-40 bg-[#121212]/90 backdrop-blur-md px-3 py-2 border-b border-white/[0.08] flex items-center gap-2"
-            >
-              <div class="flex gap-1.5">
-                <span class="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
-                <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
-                <span class="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
-              </div>
-              <div class="flex-1 max-w-xs mx-auto px-3 py-0.5 rounded-md bg-black/50 text-[10px] text-neutral-400 font-mono text-center truncate">
-                rgpfilmsstudio.site
-              </div>
-            </div>
-
-            <!-- Dynamic Live Website Content -->
-            <div class="text-[#f8f8f8]">
-              <!-- Mock Top Nav -->
-              <Navbar />
-
-              <!-- Render Visible Blocks in Real Time -->
-              <main>
-                <component
-                  v-for="sec in visibleSections"
-                  :key="sec.id"
-                  :is="sectionComponents[sec.section_type] || TextBlockSection"
-                  :content="sec.content"
-                />
-              </main>
-
-              <!-- Mock Footer -->
-              <Footer />
-            </div>
-          </div>
-        </div>
-      </div>
+      <!-- Embedded Live Footer -->
+      <Footer />
     </div>
 
     <!-- Edit Section Modal -->
