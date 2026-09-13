@@ -2,6 +2,29 @@
 import { ref, computed } from 'vue';
 import { useSections } from '../../../composables/useSections';
 import SectionSkeletonPreview from '../SectionSkeletonPreview.vue';
+
+// Section components for the live preview
+import Navbar from '../../public/Navbar.vue';
+import Footer from '../../public/Footer.vue';
+import HeroSection from '../../public/sections/HeroSection.vue';
+import CarouselSection from '../../public/sections/CarouselSection.vue';
+import VideoSection from '../../public/sections/VideoSection.vue';
+import RatesSection from '../../public/sections/RatesSection.vue';
+import AboutSection from '../../public/sections/AboutSection.vue';
+import GalleryGridSection from '../../public/sections/GalleryGridSection.vue';
+import TextBlockSection from '../../public/sections/TextBlockSection.vue';
+import TestimonialsSection from '../../public/sections/TestimonialsSection.vue';
+import FaqSection from '../../public/sections/FaqSection.vue';
+import CtaSection from '../../public/sections/CtaSection.vue';
+import ContactSection from '../../public/sections/ContactSection.vue';
+import ProcessSection from '../../public/sections/ProcessSection.vue';
+import TeamSection from '../../public/sections/TeamSection.vue';
+import VenuesMarqueeSection from '../../public/sections/VenuesMarqueeSection.vue';
+import GearSection from '../../public/sections/GearSection.vue';
+import InstagramFeedSection from '../../public/sections/InstagramFeedSection.vue';
+import LocationMapSection from '../../public/sections/LocationMapSection.vue';
+import BeforeAfterSection from '../../public/sections/BeforeAfterSection.vue';
+
 import {
   Plus,
   ChevronUp,
@@ -13,16 +36,42 @@ import {
   X,
   Layers,
   Sparkles,
-  Filter,
+  Monitor,
+  Smartphone,
+  Tablet,
+  ExternalLink,
+  RotateCw,
 } from '@lucide/vue';
 
-const { allSections, saveSection, reorderSections, toggleSectionVisibility, deleteSection } = useSections();
+const { allSections, visibleSections, saveSection, reorderSections, toggleSectionVisibility, deleteSection } = useSections();
 
 const editingSection = ref(null);
 const isAddModalOpen = ref(false);
 const selectedTemplateCategory = ref('All');
+const deviceMode = ref('desktop'); // 'desktop', 'tablet', 'mobile'
 
 const templateCategories = ['All', 'Showcase & Media', 'Services & Rates', 'About & Team', 'Trust & Reviews', 'Contact & Booking'];
+
+const sectionComponents = {
+  hero: HeroSection,
+  carousel: CarouselSection,
+  video: VideoSection,
+  rates: RatesSection,
+  about: AboutSection,
+  gallery_grid: GalleryGridSection,
+  text_block: TextBlockSection,
+  testimonials: TestimonialsSection,
+  faq: FaqSection,
+  cta: CtaSection,
+  contact: ContactSection,
+  process: ProcessSection,
+  team: TeamSection,
+  venues: VenuesMarqueeSection,
+  gear: GearSection,
+  instagram: InstagramFeedSection,
+  location_map: LocationMapSection,
+  before_after: BeforeAfterSection,
+};
 
 const sectionTemplates = [
   // Showcase & Media
@@ -201,7 +250,7 @@ const sectionTemplates = [
     type: 'venues',
     category: 'Trust & Reviews',
     label: 'Partnered Venues Marquee',
-    description: 'Animated marquee ticker showcasing trusted wedding venues, resorts, and partners.',
+    description: 'Animated marquee ticker showcasing trusted wedding venues, hotels, and resorts.',
     defaultContent: {
       title: 'TRUSTED & FEATURED AT PREMIER VENUES',
       venues: ['Tagaytay Highlands', 'Palacio de Memoria', 'The Manila Hotel', 'Antonio’s Garden', 'Balesin Island Club', 'Shangri-La at The Fort', 'Pinto Art Museum'],
@@ -307,11 +356,12 @@ function handleAddSection(tpl) {
 </script>
 
 <template>
-  <div class="space-y-8 font-manrope">
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+  <div class="space-y-6 font-manrope">
+    <!-- Top Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/[0.08] pb-4">
       <div>
-        <h2 class="text-2xl font-bold text-white tracking-wide">Page Builder & Layout</h2>
-        <p class="text-xs text-neutral-400 mt-0.5">Customize section flow, configure content, or toggle sections appearing on your website</p>
+        <h2 class="text-2xl font-bold text-white tracking-wide">Page Builder & Live Preview</h2>
+        <p class="text-xs text-neutral-400 mt-0.5">Edit sections on the left; preview your changes live on the right</p>
       </div>
 
       <button
@@ -323,85 +373,190 @@ function handleAddSection(tpl) {
       </button>
     </div>
 
-    <!-- Section List -->
-    <div class="space-y-4">
-      <div
-        v-for="(sec, index) in allSections"
-        :key="sec.id"
-        class="p-5 rounded-3xl bg-[#141414] border border-white/[0.08] flex flex-col md:flex-row justify-between items-start md:items-center gap-5 hover:border-white/[0.18] transition shadow-xl group"
-      >
-        <!-- Info & Skeleton Mini-Preview -->
-        <div class="flex items-center gap-4 flex-1">
-          <!-- Reorder Arrows -->
-          <div class="flex flex-col gap-1">
-            <button
-              @click="moveUp(index)"
-              :disabled="index === 0"
-              class="text-neutral-500 hover:text-[#FFD700] disabled:opacity-20 p-1 transition"
-              title="Move Up"
-            >
-              <ChevronUp class="w-4 h-4" />
-            </button>
-            <button
-              @click="moveDown(index)"
-              :disabled="index === allSections.length - 1"
-              class="text-neutral-500 hover:text-[#FFD700] disabled:opacity-20 p-1 transition"
-              title="Move Down"
-            >
-              <ChevronDown class="w-4 h-4" />
-            </button>
-          </div>
-
-          <!-- Mini Skeleton Thumbnail -->
-          <div class="w-24 h-16 rounded-xl bg-black/40 border border-white/[0.06] overflow-hidden flex-shrink-0 hidden sm:block pointer-events-none opacity-80 group-hover:opacity-100 transition">
-            <SectionSkeletonPreview :type="sec.section_type" class="h-full scale-75 -my-4" />
-          </div>
-
-          <!-- Label & Type info -->
-          <div>
-            <div class="flex items-center gap-3">
-              <span class="font-bold text-base text-white tracking-wide">{{ sec.label }}</span>
-              <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/[0.06] text-neutral-400 uppercase tracking-wider">
-                {{ sec.section_type }}
-              </span>
-            </div>
-            <p class="text-xs text-neutral-500 mt-1">Position #{{ index + 1 }} in page flow</p>
-          </div>
+    <!-- Two-Column Page Builder Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      
+      <!-- LEFT COLUMN: Section List & Controls (5 cols) -->
+      <div class="lg:col-span-5 space-y-4 max-h-[calc(100vh-180px)] overflow-y-auto pr-1">
+        <div class="flex items-center justify-between px-1">
+          <span class="text-xs font-semibold uppercase text-neutral-400 tracking-wider">
+            Active Layout Flow ({{ allSections.length }} Sections)
+          </span>
         </div>
 
-        <!-- Controls -->
-        <div class="flex items-center gap-3 w-full md:w-auto justify-end">
-          <!-- Visibility Toggle -->
-          <button
-            @click="toggleSectionVisibility(sec.id)"
-            class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5"
+        <div class="space-y-3">
+          <div
+            v-for="(sec, index) in allSections"
+            :key="sec.id"
+            class="p-4 rounded-2xl bg-[#141414] border border-white/[0.08] flex items-center justify-between gap-3 hover:border-white/[0.18] transition shadow-lg group"
+          >
+            <!-- Reorder & Skeleton Mini Thumbnail -->
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="flex flex-col gap-0.5">
+                <button
+                  @click="moveUp(index)"
+                  :disabled="index === 0"
+                  class="text-neutral-500 hover:text-[#FFD700] disabled:opacity-20 p-0.5 transition"
+                  title="Move Up"
+                >
+                  <ChevronUp class="w-3.5 h-3.5" />
+                </button>
+                <button
+                  @click="moveDown(index)"
+                  :disabled="index === allSections.length - 1"
+                  class="text-neutral-500 hover:text-[#FFD700] disabled:opacity-20 p-0.5 transition"
+                  title="Move Down"
+                >
+                  <ChevronDown class="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <!-- Mini Skeleton Thumbnail -->
+              <div class="w-16 h-12 rounded-lg bg-black/40 border border-white/[0.06] overflow-hidden flex-shrink-0 pointer-events-none opacity-80 group-hover:opacity-100 transition">
+                <SectionSkeletonPreview :type="sec.section_type" class="h-full scale-[0.6] -my-6 -mx-4" />
+              </div>
+
+              <!-- Title & Tag -->
+              <div class="min-w-0">
+                <h4 class="font-bold text-sm text-white truncate">{{ sec.label }}</h4>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <span class="text-[10px] font-semibold text-neutral-500 uppercase tracking-wider">#{{ index + 1 }}</span>
+                  <span class="text-[10px] text-neutral-400 bg-white/[0.04] px-1.5 py-0.2 rounded font-mono">{{ sec.section_type }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex items-center gap-1.5 flex-shrink-0">
+              <!-- Visibility Toggle -->
+              <button
+                @click="toggleSectionVisibility(sec.id)"
+                class="p-1.5 rounded-lg text-xs font-semibold transition"
+                :class="[
+                  sec.is_visible
+                    ? 'text-emerald-400 hover:bg-emerald-500/10'
+                    : 'text-neutral-600 hover:bg-white/[0.05]'
+                ]"
+                :title="sec.is_visible ? 'Visible on site' : 'Hidden from site'"
+              >
+                <component :is="sec.is_visible ? Eye : EyeOff" class="w-4 h-4" />
+              </button>
+
+              <!-- Edit Button -->
+              <button
+                @click="openEdit(sec)"
+                class="p-1.5 rounded-lg bg-white/[0.04] hover:bg-[#FFD700] hover:text-black text-neutral-300 text-xs transition"
+                title="Edit Section Content"
+              >
+                <Edit3 class="w-4 h-4" />
+              </button>
+
+              <!-- Delete Button -->
+              <button
+                @click="deleteSection(sec.id)"
+                class="p-1.5 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-red-500/10 text-xs transition"
+                title="Delete Section"
+              >
+                <Trash2 class="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Interactive Live Preview (7 cols) -->
+      <div class="lg:col-span-7 sticky top-20 space-y-3">
+        <!-- Device Control & Actions Bar -->
+        <div class="p-3 rounded-2xl bg-[#141414] border border-white/[0.08] flex items-center justify-between shadow-lg">
+          <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="text-xs font-semibold text-neutral-300">Live Visual Canvas</span>
+          </div>
+
+          <!-- Device Mode Buttons -->
+          <div class="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/[0.06]">
+            <button
+              @click="deviceMode = 'desktop'"
+              class="p-1.5 rounded-lg transition"
+              :class="[deviceMode === 'desktop' ? 'bg-[#FFD700] text-black shadow-sm' : 'text-neutral-400 hover:text-white']"
+              title="Desktop View"
+            >
+              <Monitor class="w-4 h-4" />
+            </button>
+            <button
+              @click="deviceMode = 'tablet'"
+              class="p-1.5 rounded-lg transition"
+              :class="[deviceMode === 'tablet' ? 'bg-[#FFD700] text-black shadow-sm' : 'text-neutral-400 hover:text-white']"
+              title="Tablet View"
+            >
+              <Tablet class="w-4 h-4" />
+            </button>
+            <button
+              @click="deviceMode = 'mobile'"
+              class="p-1.5 rounded-lg transition"
+              :class="[deviceMode === 'mobile' ? 'bg-[#FFD700] text-black shadow-sm' : 'text-neutral-400 hover:text-white']"
+              title="Mobile View"
+            >
+              <Smartphone class="w-4 h-4" />
+            </button>
+          </div>
+
+          <router-link
+            to="/"
+            target="_blank"
+            class="text-xs text-[#FFD700] hover:underline flex items-center gap-1 font-semibold"
+          >
+            <span>Full Window</span>
+            <ExternalLink class="w-3.5 h-3.5" />
+          </router-link>
+        </div>
+
+        <!-- Live Website Preview Viewport Frame -->
+        <div class="flex justify-center items-center w-full min-h-[600px] max-h-[calc(100vh-250px)] bg-neutral-950/60 rounded-3xl border border-white/[0.08] p-4 overflow-hidden shadow-2xl relative">
+          
+          <!-- Device Frame Container -->
+          <div
+            class="transition-all duration-300 overflow-y-auto bg-[#141414] border border-white/[0.12] shadow-2xl relative w-full h-[620px]"
             :class="[
-              sec.is_visible
-                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                : 'bg-white/[0.04] text-neutral-500 border border-white/[0.08]'
+              deviceMode === 'desktop' ? 'rounded-2xl max-w-full' : '',
+              deviceMode === 'tablet' ? 'rounded-3xl max-w-[540px]' : '',
+              deviceMode === 'mobile' ? 'rounded-[36px] max-w-[360px] border-[6px] border-neutral-800' : ''
             ]"
           >
-            <component :is="sec.is_visible ? Eye : EyeOff" class="w-3.5 h-3.5" />
-            <span>{{ sec.is_visible ? 'Visible' : 'Hidden' }}</span>
-          </button>
+            <!-- Browser Top Mock Header for Desktop / Tablet -->
+            <div
+              v-if="deviceMode !== 'mobile'"
+              class="sticky top-0 z-40 bg-[#121212]/90 backdrop-blur-md px-3 py-2 border-b border-white/[0.08] flex items-center gap-2"
+            >
+              <div class="flex gap-1.5">
+                <span class="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
+                <span class="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
+              </div>
+              <div class="flex-1 max-w-xs mx-auto px-3 py-0.5 rounded-md bg-black/50 text-[10px] text-neutral-400 font-mono text-center truncate">
+                rgpfilmsstudio.site
+              </div>
+            </div>
 
-          <!-- Edit Button -->
-          <button
-            @click="openEdit(sec)"
-            class="px-4 py-1.5 rounded-full bg-white/[0.06] hover:bg-[#FFD700] hover:text-black text-white text-xs font-semibold transition flex items-center gap-1.5"
-          >
-            <Edit3 class="w-3.5 h-3.5" />
-            <span>Edit</span>
-          </button>
+            <!-- Dynamic Live Website Content -->
+            <div class="text-[#f8f8f8]">
+              <!-- Mock Top Nav -->
+              <Navbar />
 
-          <!-- Delete Button -->
-          <button
-            @click="deleteSection(sec.id)"
-            class="p-2 text-neutral-500 hover:text-red-400 text-xs transition"
-            title="Delete Section"
-          >
-            <Trash2 class="w-4 h-4" />
-          </button>
+              <!-- Render Visible Blocks in Real Time -->
+              <main>
+                <component
+                  v-for="sec in visibleSections"
+                  :key="sec.id"
+                  :is="sectionComponents[sec.section_type] || TextBlockSection"
+                  :content="sec.content"
+                />
+              </main>
+
+              <!-- Mock Footer -->
+              <Footer />
+            </div>
+          </div>
         </div>
       </div>
     </div>
