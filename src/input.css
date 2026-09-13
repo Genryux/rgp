@@ -1,5 +1,5 @@
-/* Google Fonts - Bebas Neue & Italianno */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Italianno&display=swap');
+/* Google Fonts - Bebas Neue, Italianno & Manrope */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Italianno&family=Manrope:wght@300;400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
 
@@ -17,6 +17,7 @@
   --font-bebas: "Bebas Neue", sans-serif;
   --font-italianno: "Italianno", cursive;
   --font-nuosu: "Nuosu SIL", serif;
+  --font-manrope: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 /* Smooth scrolling for navigation */
