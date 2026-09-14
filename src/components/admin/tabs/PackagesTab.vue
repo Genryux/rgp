@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { usePackages } from '../../../composables/usePackages';
+import { useModalState } from '../../../composables/useModalState';
 import {
   Plus,
   Check,
@@ -12,9 +13,18 @@ import {
 } from '@lucide/vue';
 
 const { packages, savePackage, deletePackage, togglePackageActive } = usePackages();
+const { openModal, closeModal } = useModalState();
 
 const editingPackage = ref(null);
 const newFeatureInput = ref('');
+
+watch(
+  () => Boolean(editingPackage.value),
+  (isOpen, wasOpen) => {
+    if (isOpen && !wasOpen) openModal();
+    else if (!isOpen && wasOpen) closeModal();
+  }
+);
 
 const categories = [
   'Weddings',

@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAuth } from '../../composables/useAuth';
 import { useInquiries } from '../../composables/useInquiries';
 import { usePackages } from '../../composables/usePackages';
 import { useGallery } from '../../composables/useGallery';
 import { useSections } from '../../composables/useSections';
 import { useSettings } from '../../composables/useSettings';
+import { useModalState } from '../../composables/useModalState';
 
 import {
   LayoutDashboard,
@@ -16,7 +17,6 @@ import {
   Settings,
   ExternalLink,
   LogOut,
-  Sparkles,
 } from '@lucide/vue';
 
 import OverviewTab from '../../components/admin/tabs/OverviewTab.vue';
@@ -32,8 +32,11 @@ const { fetchPackages } = usePackages();
 const { fetchGallery } = useGallery();
 const { fetchSections } = useSections();
 const { fetchSettings } = useSettings();
+const { isAnyModalOpen } = useModalState();
 
 const currentTab = ref('overview');
+const isScrolledDown = ref(false);
+let lastScrollY = 0;
 
 const unreadCount = computed(
   () => inquiries.value.filter((i) => i.status === 'New').length
@@ -48,12 +51,33 @@ const tabs = [
   { id: 'settings', label: 'Studio Settings', icon: Settings },
 ];
 
+function handleScroll() {
+  const currentY = window.scrollY || window.pageYOffset;
+  if (currentY > lastScrollY && currentY > 60) {
+    // Scrolling down -> hide taskbar
+    isScrolledDown.value = true;
+  } else if (currentY < lastScrollY || currentY <= 20) {
+    // Scrolling up or at top -> reveal taskbar
+    isScrolledDown.value = false;
+  }
+  lastScrollY = currentY;
+}
+
+const isTaskbarHidden = computed(() => {
+  return isScrolledDown.value || isAnyModalOpen.value;
+});
+
 onMounted(() => {
+  window.addEventListener('scroll', handleScroll, { passive: true });
   fetchInquiries();
   fetchPackages();
   fetchGallery();
   fetchSections();
   fetchSettings();
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
 });
 </script>
 
@@ -101,8 +125,8 @@ onMounted(() => {
       </div>
     </header>
 
-    <!-- Main Workspace (with generous bottom padding for the floating taskbar) -->
-    <main class="max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-36">
+    <!-- Main Workspace (with bottom padding for taskbar) -->
+    <main class="max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-32">
       <OverviewTab v-if="currentTab === 'overview'" @switch-tab="currentTab = $event" />
       <PageBuilderTab v-else-if="currentTab === 'page-builder'" />
       <MediaTab v-else-if="currentTab === 'media'" />
@@ -111,36 +135,47 @@ onMounted(() => {
       <SettingsTab v-else-if="currentTab === 'settings'" />
     </main>
 
-    <!-- Sleek Floating Bottom Taskbar / Dock -->
-    <nav class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[94vw] sm:max-w-none">
-      <div class="bg-[#161616]/90 backdrop-blur-2xl border border-white/[0.12] rounded-full p-2 shadow-2xl shadow-black/80 flex items-center gap-1 sm:gap-2 ring-1 ring-black/50">
+    <!-- Dynamic Sliding Floating Bottom Taskbar / Dock -->
+    <nav
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[95vw] sm:max-w-none transition-all duration-300 ease-in-out"
+      :class="[
+        isTaskbarHidden
+          ? 'translate-y-28 opacity-0 pointer-events-none'
+          : 'translate-y-0 opacity-100 pointer-events-auto'
+      ]"
+    >
+      <div class="bg-[#141414]/90 backdrop-blur-2xl border border-white/[0.14] rounded-full p-1.5 sm:p-2 shadow-2xl shadow-black/90 flex items-center gap-1 sm:gap-1.5 ring-1 ring-black/60">
         <button
           v-for="tab in tabs"
           :key="tab.id"
           @click="currentTab = tab.id"
-          class="relative flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-300 group select-none"
+          :title="tab.label"
+          class="relative flex items-center justify-center rounded-full text-xs font-semibold tracking-wide transition-all duration-300 select-none group"
           :class="[
             currentTab === tab.id
-              ? 'bg-[#FFD700] text-[#121212] shadow-lg shadow-yellow-500/25 font-bold scale-[1.03]'
-              : 'text-neutral-400 hover:text-white hover:bg-white/[0.07]'
+              ? 'bg-[#FFD700] text-[#121212] px-4 sm:px-5 py-2 sm:py-2.5 shadow-lg shadow-yellow-500/30 font-extrabold gap-2'
+              : 'text-neutral-400 hover:text-white hover:bg-white/[0.08] p-2.5 sm:p-3'
           ]"
         >
           <!-- Tab Icon -->
           <component
             :is="tab.icon"
-            class="w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform duration-200 group-hover:scale-110"
+            class="w-4 h-4 sm:w-4.5 sm:h-4.5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110"
             :stroke-width="currentTab === tab.id ? 2.5 : 2"
           />
 
-          <!-- Label (hidden on very small screens, visible on sm and up) -->
-          <span class="hidden sm:inline-block font-manrope whitespace-nowrap">
+          <!-- Tab Label (Only shown for the currently active tab) -->
+          <span
+            v-if="currentTab === tab.id"
+            class="font-manrope whitespace-nowrap text-xs tracking-wide animate-fadeIn"
+          >
             {{ tab.label }}
           </span>
 
           <!-- Unread Badge Indicator -->
           <span
             v-if="tab.badge && tab.badge.value > 0"
-            class="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[9px] font-bold"
+            class="absolute -top-1 -right-1 flex h-4 min-w-4 px-1 items-center justify-center rounded-full text-[9px] font-bold transition"
             :class="[
               currentTab === tab.id
                 ? 'bg-black text-[#FFD700]'
@@ -154,3 +189,20 @@ onMounted(() => {
     </nav>
   </div>
 </template>
+
+<style scoped>
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+</style>

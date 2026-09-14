@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useSections } from '../../../composables/useSections';
+import { useModalState } from '../../../composables/useModalState';
 import SectionSkeletonPreview from '../SectionSkeletonPreview.vue';
 
 // Section components for full-page live rendering
@@ -47,11 +48,20 @@ import {
 } from '@lucide/vue';
 
 const { allSections, saveSection, reorderSections, toggleSectionVisibility, deleteSection } = useSections();
+const { openModal, closeModal } = useModalState();
 
 const editingSection = ref(null);
 const isAddModalOpen = ref(false);
 const isDrawerOpen = ref(false);
 const insertAtIndex = ref(null);
+
+watch(
+  () => Boolean(isAddModalOpen.value || editingSection.value || isDrawerOpen.value),
+  (isOpen, wasOpen) => {
+    if (isOpen && !wasOpen) openModal();
+    else if (!isOpen && wasOpen) closeModal();
+  }
+);
 
 const activeCategoryKey = ref('hero');
 const searchQuery = ref('');
