@@ -99,25 +99,26 @@ async function handleSave() {
         <p class="text-xs text-neutral-400 mt-0.5">Create, update, and manage pricing packages displayed on your website</p>
       </div>
 
-      <div class="flex flex-wrap items-center gap-3">
+      <!-- Top-right Action Buttons (Only shown when packages exist) -->
+      <div v-if="packages.length > 0" class="flex flex-wrap items-center gap-3">
         <!-- Global Price Mask Toggle Button -->
         <button
           @click="toggleGlobalPriceMask"
-          class="px-4 py-2 rounded-2xl border text-xs font-bold transition flex items-center gap-2 shadow-md"
+          class="cursor-pointer px-4 py-2 rounded-2xl border text-xs font-bold transition flex items-center gap-2 shadow-md"
           :class="[
             isGlobalPriceMasked
-              ? 'bg-amber-500/15 border-amber-500/40 text-amber-300'
-              : 'bg-white/[0.05] border-white/[0.08] text-neutral-300 hover:text-white'
+              ? 'bg-white/15 border-white/30 text-white shadow-sm'
+              : 'bg-white/[0.05] border-white/[0.08] text-neutral-300 hover:text-white hover:bg-white/[0.08]'
           ]"
           :title="isGlobalPriceMasked ? 'Public prices currently masked as 2?,???' : 'Public prices show full amount'"
         >
-          <component :is="isGlobalPriceMasked ? EyeOff : Eye" class="w-4 h-4" />
-          <span>{{ isGlobalPriceMasked ? 'Mask All Prices (2?,???) Active' : 'Mask All Prices' }}</span>
+          <component :is="isGlobalPriceMasked ? EyeOff : Eye" class="w-4 h-4 text-neutral-300" />
+          <span>{{ isGlobalPriceMasked ? 'Mask All Prices Active' : 'Mask All Prices' }}</span>
         </button>
 
         <button
           @click="openNewPackage"
-          class="px-5 py-2.5 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg shadow-yellow-500/20 flex items-center gap-2"
+          class="cursor-pointer px-5 py-2.5 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg shadow-yellow-500/20 flex items-center gap-2"
         >
           <Plus class="w-4 h-4" />
           <span>Add Package</span>
@@ -125,8 +126,8 @@ async function handleSave() {
       </div>
     </div>
 
-    <!-- Package Cards Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <!-- Package Cards Grid (When packages exist) -->
+    <div v-if="packages.length > 0" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       <div
         v-for="pkg in packages"
         :key="pkg.id"
@@ -138,7 +139,7 @@ async function handleSave() {
             <span class="text-xs font-semibold uppercase tracking-wider text-[#FFD700]">{{ pkg.category }}</span>
             <button
               @click="togglePackageActive(pkg.id)"
-              class="px-3 py-1 rounded-full text-[10px] font-semibold transition"
+              class="cursor-pointer px-3 py-1 rounded-full text-[10px] font-semibold transition"
               :class="[
                 pkg.is_active
                   ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
@@ -170,13 +171,13 @@ async function handleSave() {
               </template>
             </div>
 
-            <!-- Eye Mask Toggle Button Directly Beside Pricing -->
+            <!-- Eye Mask Toggle Button Directly Beside Pricing (Neutral styling) -->
             <button
               @click="togglePackagePriceMask(pkg.id)"
-              class="p-1 rounded-lg transition"
+              class="cursor-pointer p-1 rounded-lg transition"
               :class="[
                 (pkg.hide_price || isGlobalPriceMasked)
-                  ? 'text-amber-400 hover:bg-amber-400/10'
+                  ? 'text-neutral-200 hover:text-white hover:bg-white/10'
                   : 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5'
               ]"
               :title="pkg.hide_price ? 'Price is masked (Click to reveal)' : 'Price is visible (Click to mask)'"
@@ -198,7 +199,7 @@ async function handleSave() {
         <div class="pt-4 border-t border-white/[0.08] flex justify-between items-center">
           <button
             @click="openEditPackage(pkg)"
-            class="px-4 py-1.5 rounded-full bg-white/[0.06] hover:bg-[#FFD700] hover:text-black text-white text-xs font-semibold transition flex items-center gap-1.5"
+            class="cursor-pointer px-4 py-1.5 rounded-full bg-white/[0.06] hover:bg-[#FFD700] hover:text-black text-white text-xs font-semibold transition flex items-center gap-1.5"
           >
             <Edit3 class="w-3.5 h-3.5" />
             <span>Edit</span>
@@ -206,10 +207,37 @@ async function handleSave() {
 
           <button
             @click="deletePackage(pkg.id)"
-            class="text-neutral-500 hover:text-red-400 p-1 text-xs transition"
+            class="cursor-pointer text-neutral-500 hover:text-red-400 p-1 text-xs transition"
             title="Delete Package"
           >
             <Trash2 class="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State UI when no packages exist (Centered horizontally) -->
+    <div
+      v-else
+      class="flex justify-center items-center py-12 w-full"
+    >
+      <div class="text-center py-16 px-8 bg-[#141414] border border-white/[0.08] rounded-3xl space-y-4 max-w-lg w-full shadow-2xl">
+        <div class="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-neutral-400">
+          <Tag class="w-6 h-6 text-neutral-400" />
+        </div>
+        <div class="space-y-1.5">
+          <h3 class="text-base font-bold text-white">No Service Packages Created Yet</h3>
+          <p class="text-xs text-neutral-400 max-w-sm mx-auto leading-relaxed">
+            Create customized pricing packages for Weddings, Birthdays, Debuts, and Studio Sessions to display on your website.
+          </p>
+        </div>
+        <div class="pt-2">
+          <button
+            @click="openNewPackage"
+            class="cursor-pointer px-6 py-2.5 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg shadow-yellow-500/20 inline-flex items-center gap-2"
+          >
+            <Plus class="w-4 h-4" />
+            <span>Add First Package</span>
           </button>
         </div>
       </div>
@@ -225,7 +253,7 @@ async function handleSave() {
           <h3 class="text-xl font-bold text-white tracking-wide">
             {{ editingPackage.id.startsWith('pkg_temp_') ? 'Add New Package' : 'Edit Package' }}
           </h3>
-          <button @click="editingPackage = null" class="text-neutral-400 hover:text-white p-1">
+          <button @click="editingPackage = null" class="cursor-pointer text-neutral-400 hover:text-white p-1">
             <X class="w-5 h-5" />
           </button>
         </div>
@@ -321,7 +349,7 @@ async function handleSave() {
                 />
                 <button
                   @click="removeFeature(idx)"
-                  class="text-neutral-500 hover:text-red-400 p-1.5"
+                  class="cursor-pointer text-neutral-500 hover:text-red-400 p-1.5"
                 >
                   <X class="w-4 h-4" />
                 </button>
@@ -340,7 +368,7 @@ async function handleSave() {
               <button
                 @click="addFeature"
                 type="button"
-                class="px-5 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-semibold"
+                class="cursor-pointer px-5 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-semibold"
               >
                 + Add
               </button>
@@ -351,13 +379,13 @@ async function handleSave() {
         <div class="flex justify-end gap-3 pt-4 border-t border-white/[0.08]">
           <button
             @click="editingPackage = null"
-            class="px-5 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
+            class="cursor-pointer px-5 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
           >
             Cancel
           </button>
           <button
             @click="handleSave"
-            class="px-6 py-2 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 transition"
+            class="cursor-pointer px-6 py-2 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 transition"
           >
             Save Package
           </button>

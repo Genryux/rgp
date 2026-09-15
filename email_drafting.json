@@ -1,0 +1,166 @@
+{
+    "feature": "Admin Email / Inquiry System",
+    "goal": "Integrate Gmail into an existing web system so the admin can view and reply to customer inquiries without leaving the admin panel.",
+    "constraints": [
+        "Framework-agnostic. Do NOT assume Laravel, PHP, Node.js, or any specific stack.",
+        "First step of implementation must be inspecting the actual project codebase to detect the real stack."
+    ],
+    "core_principle": "Gmail is the source of truth (the real mailbox). The application's database is a synchronized local copy that the admin UI reads from. The admin panel should almost never call the Gmail API just to render data that's already synced.",
+    "user_flows": {
+        "customer": [
+            "Visits homepage",
+            "Submits contact/inquiry form",
+            "Inquiry is received by the configured Gmail account",
+            "Continues using their normal email client",
+            "If admin replies via the panel, customer receives it as a normal email",
+            "If customer replies to that email, it eventually appears in the admin panel"
+        ],
+        "admin": [
+            "Opens the email/inquiry section of the admin panel",
+            "Sees emails already stored in the app's database (no live Gmail call)",
+            "Opens a conversation/thread",
+            "Replies from inside the admin panel",
+            "Reply is sent out through the Gmail API",
+            "Customer replies are synced from Gmail back into the database automatically"
+        ]
+    },
+    "sync_architecture": {
+        "high_level_flow": [
+            "Gmail",
+            "Initial sync (one-time)",
+            "Application database",
+            "Admin panel reads DB"
+        ],
+        "initial_sync": {
+            "purpose": "Populate the DB with existing Gmail messages once.",
+            "example": "200 existing messages -> fetched once and stored.",
+            "rule": "Never re-download the same historical messages on every inbox load."
+        },
+        "incremental_sync": {
+            "method": "Gmail API history.list using a stored historyId — not a full mailbox refetch.",
+            "logic": [
+                "Store the latest historyId after every successful sync",
+                "When notified of a change, call history.list with the stored historyId",
+                "Only fetch the specific new/changed messages returned",
+                "Update the stored historyId"
+            ],
+            "fallback": "If the stored historyId is too old / expired on Gmail's side, fall back to a full resync."
+        },
+        "push_notifications": {
+            "technology": "Gmail API watch() + Google Cloud Pub/Sub",
+            "flow": [
+                "Gmail mailbox changes",
+                "Gmail publishes a Pub/Sub notification containing a new historyId",
+                "Backend receives the notification",
+                "Backend calls history.list with the previously stored historyId",
+                "Backend identifies new/changed messages",
+                "Backend fetches only the required message details (messages.get)",
+                "Backend upserts into the database"
+            ],
+            "operational_notes": [
+                "watch() subscriptions expire and must be renewed periodically",
+                "Push delivery can be delayed or dropped — implement a periodic polling fallback",
+                "If stored historyId is stale/invalid, trigger a full resync"
+            ]
+        },
+        "admin_inbox_read_rule": {
+            "rule": "Opening the inbox = a DB query, ordered by received date. No Gmail API call required.",
+            "benefits": [
+                "Faster load times",
+                "Lower Gmail API usage",
+                "Full control over admin-only UI/UX",
+                "Supports app-specific fields (assignment, tags, internal status) that Gmail doesn't have"
+            ]
+        }
+    },
+    "gmail_api_quotas": {
+        "note": "Quotas are measured in quota units, not raw request counts. These are three separate limits with different scopes/time windows, not interchangeable.",
+        "limits": {
+            "per_user_per_project_per_minute": 6000,
+            "per_project_per_minute": 1200000,
+            "per_project_per_day": 80000000
+        },
+        "known_operation_costs": {
+            "history.list": 2,
+            "messages.list": 5,
+            "messages.get": 20,
+            "threads.list": 10,
+            "threads.get": 40,
+            "messages.send": 100,
+            "watch": 100
+        },
+        "practical_takeaway": "For a small site with a handful of inquiries/day, quota is a non-issue if sync is implemented efficiently (history-based, not full refetches)."
+    },
+    "database_design": {
+        "messages_table": [
+            "id",
+            "gmail_message_id",
+            "gmail_thread_id",
+            "sender",
+            "recipient",
+            "subject",
+            "body",
+            "received_at",
+            "read",
+            "created_at",
+            "updated_at"
+        ],
+        "gmail_sync_state_table": [
+            "last_history_id",
+            "last_synced_at"
+        ],
+        "future_admin_fields_not_in_v1": [
+            "assigned_admin",
+            "internal_status",
+            "tags",
+            "notes"
+        ],
+        "dedup_rule": "Use gmail_message_id and gmail_thread_id as the identity keys — never duplicate a message already synced."
+    },
+    "conversation_threading": {
+        "key": "gmail_thread_id",
+        "rule": "Group messages by threadId in the admin UI instead of showing every email as a standalone item.",
+        "customer_reply_handling": "New message with a matching threadId gets appended to the existing conversation, not created as a new one."
+    },
+    "reply_flow": {
+        "admin_to_customer": [
+            "Admin writes reply in panel",
+            "Backend sends via Gmail API (messages.send), correctly threaded to the Gmail conversation",
+            "Backend stores/syncs the sent message into the local DB"
+        ],
+        "customer_to_admin": [
+            "Customer replies normally from their own email client",
+            "Gmail receives it",
+            "Pub/Sub notification triggers sync",
+            "Backend fetches and stores the new message",
+            "Admin sees it appear in the panel"
+        ]
+    },
+    "implementation_order": [
+        "Inspect the existing project to determine actual backend/frontend stack",
+        "Create DB tables: synced messages + gmail_sync_state",
+        "Set up Gmail API OAuth for the mailbox account",
+        "Implement initial one-time synchronization",
+        "Store synced messages in the DB",
+        "Build admin inbox UI reading only from the DB",
+        "Build thread/conversation view using gmail_thread_id",
+        "Implement admin replies via Gmail API",
+        "Implement Gmail watch() + Pub/Sub",
+        "Implement history-based incremental sync",
+        "Add periodic sync as a fallback safety net",
+        "Test: customer inquiry -> Gmail -> DB -> admin panel",
+        "Test: admin reply -> Gmail -> customer inbox",
+        "Test: customer reply -> Gmail -> sync -> admin panel"
+    ],
+    "scope_guardrails": {
+        "do_not": [
+            "Build a custom email server",
+            "Replace Gmail as the mailbox",
+            "Build a full helpdesk platform unless explicitly requested",
+            "Introduce unnecessary microservices",
+            "Assume Laravel or any specific framework",
+            "Add advanced email features before basic sync + reply flow is solid"
+        ],
+        "v1_goal": "A reliable Gmail-to-database sync plus a working admin inbox/reply loop — nothing more."
+    }
+}
