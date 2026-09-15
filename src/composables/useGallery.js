@@ -7,7 +7,7 @@ const DEFAULT_GALLERY = [
     id: 'gal_1',
     media_type: 'image',
     category: 'Weddings',
-    title: 'Sunset Nuptials',
+    title: '1.jpg',
     image_url: '/images/1.jpg',
     file_size_bytes: 380000, // ~380 KB
     is_featured: true,
@@ -17,7 +17,7 @@ const DEFAULT_GALLERY = [
     id: 'gal_2',
     media_type: 'image',
     category: 'Portraits',
-    title: 'Moody Studio Portrait',
+    title: '2.jpg',
     image_url: '/images/2.jpg',
     file_size_bytes: 420000, // ~420 KB
     is_featured: true,
@@ -27,7 +27,7 @@ const DEFAULT_GALLERY = [
     id: 'gal_3',
     media_type: 'image',
     category: 'Birthdays',
-    title: 'Celebration of Life',
+    title: '3.jpg',
     image_url: '/images/3.jpg',
     file_size_bytes: 350000, // ~350 KB
     is_featured: true,
@@ -37,7 +37,7 @@ const DEFAULT_GALLERY = [
     id: 'gal_4',
     media_type: 'image',
     category: 'Graduation',
-    title: 'Academic Milestone',
+    title: '4.jpg',
     image_url: '/images/4.jpg',
     file_size_bytes: 310000, // ~310 KB
     is_featured: true,
@@ -47,7 +47,7 @@ const DEFAULT_GALLERY = [
     id: 'gal_5',
     media_type: 'image',
     category: 'Landscapes',
-    title: 'Golden Horizon',
+    title: '5.jpg',
     image_url: '/images/5.jpg',
     file_size_bytes: 490000, // ~490 KB
     is_featured: true,
@@ -57,7 +57,7 @@ const DEFAULT_GALLERY = [
     id: 'gal_6',
     media_type: 'image',
     category: 'Commercial',
-    title: 'Product Aesthetics',
+    title: '6.jpg',
     image_url: '/images/6.jpg',
     file_size_bytes: 290000, // ~290 KB
     is_featured: true,

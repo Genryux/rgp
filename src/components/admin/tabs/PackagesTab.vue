@@ -111,7 +111,7 @@ async function handleSave() {
           ]"
           :title="isGlobalPriceMasked ? 'Public prices currently masked as 2?,???' : 'Public prices show full amount'"
         >
-          <component :is="isGlobalPriceMasked ? EyeOff : Eye" class="w-4 h-4 text-[#FFD700]" />
+          <component :is="isGlobalPriceMasked ? EyeOff : Eye" class="w-4 h-4" />
           <span>{{ isGlobalPriceMasked ? 'Mask All Prices (2?,???) Active' : 'Mask All Prices' }}</span>
         </button>
 

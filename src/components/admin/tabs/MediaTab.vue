@@ -1,10 +1,10 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useGallery } from '../../../composables/useGallery';
+import { useSections } from '../../../composables/useSections';
 import { useModalState } from '../../../composables/useModalState';
 import {
   UploadCloud,
-  Star,
   Trash2,
   Image as ImageIcon,
   Folder,
@@ -22,8 +22,11 @@ import {
   Square,
   Layers,
   ChevronRight,
+  ChevronLeft,
   ArrowLeft,
   AlertTriangle,
+  Download,
+  ExternalLink,
 } from '@lucide/vue';
 
 const {
@@ -46,6 +49,80 @@ const {
 } = useGallery();
 
 const { openModal, closeModal } = useModalState();
+const { visibleSections } = useSections();
+
+function getImageFileName(item) {
+  if (!item) return '';
+  if (item.title) return item.title;
+  if (item.file_name) return item.file_name;
+  if (item.image_url) {
+    const parts = item.image_url.split('/');
+    return parts[parts.length - 1] || 'photo.jpg';
+  }
+  return 'photo.jpg';
+}
+
+function getImageUsage(item) {
+  if (!item) return null;
+  const url = item.image_url;
+
+  // 1. Check direct hero background match
+  const heroSec = visibleSections.value?.find((s) => s.section_type === 'hero');
+  if (heroSec && heroSec.content?.bg_image === url) {
+    return {
+      type: 'hero',
+      label: 'Hero Banner',
+      fullText: 'Featured in Hero Banner',
+      badgeText: 'Hero Banner',
+      isSpecial: true,
+    };
+  }
+
+  // 2. Check direct about studio portrait match
+  const aboutSec = visibleSections.value?.find((s) => s.section_type === 'about');
+  if (aboutSec && aboutSec.content?.image_url === url) {
+    return {
+      type: 'about',
+      label: 'About Studio',
+      fullText: 'Featured in About Studio',
+      badgeText: 'About Studio',
+      isSpecial: true,
+    };
+  }
+
+  // 3. Check Showcase Carousel
+  const carouselSec = visibleSections.value?.find((s) => s.section_type === 'carousel');
+  if (carouselSec) {
+    const categoryName = item.category || 'Highlights';
+    return {
+      type: 'carousel',
+      label: `Showcase Carousel (${categoryName})`,
+      fullText: `Featured in Showcase Carousel (${categoryName})`,
+      badgeText: `Showcase Carousel`,
+      isSpecial: false,
+    };
+  }
+
+  // 4. Check Gallery Grid
+  const gridSec = visibleSections.value?.find((s) => s.section_type === 'gallery_grid');
+  if (gridSec) {
+    return {
+      type: 'gallery_grid',
+      label: 'Homepage Gallery Grid',
+      fullText: `Live in Homepage Gallery Grid (${item.category || 'All'})`,
+      badgeText: 'Gallery Grid',
+      isSpecial: false,
+    };
+  }
+
+  return {
+    type: 'live',
+    label: 'Homepage Portfolio',
+    fullText: `Live in Homepage Portfolio (${item.category || 'All'})`,
+    badgeText: 'Homepage Portfolio',
+    isSpecial: false,
+  };
+}
 
 const activeFolder = ref('All'); // 'All' or folder name
 const viewFilter = ref('all'); // 'all' (show both folders & photos) | 'folders' (show only folders) | 'photos' (show only photos)
@@ -58,6 +135,9 @@ const isCreateFolderModalOpen = ref(false);
 const isRenameFolderModalOpen = ref(false);
 const isDeleteFolderModalOpen = ref(false);
 const isMoveMediaModalOpen = ref(false);
+
+// Fullscreen Image Viewer Modal State
+const viewingItem = ref(null);
 
 const targetMediaToMove = ref(null); // single item or null for bulk
 const selectedDestinationFolder = ref('');
@@ -75,7 +155,8 @@ watch(
     isCreateFolderModalOpen.value ||
     isRenameFolderModalOpen.value ||
     isDeleteFolderModalOpen.value ||
-    isMoveMediaModalOpen.value
+    isMoveMediaModalOpen.value ||
+    viewingItem.value
   ),
   (isOpen, wasOpen) => {
     if (isOpen && !wasOpen) openModal();
@@ -87,6 +168,55 @@ watch(
 const filteredGallery = computed(() => {
   if (activeFolder.value === 'All') return gallery.value;
   return gallery.value.filter((item) => item.category === activeFolder.value);
+});
+
+// Current index of viewing image in filtered gallery
+const viewingIndex = computed(() => {
+  if (!viewingItem.value) return -1;
+  return filteredGallery.value.findIndex((m) => m.id === viewingItem.value.id);
+});
+
+function openImageViewer(item) {
+  viewingItem.value = item;
+}
+
+function closeImageViewer() {
+  viewingItem.value = null;
+}
+
+function prevImage() {
+  if (viewingIndex.value > 0) {
+    viewingItem.value = filteredGallery.value[viewingIndex.value - 1];
+  } else if (filteredGallery.value.length > 0) {
+    viewingItem.value = filteredGallery.value[filteredGallery.value.length - 1];
+  }
+}
+
+function nextImage() {
+  if (viewingIndex.value < filteredGallery.value.length - 1) {
+    viewingItem.value = filteredGallery.value[viewingIndex.value + 1];
+  } else if (filteredGallery.value.length > 0) {
+    viewingItem.value = filteredGallery.value[0];
+  }
+}
+
+function handleViewerKeydown(e) {
+  if (!viewingItem.value) return;
+  if (e.key === 'ArrowLeft') {
+    prevImage();
+  } else if (e.key === 'ArrowRight') {
+    nextImage();
+  } else if (e.key === 'Escape') {
+    closeImageViewer();
+  }
+}
+
+watch(viewingItem, (item) => {
+  if (item) {
+    window.addEventListener('keydown', handleViewerKeydown);
+  } else {
+    window.removeEventListener('keydown', handleViewerKeydown);
+  }
 });
 
 // Manual upload destination folder
@@ -202,6 +332,9 @@ async function handleConfirmMove() {
   if (targetMediaToMove.value) {
     // Single move
     await moveMediaToFolder(targetMediaToMove.value.id, selectedDestinationFolder.value);
+    if (viewingItem.value && viewingItem.value.id === targetMediaToMove.value.id) {
+      viewingItem.value.category = selectedDestinationFolder.value;
+    }
   } else if (selectedMediaIds.value.length > 0) {
     // Bulk move
     await bulkMoveMedia(selectedMediaIds.value, selectedDestinationFolder.value);
@@ -256,8 +389,8 @@ function deselectAll() {
             usedPercentage > 90
               ? 'bg-red-500/20'
               : usedPercentage > 70
-                ? 'bg-yellow-500/20'
-                : 'bg-[#FFD700]/10'
+                ? 'bg-yellow-500/15'
+                : 'bg-white/[0.03]'
           ]"
         ></div>
 
@@ -269,7 +402,7 @@ function deselectAll() {
               :class="[
                 usedPercentage > 90
                   ? 'bg-red-500/15 border-red-500/30 text-red-400'
-                  : 'bg-yellow-500/10 border-yellow-500/20 text-[#FFD700]'
+                  : 'bg-white/[0.06] border-white/10 text-neutral-300'
               ]"
             >
               <HardDrive class="w-4 h-4" />
@@ -322,7 +455,7 @@ function deselectAll() {
 
           <div class="flex justify-between items-center text-[10px] text-neutral-400 px-0.5">
             <span>0 MB</span>
-            <span class="text-[#FFD700] font-semibold">~{{ remainingMB }} MB Remaining</span>
+            <span class="text-neutral-300 font-semibold">~{{ remainingMB }} MB Remaining</span>
             <span>1,000 MB</span>
           </div>
         </div>
@@ -355,7 +488,7 @@ function deselectAll() {
 
         <div class="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
           <div class="flex items-center gap-2 pointer-events-none">
-            <UploadCloud class="w-4 h-4 text-[#FFD700]" />
+            <UploadCloud class="w-4 h-4 text-neutral-300" />
             <h3 class="text-sm font-bold text-white tracking-wide">Quick Upload Dropzone</h3>
           </div>
           <!-- Manual Target Folder Selector -->
@@ -364,19 +497,19 @@ function deselectAll() {
             <div class="relative">
               <select
                 v-model="manualUploadFolder"
-                class="px-2.5 py-1 pr-6 rounded-xl bg-black/60 border border-white/15 hover:border-[#FFD700] text-xs font-semibold text-white focus:outline-none focus:border-[#FFD700] cursor-pointer transition appearance-none"
+                class="px-2.5 py-1 pr-6 rounded-xl bg-black/60 border border-white/15 hover:border-white/30 text-xs font-semibold text-white focus:outline-none focus:border-[#FFD700] cursor-pointer transition appearance-none"
               >
                 <option v-for="f in folders" :key="f" :value="f" class="bg-[#141414] text-white">
                   {{ f }}
                 </option>
               </select>
-              <Folder class="w-3 h-3 text-[#FFD700] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Folder class="w-3 h-3 fill-neutral-400 text-neutral-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
           </div>
         </div>
 
         <div class="space-y-1.5 text-center py-2 pointer-events-none">
-          <div class="w-10 h-10 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-[#FFD700] group-hover:scale-110 transition duration-300">
+          <div class="w-10 h-10 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto text-neutral-300 group-hover:text-white group-hover:scale-110 transition duration-300">
             <UploadCloud class="w-5 h-5" />
           </div>
           <h4 class="text-xs font-bold text-white">Drag & drop photos here, or click to browse</h4>
@@ -387,7 +520,7 @@ function deselectAll() {
 
         <div class="pt-2 border-t border-white/[0.05] flex items-center justify-between text-[11px] text-neutral-400 pointer-events-none">
           <span>Multiple files supported</span>
-          <span class="text-[#FFD700] text-[10px] font-mono">WebP canvas encoder</span>
+          <span class="text-neutral-400 text-[10px] font-mono">WebP canvas encoder</span>
         </div>
 
         <!-- Upload Progress Indicator Overlay -->
@@ -395,8 +528,8 @@ function deselectAll() {
           v-if="uploading"
           class="absolute inset-0 bg-black/85 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center p-4 z-20 space-y-2"
         >
-          <Loader2 class="w-6 h-6 text-[#FFD700] animate-spin" />
-          <p class="text-xs font-semibold text-[#FFD700]">{{ uploadProgress }}</p>
+          <Loader2 class="w-6 h-6 text-neutral-200 animate-spin" />
+          <p class="text-xs font-semibold text-neutral-200">{{ uploadProgress }}</p>
         </div>
       </div>
     </div>
@@ -404,10 +537,10 @@ function deselectAll() {
     <!-- BATCH ACTION FLOATING / STICKY TOOLBAR -->
     <div
       v-if="isBatchMode && selectedMediaIds.length > 0"
-      class="p-4 rounded-2xl bg-[#181818] border border-[#FFD700]/50 shadow-2xl flex flex-wrap items-center justify-between gap-4 animate-fadeIn"
+      class="p-4 rounded-2xl bg-[#181818] border border-white/15 shadow-2xl flex flex-wrap items-center justify-between gap-4 animate-fadeIn"
     >
       <div class="flex items-center gap-3">
-        <span class="w-7 h-7 rounded-xl bg-[#FFD700] text-black font-extrabold text-xs flex items-center justify-center">
+        <span class="w-7 h-7 rounded-xl bg-white/10 text-white font-extrabold text-xs flex items-center justify-center">
           {{ selectedMediaIds.length }}
         </span>
         <span class="text-xs font-bold text-white">Photos Selected</span>
@@ -450,7 +583,7 @@ function deselectAll() {
           <button
             v-if="activeFolder !== 'All'"
             @click="activeFolder = 'All'"
-            class="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-neutral-300 hover:text-[#FFD700] transition flex items-center justify-center"
+            class="cursor-pointer p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-neutral-300 hover:text-white transition flex items-center justify-center"
             title="Back to All Media"
           >
             <ArrowLeft class="w-4 h-4" />
@@ -468,7 +601,7 @@ function deselectAll() {
           <div v-if="activeFolder === 'All'" class="flex items-center gap-1.5 ml-2 pl-3 border-l border-white/10">
             <button
               @click="viewFilter = 'all'"
-              class="px-3 py-1 rounded-xl text-xs font-bold transition"
+              class="cursor-pointer px-3 py-1 rounded-xl text-xs font-bold transition"
               :class="[
                 viewFilter === 'all'
                   ? 'bg-white/10 text-white border border-white/20'
@@ -479,19 +612,19 @@ function deselectAll() {
             </button>
             <button
               @click="viewFilter = 'folders'"
-              class="px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+              class="cursor-pointer px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
               :class="[
                 viewFilter === 'folders'
                   ? 'bg-white/10 text-white border border-white/20'
                   : 'text-neutral-400 hover:text-white'
               ]"
             >
-              <Folder class="w-3.5 h-3.5" />
+              <Folder class="w-3.5 h-3.5 fill-neutral-300 text-neutral-300" />
               <span>Folders ({{ folders.length }})</span>
             </button>
             <button
               @click="viewFilter = 'photos'"
-              class="px-3 py-1 rounded-xl text-xs font-bold transition"
+              class="cursor-pointer px-3 py-1 rounded-xl text-xs font-bold transition"
               :class="[
                 viewFilter === 'photos'
                   ? 'bg-white/10 text-white border border-white/20'
@@ -506,15 +639,15 @@ function deselectAll() {
           <div v-if="activeFolder !== 'All'" class="flex items-center gap-1.5 ml-2 pl-3 border-l border-white/10">
             <button
               @click="openRenameFolder(activeFolder)"
-              class="px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-neutral-300 hover:text-white border border-white/[0.08] transition flex items-center gap-1"
+              class="cursor-pointer px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] text-xs font-semibold text-neutral-300 hover:text-white border border-white/[0.08] transition flex items-center gap-1"
               title="Rename active folder"
             >
-              <Edit3 class="w-3.5 h-3.5 text-[#FFD700]" />
+              <Edit3 class="w-3.5 h-3.5 text-neutral-400" />
               <span>Rename</span>
             </button>
             <button
               @click="openDeleteFolder(activeFolder)"
-              class="px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-xs font-semibold text-neutral-400 hover:text-red-400 border border-white/[0.08] transition flex items-center gap-1"
+              class="cursor-pointer px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-red-500/20 text-xs font-semibold text-neutral-400 hover:text-red-400 border border-white/[0.08] transition flex items-center gap-1"
               title="Delete active folder"
             >
               <Trash2 class="w-3.5 h-3.5" />
@@ -529,16 +662,16 @@ function deselectAll() {
           <button
             v-if="activeFolder === 'All'"
             @click="openCreateFolder"
-            class="px-3.5 py-1.5 rounded-2xl bg-white/[0.05] hover:bg-[#FFD700] hover:text-black text-neutral-200 text-xs font-bold border border-white/10 hover:border-[#FFD700] transition flex items-center gap-1.5 shadow-sm group"
+            class="cursor-pointer px-3.5 py-1.5 rounded-2xl bg-white/[0.05] hover:bg-white/15 text-neutral-200 hover:text-white text-xs font-bold border border-white/10 hover:border-white/25 transition flex items-center gap-1.5 shadow-sm group"
           >
-            <FolderPlus class="w-3.5 h-3.5 text-[#FFD700] group-hover:text-black" />
+            <FolderPlus class="w-3.5 h-3.5 fill-neutral-300/40 text-neutral-300" />
             <span>Create Folder</span>
           </button>
 
           <!-- Batch Select Button -->
           <button
             @click="isBatchMode = !isBatchMode; if (!isBatchMode) deselectAll()"
-            class="px-3.5 py-1.5 rounded-2xl border text-xs font-bold transition flex items-center gap-2"
+            class="cursor-pointer px-3.5 py-1.5 rounded-2xl border text-xs font-bold transition flex items-center gap-2"
             :class="[
               isBatchMode
                 ? 'bg-[#FFD700] text-black border-[#FFD700] shadow-md shadow-yellow-500/20'
@@ -562,34 +695,35 @@ function deselectAll() {
             v-for="f in folders"
             :key="f"
             @click="activeFolder = f"
-            class="p-3.5 rounded-2xl bg-[#141414] border border-white/[0.08] hover:border-[#FFD700] cursor-pointer transition duration-200 group flex flex-col justify-between space-y-2.5 shadow-lg hover:scale-[1.02]"
+            class="p-3.5 rounded-2xl bg-[#141414] border border-white/[0.08] hover:border-white/25 cursor-pointer transition duration-200 group flex flex-col justify-between space-y-2.5 shadow-lg hover:scale-[1.02]"
           >
             <div class="flex items-center justify-between">
-              <div class="text-[#FFD700] flex items-center justify-center transition group-hover:scale-110">
-                <Folder class="w-5 h-5" />
+              <!-- Solid Fill Folder Icon with Light Gray Color -->
+              <div class="text-neutral-300 flex items-center justify-center transition group-hover:scale-110">
+                <Folder class="w-6 h-6 fill-neutral-300 text-neutral-300" />
               </div>
 
               <!-- Quick action dots/edit -->
               <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition">
                 <button
                   @click="openRenameFolder(f, $event)"
-                  class="p-1 rounded-md hover:bg-white/10 text-neutral-400 hover:text-white"
-                  title="Rename"
+                  class="cursor-pointer p-1 rounded-md hover:bg-white/10 text-neutral-400 hover:text-white"
+                  title="Rename folder"
                 >
-                  <Edit3 class="w-3 h-3 text-[#FFD700]" />
+                  <Edit3 class="w-3.5 h-3.5" />
                 </button>
                 <button
                   @click="openDeleteFolder(f, $event)"
-                  class="p-1 rounded-md hover:bg-red-500/20 text-neutral-400 hover:text-red-400"
-                  title="Delete"
+                  class="cursor-pointer p-1 rounded-md hover:bg-red-500/20 text-neutral-400 hover:text-red-400"
+                  title="Delete folder"
                 >
-                  <Trash2 class="w-3 h-3" />
+                  <Trash2 class="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
 
             <div>
-              <h4 class="text-xs font-bold text-white group-hover:text-[#FFD700] transition truncate">{{ f }}</h4>
+              <h4 class="text-xs font-bold text-white group-hover:text-neutral-200 transition truncate">{{ f }}</h4>
               <span class="text-[10px] text-neutral-400 font-mono">{{ folderCounts[f] || 0 }} photos</span>
             </div>
           </div>
@@ -616,7 +750,7 @@ function deselectAll() {
             <!-- Photo Thumbnail (Shrunk and compact) -->
             <div
               class="aspect-square bg-neutral-900 relative overflow-hidden cursor-pointer"
-              @click="isBatchMode ? toggleSelectMedia(item.id) : null"
+              @click="isBatchMode ? toggleSelectMedia(item.id) : openImageViewer(item)"
             >
               <img
                 :src="item.image_url"
@@ -645,19 +779,11 @@ function deselectAll() {
               <!-- Top Overlay Badges (Category / Folder Tag) -->
               <div
                 v-if="!isBatchMode"
-                class="absolute top-2 left-2 right-2 flex justify-between items-center pointer-events-none"
+                class="absolute top-2 left-2 pointer-events-none"
               >
-                <span class="px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-[9px] font-semibold uppercase text-neutral-200 flex items-center gap-1">
-                  <Folder class="w-2.5 h-2.5 text-[#FFD700]" />
+                <span class="px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-[9px] font-semibold text-neutral-200 flex items-center gap-1">
+                  <Folder class="w-2.5 h-2.5 fill-neutral-400 text-neutral-400" />
                   <span>{{ item.category }}</span>
-                </span>
-
-                <span
-                  v-if="item.is_featured"
-                  class="px-1.5 py-0.5 rounded-md bg-[#FFD700] text-[#121212] text-[9px] font-bold uppercase shadow-md flex items-center gap-0.5"
-                >
-                  <Star class="w-2.5 h-2.5 fill-current" />
-                  <span>Featured</span>
                 </span>
               </div>
 
@@ -669,35 +795,30 @@ function deselectAll() {
               </div>
             </div>
 
-            <!-- Actions Footer: Feature Toggle, Move to Folder, Delete -->
-            <div class="p-2 bg-[#141414] flex items-center justify-between border-t border-white/[0.06] text-[11px]">
-              <button
-                @click="toggleFeatured(item.id)"
-                class="font-semibold transition flex items-center gap-1"
-                :class="[item.is_featured ? 'text-[#FFD700]' : 'text-neutral-400 hover:text-white']"
-                title="Feature on Home Carousel"
-              >
-                <Star class="w-3 h-3" :class="[item.is_featured ? 'fill-current' : '']" />
-                <span class="hidden sm:inline">{{ item.is_featured ? 'Featured' : 'Star' }}</span>
-              </button>
+            <!-- Photo Card Footer: Filename & Action Buttons -->
+            <div class="px-2.5 py-2 bg-[#141414] border-t border-white/[0.06] flex items-center justify-between gap-2">
+              <p class="text-xs font-medium text-neutral-300 truncate group-hover:text-white transition" :title="getImageFileName(item)">
+                {{ getImageFileName(item) }}
+              </p>
 
-              <div class="flex items-center gap-1">
+              <!-- Action Buttons -->
+              <div class="flex items-center gap-1 shrink-0">
                 <!-- Move to Folder Button -->
                 <button
-                  @click="openMoveSingleMedia(item)"
-                  class="p-1 rounded-md bg-white/[0.04] hover:bg-[#FFD700] hover:text-black text-neutral-300 transition"
+                  @click.stop="openMoveSingleMedia(item)"
+                  class="cursor-pointer p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/15 text-neutral-400 hover:text-white transition"
                   title="Move to another folder"
                 >
-                  <FolderInput class="w-3 h-3" />
+                  <FolderInput class="w-3.5 h-3.5" />
                 </button>
 
                 <!-- Delete Button -->
                 <button
-                  @click="deleteMedia(item.id)"
-                  class="p-1 rounded-md text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition"
+                  @click.stop="deleteMedia(item.id)"
+                  class="cursor-pointer p-1.5 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition"
                   title="Delete Photo"
                 >
-                  <Trash2 class="w-3 h-3" />
+                  <Trash2 class="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -706,7 +827,7 @@ function deselectAll() {
 
         <!-- Empty State -->
         <div v-else class="text-center py-12 bg-[#141414] border border-white/[0.08] rounded-3xl space-y-2.5">
-          <Folder class="w-8 h-8 text-neutral-600 mx-auto" />
+          <Folder class="w-8 h-8 fill-neutral-600 text-neutral-600 mx-auto" />
           <p class="text-xs font-bold text-neutral-300">No photos in "{{ activeFolder }}"</p>
           <p class="text-[11px] text-neutral-500 max-w-xs mx-auto">
             Upload new photos into this folder or move existing photos here.
@@ -718,192 +839,336 @@ function deselectAll() {
     <!-- ========================================== -->
     <!-- 1. CREATE FOLDER MODAL -->
     <!-- ========================================== -->
-    <div
-      v-if="isCreateFolderModalOpen"
-      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
-    >
-      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl">
-        <div class="flex justify-between items-center border-b border-white/[0.08] pb-3">
-          <div class="flex items-center gap-2">
-            <FolderPlus class="w-5 h-5 text-[#FFD700]" />
-            <h3 class="text-lg font-bold text-white">Create New Album Folder</h3>
+    <Teleport to="body">
+      <div
+        v-if="isCreateFolderModalOpen"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4"
+      >
+        <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl">
+          <div class="flex justify-between items-center border-b border-white/[0.08] pb-3">
+            <div class="flex items-center gap-2">
+              <FolderPlus class="w-5 h-5 fill-neutral-300/40 text-neutral-300" />
+              <h3 class="text-lg font-bold text-white">Create New Album Folder</h3>
+            </div>
+            <button @click="isCreateFolderModalOpen = false" class="cursor-pointer text-neutral-400 hover:text-white">
+              <X class="w-5 h-5" />
+            </button>
           </div>
-          <button @click="isCreateFolderModalOpen = false" class="text-neutral-400 hover:text-white">
-            <X class="w-5 h-5" />
-          </button>
-        </div>
 
-        <div class="space-y-3">
-          <label class="block text-xs font-semibold uppercase text-neutral-400">Folder / Album Name</label>
-          <input
-            type="text"
-            v-model="newFolderName"
-            placeholder="e.g. Studio Sessions 2026, Destination Weddings..."
-            @keyup.enter="handleCreateFolder"
-            class="w-full px-4 py-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-          />
-        </div>
+          <div class="space-y-3">
+            <label class="block text-xs font-semibold uppercase text-neutral-400">Folder / Album Name</label>
+            <input
+              type="text"
+              v-model="newFolderName"
+              placeholder="e.g. Studio Sessions 2026, Destination Weddings..."
+              @keyup.enter="handleCreateFolder"
+              class="w-full px-4 py-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+            />
+          </div>
 
-        <div class="flex justify-end gap-3 pt-3 border-t border-white/[0.08]">
-          <button
-            @click="isCreateFolderModalOpen = false"
-            class="px-4 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            @click="handleCreateFolder"
-            :disabled="!newFolderName.trim()"
-            class="px-6 py-2 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 disabled:opacity-30 transition"
-          >
-            Create Folder
-          </button>
+          <div class="flex justify-end gap-3 pt-3 border-t border-white/[0.08]">
+            <button
+              @click="isCreateFolderModalOpen = false"
+              class="cursor-pointer px-4 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              @click="handleCreateFolder"
+              :disabled="!newFolderName.trim()"
+              class="cursor-pointer px-6 py-2 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 disabled:opacity-30 disabled:cursor-not-allowed transition"
+            >
+              Create Folder
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- ========================================== -->
     <!-- 2. RENAME FOLDER MODAL -->
     <!-- ========================================== -->
-    <div
-      v-if="isRenameFolderModalOpen"
-      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
-    >
-      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl">
-        <div class="flex justify-between items-center border-b border-white/[0.08] pb-3">
-          <div class="flex items-center gap-2">
-            <Edit3 class="w-5 h-5 text-[#FFD700]" />
-            <h3 class="text-lg font-bold text-white">Rename Folder</h3>
+    <Teleport to="body">
+      <div
+        v-if="isRenameFolderModalOpen"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4"
+      >
+        <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl">
+          <div class="flex justify-between items-center border-b border-white/[0.08] pb-3">
+            <div class="flex items-center gap-2">
+              <Edit3 class="w-5 h-5 text-neutral-300" />
+              <h3 class="text-lg font-bold text-white">Rename Folder</h3>
+            </div>
+            <button @click="isRenameFolderModalOpen = false" class="cursor-pointer text-neutral-400 hover:text-white">
+              <X class="w-5 h-5" />
+            </button>
           </div>
-          <button @click="isRenameFolderModalOpen = false" class="text-neutral-400 hover:text-white">
-            <X class="w-5 h-5" />
-          </button>
-        </div>
 
-        <div class="space-y-3">
-          <label class="block text-xs font-semibold uppercase text-neutral-400">New Name for "{{ folderBeingRenamed }}"</label>
-          <input
-            type="text"
-            v-model="newFolderName"
-            @keyup.enter="handleRenameFolder"
-            class="w-full px-4 py-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-          />
-        </div>
+          <div class="space-y-3">
+            <label class="block text-xs font-semibold uppercase text-neutral-400">New Name for "{{ folderBeingRenamed }}"</label>
+            <input
+              type="text"
+              v-model="newFolderName"
+              @keyup.enter="handleRenameFolder"
+              class="w-full px-4 py-3 rounded-xl bg-black/50 border border-white/[0.1] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+            />
+          </div>
 
-        <div class="flex justify-end gap-3 pt-3 border-t border-white/[0.08]">
-          <button
-            @click="isRenameFolderModalOpen = false"
-            class="px-4 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            @click="handleRenameFolder"
-            :disabled="!newFolderName.trim() || newFolderName === folderBeingRenamed"
-            class="px-6 py-2 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 disabled:opacity-30 transition"
-          >
-            Save Name
-          </button>
+          <div class="flex justify-end gap-3 pt-3 border-t border-white/[0.08]">
+            <button
+              @click="isRenameFolderModalOpen = false"
+              class="cursor-pointer px-4 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              @click="handleRenameFolder"
+              :disabled="!newFolderName.trim() || newFolderName === folderBeingRenamed"
+              class="cursor-pointer px-6 py-2 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 disabled:opacity-30 disabled:cursor-not-allowed transition"
+            >
+              Save Name
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- ========================================== -->
     <!-- 3. DELETE FOLDER CONFIRMATION MODAL -->
     <!-- ========================================== -->
-    <div
-      v-if="isDeleteFolderModalOpen"
-      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
-    >
-      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl">
-        <div class="flex items-center gap-3 text-red-400">
-          <AlertTriangle class="w-6 h-6" />
-          <h3 class="text-lg font-bold text-white">Delete "{{ folderBeingDeleted }}" Folder?</h3>
-        </div>
+    <Teleport to="body">
+      <div
+        v-if="isDeleteFolderModalOpen"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4"
+      >
+        <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl">
+          <div class="flex items-center gap-3 text-red-400">
+            <AlertTriangle class="w-6 h-6" />
+            <h3 class="text-lg font-bold text-white">Delete "{{ folderBeingDeleted }}" Folder?</h3>
+          </div>
 
-        <p class="text-xs text-neutral-300 leading-relaxed">
-          Photos inside this folder will <strong>NOT</strong> be deleted. They will automatically be safely moved to the <strong>General</strong> folder.
-        </p>
+          <p class="text-xs text-neutral-300 leading-relaxed">
+            Photos inside this folder will <strong>NOT</strong> be deleted. They will automatically be safely moved to the <strong>General</strong> folder.
+          </p>
 
-        <div class="flex justify-end gap-3 pt-3 border-t border-white/[0.08]">
-          <button
-            @click="isDeleteFolderModalOpen = false"
-            class="px-4 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            @click="handleDeleteFolder"
-            class="px-6 py-2 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase transition shadow-lg shadow-red-600/30"
-          >
-            Confirm Delete
-          </button>
+          <div class="flex justify-end gap-3 pt-3 border-t border-white/[0.08]">
+            <button
+              @click="isDeleteFolderModalOpen = false"
+              class="cursor-pointer px-4 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              @click="handleDeleteFolder"
+              class="cursor-pointer px-6 py-2 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase transition shadow-lg shadow-red-600/30"
+            >
+              Confirm Delete
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </Teleport>
 
     <!-- ========================================== -->
     <!-- 4. MOVE MEDIA TO FOLDER MODAL -->
     <!-- ========================================== -->
-    <div
-      v-if="isMoveMediaModalOpen"
-      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
-    >
-      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl">
-        <div class="flex justify-between items-center border-b border-white/[0.08] pb-3">
-          <div class="flex items-center gap-2">
-            <FolderInput class="w-5 h-5 text-[#FFD700]" />
-            <h3 class="text-lg font-bold text-white">
-              {{ targetMediaToMove ? 'Move Photo to Folder' : `Move ${selectedMediaIds.length} Photos` }}
-            </h3>
+    <Teleport to="body">
+      <div
+        v-if="isMoveMediaModalOpen"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10001] flex items-center justify-center p-4"
+      >
+        <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl">
+          <div class="flex justify-between items-center border-b border-white/[0.08] pb-3">
+            <div class="flex items-center gap-2">
+              <FolderInput class="w-5 h-5 text-neutral-300" />
+              <h3 class="text-lg font-bold text-white">
+                {{ targetMediaToMove ? 'Move Photo to Folder' : `Move ${selectedMediaIds.length} Photos` }}
+              </h3>
+            </div>
+            <button @click="isMoveMediaModalOpen = false" class="cursor-pointer text-neutral-400 hover:text-white">
+              <X class="w-5 h-5" />
+            </button>
           </div>
-          <button @click="isMoveMediaModalOpen = false" class="text-neutral-400 hover:text-white">
-            <X class="w-5 h-5" />
-          </button>
-        </div>
 
-        <div class="space-y-3">
-          <label class="block text-xs font-semibold uppercase text-neutral-400">Select Destination Folder:</label>
-          
-          <div class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
+          <div class="space-y-3">
+            <label class="block text-xs font-semibold uppercase text-neutral-400">Select Destination Folder:</label>
+            
+            <div class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
+              <button
+                v-for="f in folders"
+                :key="f"
+                @click="selectedDestinationFolder = f"
+                type="button"
+                class="cursor-pointer p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition"
+                :class="[
+                  selectedDestinationFolder === f
+                    ? 'bg-white/10 border-white/30 text-white'
+                    : 'bg-black/40 border-white/10 text-neutral-300 hover:text-white hover:border-white/20'
+                ]"
+              >
+                <div class="flex items-center gap-2.5">
+                  <Folder class="w-4 h-4" :class="[selectedDestinationFolder === f ? 'fill-white text-white' : 'fill-neutral-400 text-neutral-400']" />
+                  <span>{{ f }}</span>
+                </div>
+                <Check v-if="selectedDestinationFolder === f" class="w-4 h-4 text-white" />
+              </button>
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-3 pt-3 border-t border-white/[0.08]">
             <button
-              v-for="f in folders"
-              :key="f"
-              @click="selectedDestinationFolder = f"
-              type="button"
-              class="p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition"
-              :class="[
-                selectedDestinationFolder === f
-                  ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
-                  : 'bg-black/40 border-white/10 text-neutral-300 hover:text-white hover:border-white/20'
-              ]"
+              @click="isMoveMediaModalOpen = false"
+              class="cursor-pointer px-4 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
             >
-              <div class="flex items-center gap-2.5">
-                <Folder class="w-4 h-4" :class="[selectedDestinationFolder === f ? 'text-[#FFD700]' : 'text-neutral-400']" />
-                <span>{{ f }}</span>
-              </div>
-              <Check v-if="selectedDestinationFolder === f" class="w-4 h-4 text-[#FFD700]" />
+              Cancel
+            </button>
+            <button
+              @click="handleConfirmMove"
+              :disabled="!selectedDestinationFolder"
+              class="cursor-pointer px-6 py-2 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 disabled:opacity-30 disabled:cursor-not-allowed transition shadow-lg shadow-yellow-500/20 flex items-center gap-1.5"
+            >
+              <span>Move to {{ selectedDestinationFolder }}</span>
+              <MoveRight class="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-
-        <div class="flex justify-end gap-3 pt-3 border-t border-white/[0.08]">
-          <button
-            @click="isMoveMediaModalOpen = false"
-            class="px-4 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            @click="handleConfirmMove"
-            :disabled="!selectedDestinationFolder"
-            class="px-6 py-2 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 disabled:opacity-30 transition shadow-lg shadow-yellow-500/20 flex items-center gap-1.5"
-          >
-            <span>Move to {{ selectedDestinationFolder }}</span>
-            <MoveRight class="w-3.5 h-3.5" />
-          </button>
-        </div>
       </div>
-    </div>
+    </Teleport>
+
+    <!-- ========================================== -->
+    <!-- 5. FULLSCREEN CINEMATIC IMAGE VIEWER -->
+    <!-- ========================================== -->
+    <Teleport to="body">
+      <Transition
+        enter-active-class="transition-opacity duration-200"
+        leave-active-class="transition-opacity duration-200"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
+      >
+        <div
+          v-if="viewingItem"
+          class="fixed inset-0 bg-black/95 backdrop-blur-2xl z-[9999] flex flex-col justify-between font-manrope select-none"
+          @click.self="closeImageViewer"
+        >
+          <!-- Top Bar -->
+          <div class="px-6 py-4 relative flex items-center justify-between border-b border-white/[0.08] bg-black/40 backdrop-blur-md z-10">
+            <!-- Left Info -->
+            <div class="flex items-center gap-3 min-w-0">
+              <span class="px-2.5 py-1 rounded-full bg-white/10 text-xs font-mono text-neutral-300">
+                {{ viewingIndex + 1 }} / {{ filteredGallery.length }}
+              </span>
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10 text-[10px] font-semibold text-neutral-300 flex items-center gap-1.5 shrink-0">
+                  <Folder class="w-3 h-3 fill-neutral-400 text-neutral-400" />
+                  <span>{{ viewingItem.category }}</span>
+                </span>
+                <span class="text-xs font-mono text-neutral-400 truncate max-w-[160px] sm:max-w-xs">
+                  {{ getImageFileName(viewingItem) }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Centered Subtle Usage Indicator (Neutral text, not a badge) -->
+            <div
+              v-if="getImageUsage(viewingItem)"
+              class="hidden md:flex items-center gap-1.5 absolute left-1/2 -translate-x-1/2 text-xs text-neutral-400"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-neutral-500"></span>
+              <span>{{ getImageUsage(viewingItem).fullText }}</span>
+            </div>
+
+            <!-- Right Actions -->
+            <div class="flex items-center gap-2 shrink-0">
+              <!-- Move Folder -->
+              <button
+                @click="openMoveSingleMedia(viewingItem)"
+                class="cursor-pointer p-2 rounded-xl bg-white/[0.05] hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 text-xs font-semibold transition flex items-center gap-1.5"
+                title="Move photo to folder"
+              >
+                <FolderInput class="w-4 h-4" />
+                <span class="hidden sm:inline">Move</span>
+              </button>
+
+              <!-- Open in New Tab -->
+              <a
+                :href="viewingItem.image_url"
+                target="_blank"
+                class="cursor-pointer p-2 rounded-xl bg-white/[0.05] hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 transition"
+                title="Open high-res in new tab"
+              >
+                <ExternalLink class="w-4 h-4" />
+              </a>
+
+              <!-- Delete -->
+              <button
+                @click="deleteMedia(viewingItem.id); closeImageViewer()"
+                class="cursor-pointer p-2 rounded-xl bg-white/[0.05] hover:bg-red-500/20 text-neutral-400 hover:text-red-400 border border-white/10 transition"
+                title="Delete photo"
+              >
+                <Trash2 class="w-4 h-4" />
+              </button>
+
+              <!-- Close -->
+              <button
+                @click="closeImageViewer"
+                class="cursor-pointer p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition ml-2"
+                title="Close viewer (Esc)"
+              >
+                <X class="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Center Canvas with Navigation Arrows -->
+          <div
+            class="flex-1 flex items-center justify-between px-4 sm:px-8 relative overflow-hidden my-auto"
+            @click.self="closeImageViewer"
+          >
+            <!-- Prev Button -->
+            <button
+              v-if="filteredGallery.length > 1"
+              @click.stop="prevImage"
+              class="cursor-pointer w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md flex items-center justify-center transition hover:scale-110 shadow-2xl z-20"
+              title="Previous (←)"
+            >
+              <ChevronLeft class="w-6 h-6" />
+            </button>
+            <div v-else class="w-12"></div>
+
+            <!-- Image View -->
+            <div class="relative max-h-[80vh] max-w-[85vw] flex items-center justify-center pointer-events-auto">
+              <img
+                :src="viewingItem.image_url"
+                :alt="viewingItem.title || 'Fullscreen Preview'"
+                class="max-h-[80vh] max-w-[85vw] object-contain rounded-2xl shadow-2xl border border-white/10 transition-transform duration-300"
+              />
+            </div>
+
+            <!-- Next Button -->
+            <button
+              v-if="filteredGallery.length > 1"
+              @click.stop="nextImage"
+              class="cursor-pointer w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md flex items-center justify-center transition hover:scale-110 shadow-2xl z-20"
+              title="Next (→)"
+            >
+              <ChevronRight class="w-6 h-6" />
+            </button>
+            <div v-else class="w-12"></div>
+          </div>
+
+          <!-- Bottom Footer Bar -->
+          <div class="px-6 py-3 border-t border-white/[0.08] bg-black/40 backdrop-blur-md flex flex-wrap items-center justify-between gap-4 text-xs text-neutral-400 z-10">
+            <div class="flex items-center gap-4 flex-wrap">
+              <span>File size: <strong class="text-neutral-200 font-mono">{{ ((viewingItem.file_size_bytes || 350000) / 1024).toFixed(0) }} KB</strong></span>
+              <span class="hidden sm:inline">Folder: <strong class="text-neutral-200">{{ viewingItem.category }}</strong></span>
+            </div>
+            <div class="hidden md:flex items-center gap-4 text-[11px] text-neutral-500">
+              <span>Press <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-mono">←</kbd> <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-mono">→</kbd> to navigate</span>
+              <span>Press <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-mono">ESC</kbd> to exit</span>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>

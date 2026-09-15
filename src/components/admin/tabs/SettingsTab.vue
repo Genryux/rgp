@@ -51,7 +51,7 @@ async function handleSave() {
       <!-- General Studio Info -->
       <div class="bg-[#141414] border border-white/[0.08] rounded-3xl p-6 md:p-8 space-y-6 shadow-xl">
         <div class="flex items-center gap-2.5 border-b border-white/[0.06] pb-3 text-white">
-          <Building class="w-4 h-4 text-[#FFD700]" />
+          <Building class="w-4 h-4 text-neutral-400" />
           <h3 class="text-base font-bold tracking-wide">General Studio Profile</h3>
         </div>
 
@@ -109,7 +109,7 @@ async function handleSave() {
       <!-- Social Media Links -->
       <div class="bg-[#141414] border border-white/[0.08] rounded-3xl p-6 md:p-8 space-y-6 shadow-xl">
         <div class="flex items-center gap-2.5 border-b border-white/[0.06] pb-3 text-white">
-          <Share2 class="w-4 h-4 text-[#FFD700]" />
+          <Share2 class="w-4 h-4 text-neutral-400" />
           <h3 class="text-base font-bold tracking-wide">Social Media Accounts</h3>
         </div>
 
@@ -159,7 +159,7 @@ async function handleSave() {
       <!-- SEO Metadata -->
       <div class="bg-[#141414] border border-white/[0.08] rounded-3xl p-6 md:p-8 space-y-6 shadow-xl">
         <div class="flex items-center gap-2.5 border-b border-white/[0.06] pb-3 text-white">
-          <Search class="w-4 h-4 text-[#FFD700]" />
+          <Search class="w-4 h-4 text-neutral-400" />
           <h3 class="text-base font-bold tracking-wide">Search Engine Optimization (SEO)</h3>
         </div>
 
