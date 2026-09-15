@@ -89,19 +89,25 @@ const filteredGallery = computed(() => {
   return gallery.value.filter((item) => item.category === activeFolder.value);
 });
 
-// Upload target folder (defaults to active folder if specific, or first available folder)
-const uploadTargetFolder = computed(() => {
-  if (activeFolder.value !== 'All' && folders.value.includes(activeFolder.value)) {
-    return activeFolder.value;
-  }
-  return folders.value[0] || 'Weddings';
-});
+// Manual upload destination folder
+const manualUploadFolder = ref(folders.value[0] || 'Weddings');
+
+// Keep manual selection valid if folders change
+watch(
+  folders,
+  (newFolders) => {
+    if (newFolders.length > 0 && !newFolders.includes(manualUploadFolder.value)) {
+      manualUploadFolder.value = newFolders[0];
+    }
+  },
+  { immediate: true }
+);
 
 async function handleFiles(files) {
   if (!files || files.length === 0) return;
   uploading.value = true;
 
-  const targetCategory = uploadTargetFolder.value;
+  const targetCategory = manualUploadFolder.value || folders.value[0] || 'General';
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     uploadProgress.value = `Optimizing & uploading ${i + 1} of ${files.length}: ${file.name}...`;
@@ -347,14 +353,25 @@ function deselectAll() {
           @change="onFileInputChange"
         />
 
-        <div class="flex items-center justify-between border-b border-white/[0.06] pb-2.5 pointer-events-none">
-          <div class="flex items-center gap-2">
+        <div class="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
+          <div class="flex items-center gap-2 pointer-events-none">
             <UploadCloud class="w-4 h-4 text-[#FFD700]" />
             <h3 class="text-sm font-bold text-white tracking-wide">Quick Upload Dropzone</h3>
           </div>
-          <div class="px-2.5 py-0.5 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/30 text-[10px] text-[#FFD700] font-semibold flex items-center gap-1">
-            <Folder class="w-3 h-3" />
-            <span>Target: <strong>{{ uploadTargetFolder }}</strong></span>
+          <!-- Manual Target Folder Selector -->
+          <div class="flex items-center gap-1.5" @click.stop>
+            <label class="text-[10px] font-bold text-neutral-400 uppercase hidden sm:inline">Upload to:</label>
+            <div class="relative">
+              <select
+                v-model="manualUploadFolder"
+                class="px-2.5 py-1 pr-6 rounded-xl bg-black/60 border border-white/15 hover:border-[#FFD700] text-xs font-semibold text-white focus:outline-none focus:border-[#FFD700] cursor-pointer transition appearance-none"
+              >
+                <option v-for="f in folders" :key="f" :value="f" class="bg-[#141414] text-white">
+                  {{ f }}
+                </option>
+              </select>
+              <Folder class="w-3 h-3 text-[#FFD700] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
         </div>
 
@@ -433,11 +450,10 @@ function deselectAll() {
           <button
             v-if="activeFolder !== 'All'"
             @click="activeFolder = 'All'"
-            class="p-1.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-neutral-300 hover:text-[#FFD700] transition flex items-center gap-1 text-xs font-bold"
+            class="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-neutral-300 hover:text-[#FFD700] transition flex items-center justify-center"
             title="Back to All Media"
           >
             <ArrowLeft class="w-4 h-4" />
-            <span>All</span>
           </button>
 
           <!-- Breadcrumb Title -->
@@ -466,7 +482,7 @@ function deselectAll() {
               class="px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
               :class="[
                 viewFilter === 'folders'
-                  ? 'bg-[#FFD700]/15 text-[#FFD700] border border-[#FFD700]/30'
+                  ? 'bg-white/10 text-white border border-white/20'
                   : 'text-neutral-400 hover:text-white'
               ]"
             >
@@ -509,10 +525,11 @@ function deselectAll() {
 
         <!-- Right: Create Folder + Batch Select -->
         <div class="flex items-center gap-2.5">
-          <!-- + Create Folder Button -->
+          <!-- + Create Folder Button (Only shown when at root 'All' view) -->
           <button
+            v-if="activeFolder === 'All'"
             @click="openCreateFolder"
-            class="px-3.5 py-1.5 rounded-2xl bg-white/[0.05] hover:bg-[#FFD700] hover:text-black text-neutral-200 text-xs font-bold border border-white/10 hover:border-[#FFD700] transition flex items-center gap-1.5 shadow-sm"
+            class="px-3.5 py-1.5 rounded-2xl bg-white/[0.05] hover:bg-[#FFD700] hover:text-black text-neutral-200 text-xs font-bold border border-white/10 hover:border-[#FFD700] transition flex items-center gap-1.5 shadow-sm group"
           >
             <FolderPlus class="w-3.5 h-3.5 text-[#FFD700] group-hover:text-black" />
             <span>Create Folder</span>
@@ -548,8 +565,8 @@ function deselectAll() {
             class="p-3.5 rounded-2xl bg-[#141414] border border-white/[0.08] hover:border-[#FFD700] cursor-pointer transition duration-200 group flex flex-col justify-between space-y-2.5 shadow-lg hover:scale-[1.02]"
           >
             <div class="flex items-center justify-between">
-              <div class="w-8 h-8 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/30 text-[#FFD700] flex items-center justify-center transition group-hover:bg-[#FFD700] group-hover:text-black">
-                <Folder class="w-4 h-4" />
+              <div class="text-[#FFD700] flex items-center justify-center transition group-hover:scale-110">
+                <Folder class="w-5 h-5" />
               </div>
 
               <!-- Quick action dots/edit -->
