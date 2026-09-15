@@ -54,7 +54,7 @@ const DEFAULT_SECTIONS = [
     sort_order: 4,
     content: {
       title: 'Packages & Rates',
-      subtitle: 'Transparent pricing crafted for every milestone and celebration',
+      subtitle: 'Tailored packages crafted for every milestone and celebration',
     },
   },
   {

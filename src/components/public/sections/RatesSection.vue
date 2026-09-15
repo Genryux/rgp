@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { usePackages } from '../../../composables/usePackages';
+import { usePackages, formatMaskedPrice } from '../../../composables/usePackages';
 
 defineProps({
   content: {
@@ -9,7 +9,7 @@ defineProps({
   },
 });
 
-const { packages } = usePackages();
+const { packages, isGlobalPriceMasked } = usePackages();
 
 const activePackages = computed(() =>
   packages.value.filter((p) => p.is_active)
@@ -41,7 +41,7 @@ function formatPrice(amount) {
           {{ content.title || 'PACKAGES & RATES' }}
         </h2>
         <p class="text-gray-400 font-nuosu text-sm md:text-base max-w-xl mx-auto">
-          {{ content.subtitle || 'Transparent, full-coverage packages designed for weddings, birthdays, and studio portraits.' }}
+          {{ content.subtitle || 'Tailored full-coverage packages crafted for weddings, celebrations, and studio portraits.' }}
         </p>
 
         <!-- Category Filters -->
@@ -86,17 +86,27 @@ function formatPrice(amount) {
             <span class="text-xs font-mono uppercase tracking-widest text-[#FFD700]">{{ pkg.category }}</span>
             <h3 class="text-2xl font-bebas text-white tracking-wide mt-1 mb-4">{{ pkg.title }}</h3>
 
-            <!-- Price -->
+            <!-- Price Display (Masked vs Standard) -->
             <div class="flex items-baseline gap-2 mb-6">
-              <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
-                ₱{{ formatPrice(pkg.promo_price || pkg.price) }}
-              </span>
-              <span
-                v-if="pkg.promo_price"
-                class="text-sm font-mono text-gray-500 line-through"
-              >
-                ₱{{ formatPrice(pkg.price) }}
-              </span>
+              <!-- If Masked: Show 2?,??? and disable promo price -->
+              <template v-if="pkg.hide_price || isGlobalPriceMasked">
+                <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
+                  ₱{{ formatMaskedPrice(pkg.price) }}
+                </span>
+              </template>
+
+              <!-- Standard Price & Promo Price -->
+              <template v-else>
+                <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
+                  ₱{{ formatPrice(pkg.promo_price || pkg.price) }}
+                </span>
+                <span
+                  v-if="pkg.promo_price"
+                  class="text-sm font-mono text-gray-500 line-through"
+                >
+                  ₱{{ formatPrice(pkg.price) }}
+                </span>
+              </template>
             </div>
 
             <!-- Inclusions Checklist -->
@@ -124,7 +134,7 @@ function formatPrice(amount) {
                 : 'bg-white/10 text-white hover:bg-[#FFD700] hover:text-[#141414]'
             ]"
           >
-            Inquire for this Package
+            Inquire to unlock price
           </a>
         </div>
       </div>

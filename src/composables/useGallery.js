@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-// Default gallery showcase items with file sizes in bytes (~300-450 KB each)
+// Default initial gallery showcase items with file sizes in bytes (~300-450 KB each)
 const DEFAULT_GALLERY = [
   {
     id: 'gal_1',
@@ -65,10 +65,28 @@ const DEFAULT_GALLERY = [
   },
 ];
 
+const DEFAULT_FOLDERS = [
+  'Weddings',
+  'Birthdays',
+  'Debuts',
+  'Portraits',
+  'Graduation',
+  'Landscapes',
+  'Commercial',
+  'General',
+];
+
+const storedFolders = localStorage.getItem('rgp_media_folders');
+const folders = ref(storedFolders ? JSON.parse(storedFolders) : DEFAULT_FOLDERS);
+
 const gallery = ref(DEFAULT_GALLERY);
 const loading = ref(false);
 
 const MAX_QUOTA_BYTES = 1000 * 1024 * 1024; // 1 GB in bytes (1,048,576,000 bytes)
+
+function persistFolders() {
+  localStorage.setItem('rgp_media_folders', JSON.stringify(folders.value));
+}
 
 /**
  * Client-Side Image Compressor
@@ -120,7 +138,8 @@ export async function compressImageToWebP(file, maxWidth = 2560, quality = 0.85)
       );
     };
 
-    img.onerror = (err) => reject(err);
+    img.onerror = () => resolve(file);
+    reader.onerror = () => resolve(file);
     reader.readAsDataURL(file);
   });
 }
@@ -152,10 +171,33 @@ export function useGallery() {
     return Math.floor(remainingBytes / 350000); // Assuming avg ~350KB WebP photo
   });
 
+  // Folder item counts mapping
+  const folderCounts = computed(() => {
+    const counts = {};
+    folders.value.forEach((f) => (counts[f] = 0));
+    gallery.value.forEach((item) => {
+      const cat = item.category || 'General';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  });
+
   async function fetchGallery() {
     if (!isSupabaseConfigured || !supabase) return;
     loading.value = true;
     try {
+      // 1. Fetch folders from media_folders table
+      const { data: folderData, error: folderErr } = await supabase
+        .from('media_folders')
+        .select('name')
+        .order('created_at', { ascending: true });
+
+      if (!folderErr && folderData && folderData.length > 0) {
+        folders.value = folderData.map((f) => f.name);
+        persistFolders();
+      }
+
+      // 2. Fetch gallery media
       const { data, error } = await supabase
         .from('gallery')
         .select('*')
@@ -164,6 +206,13 @@ export function useGallery() {
       if (error) throw error;
       if (data && data.length > 0) {
         gallery.value = data;
+        // Merge any categories from items into folders
+        data.forEach((item) => {
+          if (item.category && !folders.value.includes(item.category)) {
+            folders.value.push(item.category);
+          }
+        });
+        persistFolders();
       }
     } catch (err) {
       console.error('[Gallery] Error fetching gallery:', err);
@@ -172,6 +221,143 @@ export function useGallery() {
     }
   }
 
+  // ==========================================
+  // FOLDER CRUD MANAGEMENT
+  // ==========================================
+  async function createFolder(folderName) {
+    const trimmed = folderName.trim();
+    if (!trimmed) return false;
+    if (folders.value.includes(trimmed)) return false;
+
+    folders.value.push(trimmed);
+    persistFolders();
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('media_folders').insert({ name: trimmed });
+      } catch (err) {
+        console.error('[Gallery] Error creating folder in Supabase:', err);
+      }
+    }
+    return true;
+  }
+
+  async function updateFolder(oldName, newName) {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) return false;
+
+    const index = folders.value.indexOf(oldName);
+    if (index !== -1) {
+      folders.value[index] = trimmed;
+      persistFolders();
+    }
+
+    // Update all media items belonging to this folder locally
+    gallery.value.forEach((item) => {
+      if (item.category === oldName) {
+        item.category = trimmed;
+      }
+    });
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('media_folders')
+          .update({ name: trimmed })
+          .eq('name', oldName);
+
+        await supabase
+          .from('gallery')
+          .update({ category: trimmed })
+          .eq('category', oldName);
+      } catch (err) {
+        console.error('[Gallery] Error updating folder in Supabase:', err);
+      }
+    }
+    return true;
+  }
+
+  async function deleteFolder(folderName, targetFallbackFolder = 'General') {
+    if (folderName === targetFallbackFolder) return false;
+
+    // Ensure fallback folder exists
+    if (!folders.value.includes(targetFallbackFolder)) {
+      folders.value.push(targetFallbackFolder);
+    }
+
+    // Reassign all media in deleted folder to targetFallbackFolder locally
+    gallery.value.forEach((item) => {
+      if (item.category === folderName) {
+        item.category = targetFallbackFolder;
+      }
+    });
+
+    folders.value = folders.value.filter((f) => f !== folderName);
+    persistFolders();
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('gallery')
+          .update({ category: targetFallbackFolder })
+          .eq('category', folderName);
+
+        await supabase
+          .from('media_folders')
+          .delete()
+          .eq('name', folderName);
+      } catch (err) {
+        console.error('[Gallery] Error reassigning media upon folder delete:', err);
+      }
+    }
+    return true;
+  }
+
+  // ==========================================
+  // MEDIA MOVEMENT & REASSIGNMENT
+  // ==========================================
+  async function moveMediaToFolder(mediaId, targetFolder) {
+    const item = gallery.value.find((g) => g.id === mediaId);
+    if (!item) return;
+
+    item.category = targetFolder;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('gallery')
+          .update({ category: targetFolder })
+          .eq('id', mediaId);
+      } catch (err) {
+        console.error('[Gallery] Error moving media to folder:', err);
+      }
+    }
+  }
+
+  async function bulkMoveMedia(mediaIds, targetFolder) {
+    if (!mediaIds || mediaIds.length === 0) return;
+
+    gallery.value.forEach((item) => {
+      if (mediaIds.includes(item.id)) {
+        item.category = targetFolder;
+      }
+    });
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('gallery')
+          .update({ category: targetFolder })
+          .in('id', mediaIds);
+      } catch (err) {
+        console.error('[Gallery] Error bulk moving media:', err);
+      }
+    }
+  }
+
+  // ==========================================
+  // UPLOAD & ITEM ACTIONS
+  // ==========================================
   async function uploadMediaFile(file, category = 'General') {
     // 1. Compress image before upload
     const compressedFile = await compressImageToWebP(file);
@@ -268,6 +454,8 @@ export function useGallery() {
 
   return {
     gallery,
+    folders,
+    folderCounts,
     loading,
     totalStorageBytes,
     totalStorageMB,
@@ -276,6 +464,11 @@ export function useGallery() {
     remainingMB,
     estimatedPhotosRemaining,
     fetchGallery,
+    createFolder,
+    updateFolder,
+    deleteFolder,
+    moveMediaToFolder,
+    bulkMoveMedia,
     uploadMediaFile,
     deleteMedia,
     toggleFeatured,

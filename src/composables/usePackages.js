@@ -1,7 +1,21 @@
 import { ref } from 'vue';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
-// Initial default packages
+// Helper function to format price with masking (e.g. 25000 -> 2?,???)
+export function formatMaskedPrice(price) {
+  if (!price && price !== 0) return '0';
+  const numStr = Number(price).toLocaleString('en-PH');
+  let foundFirst = false;
+  return numStr.replace(/\d/g, (match) => {
+    if (!foundFirst) {
+      foundFirst = true;
+      return match;
+    }
+    return '?';
+  });
+}
+
+// Initial default packages with hide_price support
 const DEFAULT_PACKAGES = [
   {
     id: 'pkg_1',
@@ -19,6 +33,7 @@ const DEFAULT_PACKAGES = [
     ],
     is_featured: false,
     is_active: true,
+    hide_price: false,
     sort_order: 1,
   },
   {
@@ -38,6 +53,7 @@ const DEFAULT_PACKAGES = [
     ],
     is_featured: true,
     is_active: true,
+    hide_price: false,
     sort_order: 2,
   },
   {
@@ -56,6 +72,7 @@ const DEFAULT_PACKAGES = [
     ],
     is_featured: false,
     is_active: true,
+    hide_price: false,
     sort_order: 3,
   },
   {
@@ -73,14 +90,21 @@ const DEFAULT_PACKAGES = [
     ],
     is_featured: false,
     is_active: true,
+    hide_price: false,
     sort_order: 4,
   },
 ];
 
 const packages = ref(DEFAULT_PACKAGES);
+const isGlobalPriceMasked = ref(localStorage.getItem('rgp_mask_prices') === 'true');
 const loading = ref(false);
 
 export function usePackages() {
+  function toggleGlobalPriceMask() {
+    isGlobalPriceMasked.value = !isGlobalPriceMasked.value;
+    localStorage.setItem('rgp_mask_prices', String(isGlobalPriceMasked.value));
+  }
+
   async function fetchPackages() {
     if (!isSupabaseConfigured || !supabase) return;
     loading.value = true;
@@ -178,9 +202,30 @@ export function usePackages() {
     }
   }
 
+  async function togglePackagePriceMask(id) {
+    const pkg = packages.value.find((p) => p.id === id);
+    if (!pkg) return;
+    pkg.hide_price = !pkg.hide_price;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('packages')
+          .update({ hide_price: pkg.hide_price })
+          .eq('id', id);
+      } catch (err) {
+        console.error('[Packages] Error updating hide_price status:', err);
+      }
+    }
+  }
+
   return {
     packages,
+    isGlobalPriceMasked,
     loading,
+    toggleGlobalPriceMask,
+    togglePackagePriceMask,
+    formatMaskedPrice,
     fetchPackages,
     savePackage,
     deletePackage,

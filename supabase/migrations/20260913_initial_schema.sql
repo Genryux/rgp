@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS public.packages (
     features JSONB NOT NULL DEFAULT '[]'::jsonb, -- Array of strings: ["2 Photographers", "100 Edited Photos"]
     is_featured BOOLEAN DEFAULT false,  -- Highlighted on homepage
     is_active BOOLEAN DEFAULT true,     -- Visible to visitors
+    hide_price BOOLEAN DEFAULT false,   -- Mask price to 2?,??? and disable promo
     sort_order INT NOT NULL DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now()
@@ -86,6 +87,25 @@ VALUES (
     'https://www.facebook.com/profile.php?id=61586681783932'
 ) ON CONFLICT (id) DO NOTHING;
 
+-- 6. MEDIA FOLDERS & ALBUMS TABLE
+CREATE TABLE IF NOT EXISTS public.media_folders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Insert Default Folders
+INSERT INTO public.media_folders (name) VALUES
+    ('Weddings'),
+    ('Birthdays'),
+    ('Debuts'),
+    ('Portraits'),
+    ('Graduation'),
+    ('Landscapes'),
+    ('Commercial'),
+    ('General')
+ON CONFLICT (name) DO NOTHING;
+
 -- ==============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
@@ -93,6 +113,7 @@ VALUES (
 ALTER TABLE public.sections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gallery ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.media_folders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inquiries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 
@@ -107,6 +128,10 @@ CREATE POLICY "Public can view active packages"
 
 CREATE POLICY "Public can view gallery media" 
     ON public.gallery FOR SELECT 
+    USING (true);
+
+CREATE POLICY "Public can view media folders" 
+    ON public.media_folders FOR SELECT 
     USING (true);
 
 CREATE POLICY "Public can view site settings" 
@@ -130,6 +155,10 @@ CREATE POLICY "Admin full access on gallery"
     ON public.gallery FOR ALL 
     USING (auth.role() = 'authenticated');
 
+CREATE POLICY "Admin full access on media folders" 
+    ON public.media_folders FOR ALL 
+    USING (auth.role() = 'authenticated');
+
 CREATE POLICY "Admin full access on inquiries" 
     ON public.inquiries FOR ALL 
     USING (auth.role() = 'authenticated');
@@ -137,3 +166,4 @@ CREATE POLICY "Admin full access on inquiries"
 CREATE POLICY "Admin full access on site settings" 
     ON public.site_settings FOR ALL 
     USING (auth.role() = 'authenticated');
+

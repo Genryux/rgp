@@ -346,7 +346,7 @@ const sectionCategoryCatalog = [
     name: 'Packages & Rates',
     icon: Diamond,
     badgeColor: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
-    description: 'Display transparent pricing tiers, inclusions, deliverables, and booking workflows.',
+    description: 'Display tailored pricing tiers, inclusions, deliverables, and booking workflows.',
     designs: [
       {
         id: 'rates_tiered',
@@ -357,7 +357,7 @@ const sectionCategoryCatalog = [
         features: ['Bronze, Silver, Gold package tiers', 'Highlighted "Most Popular" center card', 'Checkmark inclusions & instant inquiry trigger'],
         defaultContent: {
           title: 'Packages & Rates',
-          subtitle: 'Transparent pricing crafted for every milestone and celebration',
+          subtitle: 'Tailored packages crafted for every milestone and celebration',
         },
       },
       {
