@@ -15,7 +15,7 @@ defineProps({
         <div class="rounded-3xl overflow-hidden shadow-2xl border border-white/10 aspect-[4/5] bg-neutral-900">
           <img
             :src="content.image_url || '/images/main-shot.jpg'"
-            alt="About RGP Films & Studio"
+            :alt="content.title || 'About Studio'"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             loading="lazy"
           />
@@ -26,7 +26,9 @@ defineProps({
 
       <!-- Text Bio & Experience Counters -->
       <div class="space-y-6">
-        <span class="text-xs font-mono uppercase tracking-widest text-[#FFD700]">ABOUT RGP FILMS & STUDIO</span>
+        <span class="text-xs font-mono uppercase tracking-widest text-[#FFD700]">
+          {{ content.badge_text || 'ABOUT RGP FILMS & STUDIO' }}
+        </span>
         <h2 class="text-3xl md:text-5xl font-bebas text-white tracking-wide leading-tight">
           {{ content.title || 'BEHIND THE LENS' }}
         </h2>
@@ -37,25 +39,37 @@ defineProps({
         <!-- Stats Counters -->
         <div class="grid grid-cols-3 gap-4 pt-6 border-t border-white/10">
           <div>
-            <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] block">{{ content.experience_years || '5+' }}</span>
-            <span class="text-xs font-nuosu text-gray-400">Years Experience</span>
+            <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] block">
+              {{ content.stat1_value || content.experience_years || '5+' }}
+            </span>
+            <span class="text-xs font-nuosu text-gray-400">
+              {{ content.stat1_label || 'Years Experience' }}
+            </span>
           </div>
           <div>
-            <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] block">{{ content.events_covered || '250+' }}</span>
-            <span class="text-xs font-nuosu text-gray-400">Events Documented</span>
+            <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] block">
+              {{ content.stat2_value || content.events_covered || '250+' }}
+            </span>
+            <span class="text-xs font-nuosu text-gray-400">
+              {{ content.stat2_label || 'Events Documented' }}
+            </span>
           </div>
           <div>
-            <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] block">{{ content.satisfaction_rate || '100%' }}</span>
-            <span class="text-xs font-nuosu text-gray-400">Client Satisfaction</span>
+            <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] block">
+              {{ content.stat3_value || content.satisfaction_rate || '100%' }}
+            </span>
+            <span class="text-xs font-nuosu text-gray-400">
+              {{ content.stat3_label || 'Client Satisfaction' }}
+            </span>
           </div>
         </div>
 
         <div class="pt-4">
           <a
-            href="#contact"
+            :href="content.cta_link || '#contact'"
             class="inline-block px-8 py-3.5 rounded-full border border-[#FFD700] text-[#FFD700] font-nuosu text-sm tracking-wider hover:bg-[#FFD700] hover:text-[#141414] transition-all duration-300"
           >
-            GET IN TOUCH
+            {{ content.cta_text || 'GET IN TOUCH' }}
           </a>
         </div>
       </div>

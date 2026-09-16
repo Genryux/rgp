@@ -83,7 +83,10 @@ const pickerFilteredMedia = computed(() => {
   return list;
 });
 
-function openMediaPicker() {
+const mediaPickerTargetField = ref('bg_image');
+
+function openMediaPicker(targetField = 'bg_image') {
+  mediaPickerTargetField.value = targetField;
   mediaPickerSearch.value = '';
   mediaPickerActiveFolder.value = 'All';
   isMediaPickerOpen.value = true;
@@ -91,8 +94,12 @@ function openMediaPicker() {
 
 function selectImageForHero(imageUrl) {
   if (editingSection.value && editingSection.value.content) {
-    editingSection.value.content.bg_source = 'image';
-    editingSection.value.content.bg_image = imageUrl;
+    if (mediaPickerTargetField.value === 'image_url') {
+      editingSection.value.content.image_url = imageUrl;
+    } else {
+      editingSection.value.content.bg_source = 'image';
+      editingSection.value.content.bg_image = imageUrl;
+    }
   }
   isMediaPickerOpen.value = false;
 }
@@ -340,11 +347,12 @@ const sectionCategoryCatalog = [
         type: 'process',
         variant: 'process',
         skeletonType: 'process-timeline',
-        name: '4-Step Booking & Shoot Timeline',
+        name: 'Step-by-Step Workflow Journey',
         tag: 'Workflow',
-        features: ['Numbered gold step badges (01-04)', 'Consultation to 4K delivery journey', 'Builds clear expectations for clients'],
+        features: ['Numbered gold step badges (01, 02, etc.)', 'Dynamic step builder with add/remove actions', 'Builds clear expectations for clients'],
         defaultContent: {
-          title: 'OUR 4-STEP PROCESS',
+          badge_text: 'HOW WE WORK',
+          title: 'OUR CLIENT PROCESS',
           subtitle: 'From your initial inquiry to the final delivery of your timeless gallery',
           steps: [
             { step: '01', title: 'Consultation & Date Lock', desc: 'We discuss your vision and secure your date with a reservation deposit.' },
@@ -361,8 +369,9 @@ const sectionCategoryCatalog = [
         skeletonType: 'gear-arsenal',
         name: 'Camera & Cinema Gear Arsenal',
         tag: 'Technical Rig',
-        features: ['Sony FX cinema bodies & G-Master lenses breakdown', 'DJI Mavic Cine drones & audio gear list', 'Builds deep client confidence in production quality'],
+        features: ['Dynamic equipment category cards', 'Sony cinema bodies, prime lenses & drone lists', 'Builds deep client confidence in production quality'],
         defaultContent: {
+          badge_text: 'PRODUCTION STANDARDS',
           title: 'OUR PRODUCTION GEAR & ARSENAL',
           subtitle: 'We invest in top-tier camera and audio gear to ensure cinematic fidelity in any lighting condition.',
           categories: [
@@ -849,6 +858,93 @@ function moveDown(index) {
 
 function openEdit(section) {
   editingSection.value = JSON.parse(JSON.stringify(section));
+  if (editingSection.value && editingSection.value.section_type === 'process') {
+    if (!editingSection.value.content) editingSection.value.content = {};
+    if (!Array.isArray(editingSection.value.content.steps) || editingSection.value.content.steps.length === 0) {
+      editingSection.value.content.steps = [
+        { step: '01', title: 'Consultation & Date Lock', desc: 'We discuss your vision, event timeline, and secure your date with a reservation deposit.' },
+        { step: '02', title: 'Pre-Event Planning', desc: 'We coordinate mood boards, shot lists, location scouting, and lighting strategy.' },
+        { step: '03', title: 'The Shoot Day', desc: 'Our experienced team captures every genuine emotion, unscripted laugh, and milestone.' },
+        { step: '04', title: 'Master Retouching & Delivery', desc: 'Sneak peeks in 48 hours, followed by complete color-graded galleries and 4K reels.' },
+      ];
+    }
+  }
+  if (editingSection.value && editingSection.value.section_type === 'gear') {
+    if (!editingSection.value.content) editingSection.value.content = {};
+    if (!Array.isArray(editingSection.value.content.categories) || editingSection.value.content.categories.length === 0) {
+      editingSection.value.content.categories = [
+        { group: 'Cameras & Cinema Bodies', items: ['Sony A7S III (4K 120fps Cinema)', 'Sony A7 IV Full-Frame Bodies', 'Blackmagic Cinema Rig'] },
+        { group: 'Prime & Zoom Lenses', items: ['Sony G-Master 24-70mm f/2.8 II', 'Sony G-Master 70-200mm f/2.8', 'Sony 50mm & 85mm f/1.4 Primes'] },
+        { group: 'Aerial & Stabilization', items: ['DJI Mavic 3 Cine 5.1K Drone', 'DJI RS3 Pro Gimbal Stabilizer', 'Wireless Video Transmitters'] },
+        { group: 'Audio & Studio Lighting', items: ['Godox AD600 Pro High-Speed Strobes', 'Sennheiser Wireless Lav Mics', 'Aputure Amaran Studio LED Kits'] },
+      ];
+    }
+  }
+}
+
+function addProcessStep() {
+  if (!editingSection.value || !editingSection.value.content) return;
+  if (!Array.isArray(editingSection.value.content.steps)) {
+    editingSection.value.content.steps = [];
+  }
+  const nextIdx = editingSection.value.content.steps.length + 1;
+  const stepNum = nextIdx < 10 ? `0${nextIdx}` : `${nextIdx}`;
+  editingSection.value.content.steps.push({
+    step: stepNum,
+    title: '',
+    desc: '',
+  });
+}
+
+function removeProcessStep(index) {
+  if (!editingSection.value || !editingSection.value.content || !Array.isArray(editingSection.value.content.steps)) return;
+  editingSection.value.content.steps.splice(index, 1);
+}
+
+function moveProcessStep(index, direction) {
+  if (!editingSection.value || !editingSection.value.content || !Array.isArray(editingSection.value.content.steps)) return;
+  const list = editingSection.value.content.steps;
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= list.length) return;
+  const item = list.splice(index, 1)[0];
+  list.splice(targetIndex, 0, item);
+}
+
+function addGearCategory() {
+  if (!editingSection.value || !editingSection.value.content) return;
+  if (!Array.isArray(editingSection.value.content.categories)) {
+    editingSection.value.content.categories = [];
+  }
+  editingSection.value.content.categories.push({
+    group: 'New Gear Category',
+    items: ['Equipment item description...'],
+  });
+}
+
+function removeGearCategory(index) {
+  if (!editingSection.value || !editingSection.value.content || !Array.isArray(editingSection.value.content.categories)) return;
+  editingSection.value.content.categories.splice(index, 1);
+}
+
+function moveGearCategory(index, direction) {
+  if (!editingSection.value || !editingSection.value.content || !Array.isArray(editingSection.value.content.categories)) return;
+  const list = editingSection.value.content.categories;
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= list.length) return;
+  const item = list.splice(index, 1)[0];
+  list.splice(targetIndex, 0, item);
+}
+
+function addGearItem(catIndex) {
+  if (!editingSection.value || !editingSection.value.content?.categories?.[catIndex]) return;
+  const cat = editingSection.value.content.categories[catIndex];
+  if (!Array.isArray(cat.items)) cat.items = [];
+  cat.items.push('');
+}
+
+function removeGearItem(catIndex, itemIndex) {
+  if (!editingSection.value || !editingSection.value.content?.categories?.[catIndex]?.items) return;
+  editingSection.value.content.categories[catIndex].items.splice(itemIndex, 1);
 }
 
 function handleSaveEdit() {
@@ -1191,6 +1287,22 @@ function handleAddDesign(design) {
             <h3 class="text-lg font-bold text-white tracking-wide">Edit Hero Section</h3>
             <p class="text-xs text-neutral-400 mt-1">Customize visual layout, headline typography, and background media.</p>
           </div>
+          <div v-else-if="editingSection.section_type === 'about'">
+            <h3 class="text-lg font-bold text-white tracking-wide">Edit About Section</h3>
+            <p class="text-xs text-neutral-400 mt-1">Customize studio bio, portrait visual, and milestone statistics.</p>
+          </div>
+          <div v-else-if="editingSection.section_type === 'process'">
+            <h3 class="text-lg font-bold text-white tracking-wide">Edit Process Section</h3>
+            <p class="text-xs text-neutral-400 mt-1">Customize 4-step workflow journey and section headings.</p>
+          </div>
+          <div v-else-if="editingSection.section_type === 'gear'">
+            <h3 class="text-lg font-bold text-white tracking-wide">Edit Gear Arsenal Section</h3>
+            <p class="text-xs text-neutral-400 mt-1">Customize production standards, camera gear, and audio rigs.</p>
+          </div>
+          <div v-else-if="editingSection.section_type === 'text_block'">
+            <h3 class="text-lg font-bold text-white tracking-wide">Edit Studio Story & Philosophy</h3>
+            <p class="text-xs text-neutral-400 mt-1">Customize your editorial story, brand philosophy, and manifesto statement.</p>
+          </div>
           <div v-else>
             <h3 class="text-lg font-bold text-white tracking-wide">Edit {{ editingSection.label }}</h3>
             <span class="text-[11px] font-mono text-neutral-400 uppercase tracking-wider mt-1 block">{{ editingSection.section_type }}</span>
@@ -1203,11 +1315,12 @@ function handleAddDesign(design) {
         <!-- Scrollable Content Body with Generous Spacing -->
         <div class="flex-1 overflow-y-auto p-8 space-y-8">
           <div v-if="!['navbar', 'hero'].includes(editingSection.section_type)">
-            <label class="block text-xs font-semibold uppercase text-neutral-400 mb-2">Section Display Label</label>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300 mb-2">Section Display Label</label>
             <input
               type="text"
               v-model="editingSection.label"
-              class="w-full px-4 py-3 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-white/30"
+              placeholder="e.g. About Studio, Process Timeline..."
+              class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
             />
           </div>
 
@@ -1933,23 +2046,504 @@ function handleAddDesign(design) {
             </div>
           </div>
 
-          <!-- Text Block Specific Fields -->
-          <div v-else-if="editingSection.section_type === 'text_block'" class="space-y-3">
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Heading</label>
-              <input
-                type="text"
-                v-model="editingSection.content.title"
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              />
+          <!-- About / Studio Highlights Specific Fields -->
+          <div v-else-if="editingSection.section_type === 'about'" class="space-y-6">
+            <!-- 1. Headline & Bio Information -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-5">
+              <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">About Studio Copywriting</label>
+                <span class="text-[11px] text-neutral-500 font-mono">Highlights</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Top Badge Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.badge_text"
+                  placeholder="ABOUT RGP FILMS & STUDIO"
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Section Title</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="BEHIND THE LENS"
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Studio Bio / Story</label>
+                <textarea
+                  v-model="editingSection.content.subtitle"
+                  rows="3"
+                  placeholder="We believe that every love story, every milestone, and every human celebration is art..."
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition leading-relaxed"
+                ></textarea>
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Body Text</label>
-              <textarea
-                v-model="editingSection.content.body"
-                rows="5"
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              ></textarea>
+
+            <!-- 2. Studio Portrait Media Selection -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+                <div>
+                  <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Studio Portrait Media</label>
+                  <p class="text-[11px] text-neutral-500 mt-0.5">Select a photo from your media showcase</p>
+                </div>
+              </div>
+
+              <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3.5 min-w-0">
+                  <div class="w-16 h-16 rounded-xl overflow-hidden bg-neutral-800 border border-white/10 shrink-0 relative">
+                    <img
+                      :src="editingSection.content.image_url || '/images/main-shot.jpg'"
+                      alt="About Studio Image Preview"
+                      class="w-full h-full object-cover"
+                      @error="(e) => e.target.src = '/images/main-shot.jpg'"
+                    />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-xs font-bold text-white truncate">
+                      {{ editingSection.content.image_url?.split('/').pop() || 'main-shot.jpg' }}
+                    </p>
+                    <p class="text-[11px] text-neutral-400 truncate mt-1 font-mono">
+                      {{ editingSection.content.image_url || '/images/main-shot.jpg' }}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  @click="openMediaPicker('image_url')"
+                  class="px-4 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white text-xs font-semibold transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm"
+                >
+                  <ImageIcon class="w-4 h-4 text-[#FFD700]" />
+                  <span>Choose Photo</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 3. Milestone Stats Counters -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-4">
+              <div class="border-b border-white/[0.06] pb-3">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Milestone Stats (3 Counters)</label>
+                <p class="text-[11px] text-neutral-500 mt-0.5">Key numerical milestones displayed underneath the bio</p>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="space-y-1.5">
+                  <input
+                    type="text"
+                    v-model="editingSection.content.stat1_value"
+                    placeholder="Stat 1: 5+"
+                    class="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition font-bold"
+                  />
+                  <input
+                    type="text"
+                    v-model="editingSection.content.stat1_label"
+                    placeholder="Label: Years Experience"
+                    class="w-full px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06] text-neutral-300 text-xs placeholder-neutral-500 focus:outline-none focus:border-white/20 transition"
+                  />
+                </div>
+                <div class="space-y-1.5">
+                  <input
+                    type="text"
+                    v-model="editingSection.content.stat2_value"
+                    placeholder="Stat 2: 250+"
+                    class="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition font-bold"
+                  />
+                  <input
+                    type="text"
+                    v-model="editingSection.content.stat2_label"
+                    placeholder="Label: Events Documented"
+                    class="w-full px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06] text-neutral-300 text-xs placeholder-neutral-500 focus:outline-none focus:border-white/20 transition"
+                  />
+                </div>
+                <div class="space-y-1.5">
+                  <input
+                    type="text"
+                    v-model="editingSection.content.stat3_value"
+                    placeholder="Stat 3: 100%"
+                    class="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition font-bold"
+                  />
+                  <input
+                    type="text"
+                    v-model="editingSection.content.stat3_label"
+                    placeholder="Label: Client Satisfaction"
+                    class="w-full px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06] text-neutral-300 text-xs placeholder-neutral-500 focus:outline-none focus:border-white/20 transition"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. CTA Button & Destination -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-4">
+              <div class="border-b border-white/[0.06] pb-3">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Call to Action Button</label>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-300 mb-2">Button Label</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.cta_text"
+                    placeholder="GET IN TOUCH"
+                    class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-neutral-300 mb-2">Target Link Destination</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.cta_link"
+                    placeholder="#contact"
+                    class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Process Timeline Specific Fields -->
+          <div v-else-if="editingSection.section_type === 'process'" class="space-y-6">
+            <!-- 1. Header Copywriting -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-5">
+              <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Process Header Copywriting</label>
+                <span class="text-[11px] text-neutral-500 font-mono">{{ (editingSection.content.steps || []).length }} Steps</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Top Badge Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.badge_text"
+                  placeholder="HOW WE WORK"
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Section Title</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="OUR CLIENT PROCESS"
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Subtitle / Overview</label>
+                <textarea
+                  v-model="editingSection.content.subtitle"
+                  rows="3"
+                  placeholder="A seamless, stress-free experience crafted around your milestones."
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition leading-relaxed"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- 2. Dynamic Workflow Steps Builder -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-4">
+              <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <div>
+                  <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Workflow Steps</label>
+                  <p class="text-[11px] text-neutral-500 mt-0.5">Add, edit, reorder, or remove steps in your timeline</p>
+                </div>
+                <button
+                  type="button"
+                  @click="addProcessStep"
+                  class="px-3.5 py-2 rounded-xl bg-[#FFD700]/10 hover:bg-[#FFD700]/20 border border-[#FFD700]/30 text-[#FFD700] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Plus class="w-3.5 h-3.5" />
+                  <span>Add Step</span>
+                </button>
+              </div>
+
+              <!-- Steps List -->
+              <div class="space-y-3">
+                <div
+                  v-for="(stepItem, sIdx) in (editingSection.content.steps || [])"
+                  :key="sIdx"
+                  class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3 hover:border-white/20 transition group"
+                >
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-lg bg-white/[0.05] border border-white/10 text-[11px] font-mono text-[#FFD700] flex items-center justify-center font-bold">
+                        {{ sIdx + 1 }}
+                      </span>
+                      <span class="text-xs font-bold text-white">Step {{ sIdx + 1 }}</span>
+                    </div>
+
+                    <!-- Actions: Move Up / Down / Remove -->
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        :disabled="sIdx === 0"
+                        @click="moveProcessStep(sIdx, -1)"
+                        title="Move Up"
+                        class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition cursor-pointer"
+                      >
+                        <ChevronUp class="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        :disabled="sIdx === (editingSection.content.steps.length - 1)"
+                        @click="moveProcessStep(sIdx, 1)"
+                        title="Move Down"
+                        class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition cursor-pointer"
+                      >
+                        <ChevronDown class="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        @click="removeProcessStep(sIdx)"
+                        title="Delete Step"
+                        class="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition cursor-pointer ml-1"
+                      >
+                        <Trash2 class="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                    <div class="sm:col-span-1">
+                      <label class="block text-[11px] font-medium text-neutral-400 mb-1">Badge</label>
+                      <input
+                        type="text"
+                        v-model="stepItem.step"
+                        :placeholder="sIdx + 1 < 10 ? '0' + (sIdx + 1) : String(sIdx + 1)"
+                        class="w-full px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs font-mono placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                      />
+                    </div>
+                    <div class="sm:col-span-3">
+                      <label class="block text-[11px] font-medium text-neutral-400 mb-1">Title</label>
+                      <input
+                        type="text"
+                        v-model="stepItem.title"
+                        placeholder="e.g. Consultation & Date Lock"
+                        class="w-full px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="block text-[11px] font-medium text-neutral-400 mb-1">Description</label>
+                    <textarea
+                      v-model="stepItem.desc"
+                      rows="2"
+                      placeholder="Briefly describe what happens during this step..."
+                      class="w-full px-3 py-2 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition leading-relaxed"
+                    ></textarea>
+                  </div>
+                </div>
+
+                <div v-if="!editingSection.content.steps || editingSection.content.steps.length === 0" class="text-center py-6 text-neutral-500 text-xs border border-dashed border-white/10 rounded-2xl">
+                  No steps yet. Click "+ Add Step" above to create your first workflow step.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Gear Arsenal Specific Fields -->
+          <div v-else-if="editingSection.section_type === 'gear'" class="space-y-6">
+            <!-- 1. Header Copywriting -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-5">
+              <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Gear Arsenal Copywriting</label>
+                <span class="text-[11px] text-neutral-500 font-mono">{{ (editingSection.content.categories || []).length }} Cards</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Top Badge Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.badge_text"
+                  placeholder="PRODUCTION STANDARDS"
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Section Title</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="OUR PRODUCTION GEAR & ARSENAL"
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Subtitle / Overview</label>
+                <textarea
+                  v-model="editingSection.content.subtitle"
+                  rows="3"
+                  placeholder="We invest in top-tier camera and audio gear to ensure your story is captured in breathtaking cinematic quality."
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition leading-relaxed"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- 2. Dynamic Gear Category Cards Builder -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-4">
+              <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <div>
+                  <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Gear Category Cards</label>
+                  <p class="text-[11px] text-neutral-500 mt-0.5">Add equipment groups, camera bodies, lenses, and lighting rigs</p>
+                </div>
+                <button
+                  type="button"
+                  @click="addGearCategory"
+                  class="px-3.5 py-2 rounded-xl bg-[#FFD700]/10 hover:bg-[#FFD700]/20 border border-[#FFD700]/30 text-[#FFD700] text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  <Plus class="w-3.5 h-3.5" />
+                  <span>Add Gear Card</span>
+                </button>
+              </div>
+
+              <!-- Categories List -->
+              <div class="space-y-4">
+                <div
+                  v-for="(catItem, cIdx) in (editingSection.content.categories || [])"
+                  :key="cIdx"
+                  class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3.5 hover:border-white/20 transition group"
+                >
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-lg bg-white/[0.05] border border-white/10 text-[11px] font-mono text-[#FFD700] flex items-center justify-center font-bold">
+                        {{ cIdx + 1 }}
+                      </span>
+                      <span class="text-xs font-bold text-white">Card {{ cIdx + 1 }}</span>
+                    </div>
+
+                    <!-- Actions: Move Up / Down / Remove Category -->
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        :disabled="cIdx === 0"
+                        @click="moveGearCategory(cIdx, -1)"
+                        title="Move Up"
+                        class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition cursor-pointer"
+                      >
+                        <ChevronUp class="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        :disabled="cIdx === (editingSection.content.categories.length - 1)"
+                        @click="moveGearCategory(cIdx, 1)"
+                        title="Move Down"
+                        class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition cursor-pointer"
+                      >
+                        <ChevronDown class="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        @click="removeGearCategory(cIdx)"
+                        title="Delete Card"
+                        class="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition cursor-pointer ml-1"
+                      >
+                        <Trash2 class="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Category Title -->
+                  <div>
+                    <label class="block text-[11px] font-medium text-neutral-400 mb-1">Category Title</label>
+                    <input
+                      type="text"
+                      v-model="catItem.group"
+                      placeholder="e.g. Cameras & Cinema Bodies"
+                      class="w-full px-3.5 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition font-medium"
+                    />
+                  </div>
+
+                  <!-- Equipment Items inside Category -->
+                  <div class="space-y-2 pt-1 border-t border-white/[0.06]">
+                    <div class="flex items-center justify-between">
+                      <label class="block text-[11px] font-medium text-neutral-400">Equipment List Items</label>
+                      <button
+                        type="button"
+                        @click="addGearItem(cIdx)"
+                        class="text-[11px] text-[#FFD700] hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                      >
+                        <Plus class="w-3 h-3" />
+                        <span>Add Item</span>
+                      </button>
+                    </div>
+
+                    <div class="space-y-2">
+                      <div
+                        v-for="(eqItem, eqIdx) in (catItem.items || [])"
+                        :key="eqIdx"
+                        class="flex items-center gap-2"
+                      >
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700] shrink-0"></span>
+                        <input
+                          type="text"
+                          v-model="catItem.items[eqIdx]"
+                          placeholder="e.g. Sony A7S III (4K 120fps Cinema)"
+                          class="flex-1 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                        />
+                        <button
+                          type="button"
+                          @click="removeGearItem(cIdx, eqIdx)"
+                          class="p-1.5 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition cursor-pointer"
+                          title="Remove item"
+                        >
+                          <X class="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      <div
+                        v-if="!catItem.items || catItem.items.length === 0"
+                        class="text-neutral-500 text-[11px] italic py-1"
+                      >
+                        No equipment items yet. Click "+ Add Item" above.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-if="!editingSection.content.categories || editingSection.content.categories.length === 0" class="text-center py-6 text-neutral-500 text-xs border border-dashed border-white/10 rounded-2xl">
+                  No gear cards yet. Click "+ Add Gear Card" above to create your first equipment category.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Text Block / Studio Philosophy Manifesto Specific Fields -->
+          <div v-else-if="editingSection.section_type === 'text_block'" class="space-y-6">
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-5">
+              <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Manifesto Copywriting</label>
+                <span class="text-[11px] text-neutral-500 font-mono">Philosophy</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Heading</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="Our Studio Philosophy"
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Body Text</label>
+                <textarea
+                  v-model="editingSection.content.body"
+                  rows="6"
+                  placeholder="We believe that every love story, celebration, and portrait is a piece of art waiting to be captured with authentic emotion and timeless color grading."
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition leading-relaxed"
+                ></textarea>
+              </div>
             </div>
           </div>
 
@@ -2031,7 +2625,9 @@ function handleAddDesign(design) {
               <ImageIcon class="w-5 h-5 text-[#FFD700]" />
               <span>Select Media from Showcase</span>
             </h3>
-            <p class="text-xs text-neutral-400 mt-0.5">Choose an image from your media library for the hero background.</p>
+            <p class="text-xs text-neutral-400 mt-0.5">
+              {{ mediaPickerTargetField === 'image_url' ? 'Choose an image from your media library for this section.' : 'Choose an image from your media library for the hero background.' }}
+            </p>
           </div>
           <button @click="isMediaPickerOpen = false" class="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer">
             <X class="w-5 h-5" />
@@ -2100,7 +2696,7 @@ function handleAddDesign(design) {
               @click="selectImageForHero(item.image_url)"
               class="group relative rounded-2xl overflow-hidden border text-left transition aspect-[4/3] bg-neutral-900 focus:outline-none cursor-pointer"
               :class="[
-                editingSection?.content?.bg_image === item.image_url
+                (mediaPickerTargetField === 'image_url' ? editingSection?.content?.image_url : editingSection?.content?.bg_image) === item.image_url
                   ? 'border-white/40 ring-2 ring-[#FFD700]/50'
                   : 'border-white/10 hover:border-white/30'
               ]"
@@ -2119,7 +2715,7 @@ function handleAddDesign(design) {
 
               <!-- Selected Checkmark Dot -->
               <div
-                v-if="editingSection?.content?.bg_image === item.image_url"
+                v-if="(mediaPickerTargetField === 'image_url' ? editingSection?.content?.image_url : editingSection?.content?.bg_image) === item.image_url"
                 class="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#FFD700] text-black flex items-center justify-center shadow-lg"
               >
                 <Check class="w-3 h-3 stroke-[3]" />
