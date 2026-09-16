@@ -37,9 +37,12 @@ import {
   X,
   Sparkles,
   Crown,
-  BookOpen,
   Diamond,
   Star,
+  Film,
+  Images,
+  PanelBottom,
+  PanelTop,
   MessageSquare,
   ListOrdered,
   Search,
@@ -63,7 +66,7 @@ watch(
   }
 );
 
-const activeCategoryKey = ref('hero');
+const activeCategoryKey = ref('navbar');
 const searchQuery = ref('');
 
 const sectionComponents = {
@@ -85,18 +88,86 @@ const sectionComponents = {
   instagram: InstagramFeedSection,
   location_map: LocationMapSection,
   before_after: BeforeAfterSection,
+  navbar: Navbar,
+  footer: Footer,
 };
 
 // =========================================================================
-// CATEGORIZED SECTION CATALOG WITH MULTIPLE VISUAL DESIGN VARIATIONS
+// 9 DISTINCT CATEGORIES WITH EXACTLY 4 BLOCKS EACH (36 BLOCKS TOTAL)
 // =========================================================================
 const sectionCategoryCatalog = [
+  // -----------------------------------------------------------------------
+  // 1. NAVBAR COMPONENT (4 BLOCKS)
+  // -----------------------------------------------------------------------
+  {
+    key: 'navbar',
+    name: 'Navbar Component',
+    icon: PanelTop,
+    badgeColor: 'text-neutral-300 bg-white/10 border-white/15',
+    description: 'Floating glassmorphism island, simple translucent split bar with center logo, centered monogram, and dynamic translucent bar.',
+    designs: [
+      {
+        id: 'navbar_floating',
+        type: 'navbar',
+        variant: 'floating',
+        skeletonType: 'navbar-floating',
+        name: 'Floating Glass Island Navbar',
+        tag: 'Modern Island',
+        features: ['Floating pill container with frosted backdrop blur', 'Non-negotiable 5 navigation links', 'High-contrast Book Now button'],
+        defaultContent: {
+          variant: 'floating',
+          cta_text: 'Book Now',
+        },
+      },
+      {
+        id: 'navbar_fullwidth',
+        type: 'navbar',
+        variant: 'fullwidth',
+        skeletonType: 'navbar-fullwidth',
+        name: 'Simple Translucent Split Navbar (Center Logo)',
+        tag: 'Translucent Split',
+        features: ['Left Portfolio & Pricing links', 'Center Studio Logo as Home button', 'Right Gallery & Contact links'],
+        defaultContent: {
+          variant: 'fullwidth',
+        },
+      },
+      {
+        id: 'navbar_centered',
+        type: 'navbar',
+        variant: 'centered',
+        skeletonType: 'navbar-centered',
+        name: 'Centered Luxury Monogram Header',
+        tag: 'Clean Monogram',
+        features: ['Prominent centered brand logo', 'Non-negotiable 5 symmetrical navigation links', 'High-fashion minimalist aesthetic'],
+        defaultContent: {
+          variant: 'centered',
+        },
+      },
+      {
+        id: 'navbar_dynamic',
+        type: 'navbar',
+        variant: 'dynamic',
+        skeletonType: 'navbar-dynamic',
+        name: 'Dynamic Translucent Header',
+        tag: 'Translucent Glass',
+        features: ['Smooth scroll-aware glass backdrop', 'Non-negotiable 5 navigation links', 'High-contrast Book Now CTA'],
+        defaultContent: {
+          variant: 'dynamic',
+          cta_text: 'Book Now',
+        },
+      },
+    ],
+  },
+
+  // -----------------------------------------------------------------------
+  // 2. HERO SECTION (4 BLOCKS)
+  // -----------------------------------------------------------------------
   {
     key: 'hero',
-    name: 'Hero Banner',
+    name: 'Hero Section',
     icon: Crown,
     badgeColor: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
-    description: 'The commanding opening statement of your studio with headline typography, booking CTAs, and background media.',
+    description: 'The commanding opening statement with headline typography, booking CTAs, and background media.',
     designs: [
       {
         id: 'hero_editorial',
@@ -157,25 +228,6 @@ const sectionCategoryCatalog = [
         },
       },
       {
-        id: 'hero_bento',
-        type: 'hero',
-        variant: 'bento',
-        skeletonType: 'hero-bento',
-        name: 'Modern Bento Box Hero',
-        tag: 'Contemporary',
-        features: ['Large hero showcase tile', 'Floating 5-star rating & 4K delivery cards', 'Season booking calendar ticker'],
-        defaultContent: {
-          variant: 'bento',
-          heading_line1: 'Crafting',
-          heading_accent1: 'Unforgettable',
-          heading_accent2: 'Visual Legacies.',
-          subheading: 'Award-winning photo & cinema team preserving weddings, debuts, and milestones.',
-          bg_image: '/images/hero-bg.jpg',
-          cta_text: 'Book Session',
-          cta_link: '#contact',
-        },
-      },
-      {
         id: 'hero_video',
         type: 'hero',
         variant: 'video_reel',
@@ -195,97 +247,28 @@ const sectionCategoryCatalog = [
       },
     ],
   },
+
+  // -----------------------------------------------------------------------
+  // 2. FEATURES SECTION (4 BLOCKS)
+  // -----------------------------------------------------------------------
   {
-    key: 'showcase',
-    name: 'Showcase & Media',
+    key: 'features',
+    name: 'Features Section',
     icon: Sparkles,
     badgeColor: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
-    description: 'Interactive sliders, photo galleries, before/after sliders, and video reels for your portfolio.',
+    description: 'Studio highlights, milestone statistics, 4-step booking workflow, camera rig arsenal, and philosophy.',
     designs: [
       {
-        id: 'showcase_carousel',
-        type: 'carousel',
-        skeletonType: 'carousel',
-        name: 'Infinite 3-Card Carousel',
-        tag: 'Popular',
-        features: ['Infinite auto-scrolling card slider', 'Category switcher pills', 'Lightbox preview on click'],
-        defaultContent: {
-          title: 'Featured Works',
-          subtitle: 'Explore our latest wedding, portrait, and commercial highlights',
-        },
-      },
-      {
-        id: 'showcase_grid',
-        type: 'gallery_grid',
-        skeletonType: 'gallery-grid',
-        name: 'Masonry Photo Collection Grid',
-        tag: 'Editorial',
-        features: ['Multi-column luxury photo wall', 'Hover caption reveals & category filters', 'Optimized client-side WebP loading'],
-        defaultContent: {
-          title: 'Gallery Collection',
-          subtitle: 'Selected moments and creative portraits',
-          limit: 8,
-        },
-      },
-      {
-        id: 'showcase_video',
-        type: 'video',
-        skeletonType: 'video',
-        name: 'Cinematic 4K Video Reel Player',
-        tag: 'Reel Player',
-        features: ['Responsive 16:9 4K YouTube/Vimeo embed', 'Glowing gold cinema player frame', 'Custom caption & title badge'],
-        defaultContent: {
-          title: 'Cinematic Highlights',
-          subtitle: 'Relive the most memorable moments captured on film',
-          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-          caption: 'Wedding & Event Cinematic Highlight Reel',
-        },
-      },
-      {
-        id: 'showcase_before_after',
-        type: 'before_after',
-        skeletonType: 'before-after',
-        name: 'Interactive Retouching Slider',
-        tag: 'Color Grading',
-        features: ['Interactive drag comparison handle', 'RAW capture vs Master Graded side-by-side', 'Demonstrates studio polish quality'],
-        defaultContent: {
-          title: 'MASTER RETOUCHING & COLOR GRADING',
-          subtitle: 'Slide across to see how our colorists enhance lighting, depth, and skin tones',
-          before_image: '/images/5.jpg',
-          after_image: '/images/1.jpg',
-        },
-      },
-      {
-        id: 'showcase_instagram',
-        type: 'instagram',
-        skeletonType: 'instagram',
-        name: 'Instagram Social Snapshot Wall',
-        tag: 'Social Proof',
-        features: ['6-photo social snapshot grid', 'Direct profile handle link', 'Follow CTA for daily updates'],
-        defaultContent: {
-          title: 'FOLLOW OUR VISUAL JOURNEY',
-          handle: '@rgpfilmsstudio',
-        },
-      },
-    ],
-  },
-  {
-    key: 'about',
-    name: 'About & Creative Team',
-    icon: BookOpen,
-    badgeColor: 'text-blue-400 bg-blue-400/10 border-blue-400/20',
-    description: 'Introduce your studio story, creative directors, photographers, and high-end camera equipment.',
-    designs: [
-      {
-        id: 'about_split',
+        id: 'features_grid',
         type: 'about',
-        skeletonType: 'about-split',
-        name: 'Split Story & 3 Milestone Stats',
-        tag: 'Classic Bio',
-        features: ['Photographer portrait with gold border', '5+ Years, 250+ Events, 100% Satisfaction counters', 'Studio bio & philosophy statement'],
+        variant: 'features_grid',
+        skeletonType: 'features-grid',
+        name: '3-Column Studio Highlights & Stats',
+        tag: 'Milestones',
+        features: ['5+ Years, 250+ Events, 100% Satisfaction counters', 'Lead photographer portrait card', 'Studio philosophy statement'],
         defaultContent: {
-          title: 'Behind the Lens',
-          subtitle: 'Passionate visual storytellers dedicated to preserving your moments forever.',
+          title: 'Why Choose RGP Studio',
+          subtitle: 'Passionate visual storytellers dedicated to preserving your moments forever in timeless elegance.',
           experience_years: '5+',
           events_covered: '250+',
           satisfaction_rate: '100%',
@@ -293,26 +276,29 @@ const sectionCategoryCatalog = [
         },
       },
       {
-        id: 'about_team',
-        type: 'team',
-        skeletonType: 'team',
-        name: 'Creative Team Roster',
-        tag: 'Studio Crew',
-        features: ['Lead Photographer, Cinematographer & Retoucher cards', 'Specialized roles & bio snippets', 'Editorial card styling'],
+        id: 'process_timeline',
+        type: 'process',
+        variant: 'process',
+        skeletonType: 'process-timeline',
+        name: '4-Step Booking & Shoot Timeline',
+        tag: 'Workflow',
+        features: ['Numbered gold step badges (01-04)', 'Consultation to 4K delivery journey', 'Builds clear expectations for clients'],
         defaultContent: {
-          title: 'MEET THE CREATIVE TEAM',
-          subtitle: 'Passionate directors, lead photographers, and cinematic colorists',
-          members: [
-            { name: 'Lead Director', role: 'Principal Photographer', image_url: '/images/1.jpg', bio: 'Specializing in editorial wedding photography with 8+ years experience.' },
-            { name: 'Senior Cinematographer', role: 'Head of Video & Drone Ops', image_url: '/images/2.jpg', bio: 'Master of movement, intentional lighting, and 4K same-day-edit reels.' },
-            { name: 'Creative Retoucher', role: 'Studio Retoucher & Stylist', image_url: '/images/3.jpg', bio: 'Ensures color accuracy and magazine-worthy polish.' },
+          title: 'OUR 4-STEP PROCESS',
+          subtitle: 'From your initial inquiry to the final delivery of your timeless gallery',
+          steps: [
+            { step: '01', title: 'Consultation & Date Lock', desc: 'We discuss your vision and secure your date with a reservation deposit.' },
+            { step: '02', title: 'Pre-Event Planning', desc: 'We coordinate mood boards, shot lists, and lighting strategy.' },
+            { step: '03', title: 'The Shoot Day', desc: 'Our experienced team captures every genuine emotion and milestone.' },
+            { step: '04', title: 'Master Retouching & Delivery', desc: 'Sneak peeks in 48 hours, followed by complete 4K galleries.' },
           ],
         },
       },
       {
-        id: 'about_gear',
+        id: 'gear_arsenal',
         type: 'gear',
-        skeletonType: 'gear',
+        variant: 'gear',
+        skeletonType: 'gear-arsenal',
         name: 'Camera & Cinema Gear Arsenal',
         tag: 'Technical Rig',
         features: ['Sony FX cinema bodies & G-Master lenses breakdown', 'DJI Mavic Cine drones & audio gear list', 'Builds deep client confidence in production quality'],
@@ -328,10 +314,11 @@ const sectionCategoryCatalog = [
         },
       },
       {
-        id: 'about_manifesto',
+        id: 'story_manifesto',
         type: 'text_block',
-        skeletonType: 'about-manifesto',
-        name: 'Studio Story & Manifesto Block',
+        variant: 'manifesto',
+        skeletonType: 'story-manifesto',
+        name: 'Studio Story & Philosophy Manifesto',
         tag: 'Storytelling',
         features: ['Focused clean editorial typography', 'Full-width reading layout', 'Ideal for preparation guidelines or studio philosophy'],
         defaultContent: {
@@ -341,72 +328,134 @@ const sectionCategoryCatalog = [
       },
     ],
   },
+
+  // -----------------------------------------------------------------------
+  // 3. PRICING COMPONENT (4 BLOCKS)
+  // -----------------------------------------------------------------------
   {
-    key: 'rates',
-    name: 'Packages & Rates',
+    key: 'pricing',
+    name: 'Pricing Component',
     icon: Diamond,
     badgeColor: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
-    description: 'Display tailored pricing tiers, inclusions, deliverables, and booking workflows.',
+    description: 'Display tailored pricing tiers, spotlight packages, deliverables checklists, and comparison matrices.',
     designs: [
       {
-        id: 'rates_tiered',
+        id: 'pricing_tiered',
         type: 'rates',
-        skeletonType: 'rates-tiered',
+        variant: 'pricing_tiered',
+        skeletonType: 'pricing-tiered',
         name: '3-Tier Luxury Pricing Cards',
         tag: 'Best for Sales',
         features: ['Bronze, Silver, Gold package tiers', 'Highlighted "Most Popular" center card', 'Checkmark inclusions & instant inquiry trigger'],
         defaultContent: {
-          title: 'Packages & Rates',
-          subtitle: 'Tailored packages crafted for every milestone and celebration',
+          title: 'PACKAGES & RATES',
+          subtitle: 'Tailored full-coverage packages crafted for weddings, celebrations, and studio portraits.',
+          variant: 'pricing_tiered',
         },
       },
       {
-        id: 'rates_process',
-        type: 'process',
-        skeletonType: 'process',
-        name: '4-Step Booking & Shoot Timeline',
-        tag: 'Workflow',
-        features: ['Consultation, Planning, Shoot Day, Delivery timeline', 'Numbered gold step badges', 'Sets clear expectations for clients'],
+        id: 'pricing_spotlight',
+        type: 'rates',
+        variant: 'pricing_spotlight',
+        skeletonType: 'pricing-spotlight',
+        name: 'Single All-Inclusive Spotlight',
+        tag: 'VIP Signature',
+        features: ['Hero spotlight for flagship all-inclusive package', 'Full-day photo, cinema, drone & SDE breakdown', 'Urgency booking CTA banner'],
         defaultContent: {
-          title: 'OUR 4-STEP PROCESS',
-          subtitle: 'From your initial inquiry to the final delivery of your timeless gallery',
-          steps: [
-            { step: '01', title: 'Consultation & Date Lock', desc: 'We discuss your vision and secure your date with a reservation deposit.' },
-            { step: '02', title: 'Pre-Event Planning', desc: 'We coordinate mood boards, shot lists, and lighting strategy.' },
-            { step: '03', title: 'The Shoot Day', desc: 'Our experienced team captures every genuine emotion and milestone.' },
-            { step: '04', title: 'Master Retouching & Delivery', desc: 'Sneak peeks in 48 hours, followed by complete 4K galleries.' },
-          ],
+          title: 'SIGNATURE WEDDING CINEMA EXPERIENCE',
+          subtitle: 'Our most comprehensive, worry-free full day photo and cinema package for luxury weddings.',
+          variant: 'pricing_spotlight',
+        },
+      },
+      {
+        id: 'pricing_addons',
+        type: 'rates',
+        variant: 'pricing_addons',
+        skeletonType: 'pricing-addons',
+        name: 'A La Carte Deliverables & Add-ons',
+        tag: 'Customizable',
+        features: ['Drone coverage, SDE reels & luxury albums checklist', 'Itemized pricing with gold badges', 'Direct add-to-inquiry trigger'],
+        defaultContent: {
+          title: 'CUSTOMIZE YOUR CINEMA PACKAGE',
+          subtitle: 'Enhance your core photography and video package with luxury add-ons and bespoke deliverables.',
+          variant: 'pricing_addons',
+        },
+      },
+      {
+        id: 'pricing_comparison',
+        type: 'rates',
+        variant: 'pricing_comparison',
+        skeletonType: 'pricing-comparison',
+        name: 'Feature Comparison Matrix Table',
+        tag: 'Transparent',
+        features: ['Side-by-side deliverable matrix', 'Green checkmark indicators for tier inclusions', 'Clear hour counts and shooter breakdown'],
+        defaultContent: {
+          title: 'COMPREHENSIVE PACKAGE BREAKDOWN',
+          subtitle: 'Side-by-side comparison of deliverables across our cinema and photography tiers.',
+          variant: 'pricing_comparison',
         },
       },
     ],
   },
+
+  // -----------------------------------------------------------------------
+  // 4. TESTIMONIALS COMPONENT (4 BLOCKS)
+  // -----------------------------------------------------------------------
   {
-    key: 'trust',
-    name: 'Trust & Reviews',
+    key: 'testimonials',
+    name: 'Testimonials Component',
     icon: Star,
     badgeColor: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
-    description: 'Client reviews, partner venue tickers, and FAQ accordions that overcome objections.',
+    description: 'Client reviews, dual spotlight cards, full-width editorial quotes, and partner venue tickers.',
     designs: [
       {
-        id: 'trust_reviews',
+        id: 'testimonials_dual',
         type: 'testimonials',
+        variant: 'testimonials_dual',
         skeletonType: 'testimonials-dual',
         name: 'Dual Review Cards with 5-Star Badges',
         tag: 'Social Proof',
         features: ['Side-by-side couple review cards', 'Gold 5-star ratings & event milestone tags', 'Client quote spotlight'],
         defaultContent: {
           title: 'WHAT OUR CLIENTS SAY',
-          testimonials: [
-            { client_name: 'Clarisse & Ethan', event: 'Wedding Coverage', quote: 'Stunning photos and amazing cinematic video! The team made us feel so comfortable throughout our wedding day.', rating: 5 },
-            { client_name: 'Jessica Gomez', event: 'Debut Celebration', quote: 'The team was so fun and professional to work with! The same-day edit reel brought tears to our eyes.', rating: 5 },
-          ],
+          subtitle: 'Honest reviews from couples and clients whose milestones we captured.',
+          variant: 'testimonials_dual',
+        },
+      },
+      {
+        id: 'testimonials_grid',
+        type: 'testimonials',
+        variant: 'testimonials_grid',
+        skeletonType: 'testimonials-grid',
+        name: '3-Column Client Review Wall',
+        tag: 'High Volume',
+        features: ['3-column luxury masonry review cards', 'Couple names, milestone venues & quote snippets', 'Heart & verified badge accents'],
+        defaultContent: {
+          title: 'LOVE LETTERS & REVIEWS',
+          subtitle: 'Real stories from couples who trusted RGP Studio for their milestones.',
+          variant: 'testimonials_grid',
+        },
+      },
+      {
+        id: 'testimonials_featured',
+        type: 'testimonials',
+        variant: 'testimonials_featured',
+        skeletonType: 'testimonials-featured',
+        name: 'Full-Width Editorial Client Quote',
+        tag: 'Editorial Spotlight',
+        features: ['Centered large typographic testimonial quote', 'Ambient gold halo backdrop', 'Venue & wedding couple attribution'],
+        defaultContent: {
+          title: 'WORDS FROM OUR COUPLES',
+          subtitle: 'A heartfelt moment from our recent wedding coverage.',
+          variant: 'testimonials_featured',
         },
       },
       {
         id: 'trust_venues',
         type: 'venues',
-        skeletonType: 'venues',
-        name: 'Partnered Venues & Hotels Marquee',
+        variant: 'venues',
+        skeletonType: 'trust-venues',
+        name: 'Partnered Venues & Luxury Hotels Marquee',
         tag: 'Venue Proof',
         features: ['Continuous animated marquee ticker', 'Prestigious hotel & wedding venue names', 'Builds luxury destination credibility'],
         defaultContent: {
@@ -414,11 +463,255 @@ const sectionCategoryCatalog = [
           venues: ['Tagaytay Highlands', 'Palacio de Memoria', 'The Manila Hotel', 'Antonio’s Garden', 'Balesin Island Club', 'Shangri-La at The Fort', 'Pinto Art Museum'],
         },
       },
+    ],
+  },
+
+  // -----------------------------------------------------------------------
+  // 5. PORTFOLIO (4 BLOCKS)
+  // -----------------------------------------------------------------------
+  {
+    key: 'portfolio',
+    name: 'Portfolio',
+    icon: Film,
+    badgeColor: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
+    description: '4K cinema video player, interactive retouching comparison slider, curated slider, and filmstrips.',
+    designs: [
       {
-        id: 'trust_faq',
+        id: 'portfolio_video',
+        type: 'video',
+        variant: 'video',
+        skeletonType: 'portfolio-video',
+        name: '4K Cinema Video Reel Player',
+        tag: 'Reel Player',
+        features: ['Responsive 16:9 4K YouTube/Vimeo embed', 'Glowing gold cinema player frame', 'Custom caption & title badge'],
+        defaultContent: {
+          title: 'Cinematic Highlights',
+          subtitle: 'Relive the most memorable moments captured on film',
+          video_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          caption: 'Wedding & Event Cinematic Highlight Reel',
+        },
+      },
+      {
+        id: 'portfolio_before_after',
+        type: 'before_after',
+        variant: 'before_after',
+        skeletonType: 'portfolio-before-after',
+        name: 'Interactive Retouching Slider',
+        tag: 'Color Grading',
+        features: ['Interactive drag comparison handle', 'RAW capture vs Master Graded side-by-side', 'Demonstrates studio polish quality'],
+        defaultContent: {
+          title: 'MASTER RETOUCHING & COLOR GRADING',
+          subtitle: 'Slide across to see how our colorists enhance lighting, depth, and skin tones',
+          before_image: '/images/5.jpg',
+          after_image: '/images/1.jpg',
+        },
+      },
+      {
+        id: 'portfolio_curated',
+        type: 'carousel',
+        variant: 'carousel',
+        skeletonType: 'portfolio-curated',
+        name: 'Curated Featured Works Slider',
+        tag: 'Portfolio Carousel',
+        features: ['Infinite auto-scrolling card slider', 'Category switcher pills', 'Lightbox preview on click'],
+        defaultContent: {
+          title: 'Featured Works',
+          subtitle: 'Explore our latest wedding, portrait, and commercial highlights',
+        },
+      },
+      {
+        id: 'portfolio_filmstrip',
+        type: 'carousel',
+        variant: 'filmstrip',
+        skeletonType: 'portfolio-filmstrip',
+        name: 'Editorial Filmstrip & Milestone Reels',
+        tag: 'Filmstrip Flow',
+        features: ['Perforated cinematic filmstrip layout', 'Horizontal smooth track navigation', 'Perfect for documentary vignettes'],
+        defaultContent: {
+          title: 'CINEMATIC FILM REELS',
+          subtitle: 'Snapshot frames and documentary highlights from recent events',
+        },
+      },
+    ],
+  },
+
+  // -----------------------------------------------------------------------
+  // 6. GALLERY COMPONENT (4 BLOCKS)
+  // -----------------------------------------------------------------------
+  {
+    key: 'gallery',
+    name: 'Gallery Component',
+    icon: Images,
+    badgeColor: 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20',
+    description: 'Masonry photo collection, 3D carousel, Instagram social snapshot wall, and edge-to-edge mosaic.',
+    designs: [
+      {
+        id: 'gallery_masonry',
+        type: 'gallery_grid',
+        variant: 'masonry',
+        skeletonType: 'gallery-masonry',
+        name: 'Masonry Photo Collection Grid',
+        tag: 'Editorial Grid',
+        features: ['Multi-column luxury photo wall', 'Hover caption reveals & category filters', 'Optimized client-side WebP loading'],
+        defaultContent: {
+          title: 'Gallery Collection',
+          subtitle: 'Selected moments and creative portraits',
+          limit: 8,
+          variant: 'masonry',
+        },
+      },
+      {
+        id: 'gallery_carousel',
+        type: 'carousel',
+        variant: 'carousel',
+        skeletonType: 'gallery-carousel',
+        name: 'Infinite 3-Card 3D Showcase Carousel',
+        tag: '3D Flow',
+        features: ['Centered active focus slide', 'Left and right faded background cards', 'Smooth touch/swipe gestures'],
+        defaultContent: {
+          title: 'Visual Showcase',
+          subtitle: 'Interactive swipeable gallery cards with category switching',
+        },
+      },
+      {
+        id: 'gallery_instagram',
+        type: 'instagram',
+        variant: 'instagram',
+        skeletonType: 'gallery-instagram',
+        name: 'Instagram Social Snapshot Wall',
+        tag: 'Social Proof',
+        features: ['6-photo social snapshot grid', 'Direct profile handle link', 'Follow CTA for daily updates'],
+        defaultContent: {
+          title: 'FOLLOW OUR VISUAL JOURNEY',
+          handle: '@rgpfilmsstudio',
+        },
+      },
+      {
+        id: 'gallery_mosaic',
+        type: 'gallery_grid',
+        variant: 'mosaic',
+        skeletonType: 'gallery-mosaic',
+        name: 'Edge-to-Edge Mosaic Photo Wall',
+        tag: 'Edge-to-Edge',
+        features: ['Full-bleed seamless photo mosaic', '12-item compact luxury preview grid', 'Hover glow effects and title badges'],
+        defaultContent: {
+          title: 'CINEMATIC MOMENTS MOSAIC',
+          subtitle: 'A vibrant collection of real emotions, celebrations, and portraits',
+          limit: 12,
+          variant: 'mosaic',
+        },
+      },
+    ],
+  },
+
+  // -----------------------------------------------------------------------
+  // 7. FOOTER COMPONENT (4 BLOCKS)
+  // -----------------------------------------------------------------------
+  {
+    key: 'footer',
+    name: 'Footer Component',
+    icon: PanelBottom,
+    badgeColor: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
+    description: '4-column studio hub, centered minimalist luxury, VIP newsletter lead capture, and split studio map.',
+    designs: [
+      {
+        id: 'footer_multi_column',
+        type: 'footer',
+        variant: 'multi_column',
+        skeletonType: 'footer-multi-column',
+        name: '4-Column Studio Hub Footer',
+        tag: 'Standard Hub',
+        features: ['Brand story & social icons', 'Quick navigation links & booking hours', 'Copyright & developer credits bar'],
+        defaultContent: {
+          variant: 'multi_column',
+          tagline: 'Turning Moments into Masterpiece. Premium wedding cinematography, portraits, and commercial visual production.',
+        },
+      },
+      {
+        id: 'footer_minimal',
+        type: 'footer',
+        variant: 'minimal',
+        skeletonType: 'footer-minimal',
+        name: 'Centered Minimalist Luxury Footer',
+        tag: 'Clean & Modern',
+        features: ['Centered gold brand typography', 'Inline sleek navigation links', 'Compact copyright footer'],
+        defaultContent: {
+          variant: 'minimal',
+          tagline: 'RGP FILMS & PHOTOGRAPHY STUDIO',
+        },
+      },
+      {
+        id: 'footer_newsletter',
+        type: 'footer',
+        variant: 'newsletter',
+        skeletonType: 'footer-newsletter',
+        name: 'VIP Newsletter & Booking CTA Footer',
+        tag: 'Lead Capture',
+        features: ['VIP email newsletter signup field', 'Seasonal booking notification hook', 'Studio contact channels & social links'],
+        defaultContent: {
+          variant: 'newsletter',
+          tagline: 'Join our private client journal for seasonal booking updates and photography tips.',
+        },
+      },
+      {
+        id: 'footer_split_map',
+        type: 'footer',
+        variant: 'split_map',
+        skeletonType: 'footer-split-map',
+        name: 'Split Studio Map & Hours Footer',
+        tag: 'Local Studio',
+        features: ['Studio appointment hours & hotline', 'Embedded interactive location map pin', 'Destination coverage notice'],
+        defaultContent: {
+          variant: 'split_map',
+          tagline: 'Visit our creative studio by appointment.',
+        },
+      },
+    ],
+  },
+
+  // -----------------------------------------------------------------------
+  // 9. CONTACT US PAGE (4 BLOCKS)
+  // -----------------------------------------------------------------------
+  {
+    key: 'contact',
+    name: 'Contact Us Page',
+    icon: MessageSquare,
+    badgeColor: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
+    description: 'Split booking inquiry form, physical studio location details, FAQ accordion objection buster, and full-width promo banner.',
+    designs: [
+      {
+        id: 'contact_split',
+        type: 'contact',
+        variant: 'split',
+        skeletonType: 'contact-split',
+        name: 'Split Booking Form & Studio Details',
+        tag: 'Lead Gen',
+        features: ['Direct inquiry lead capture form', 'Service type and event date selector', 'Studio hours & 24-hour response guarantee'],
+        defaultContent: {
+          title: 'LET’S CREATE MAGIC TOGETHER',
+          subtitle: 'Have an upcoming event or want a studio session? Send us your details below.',
+        },
+      },
+      {
+        id: 'contact_location_map',
+        type: 'location_map',
+        variant: 'location_map',
+        skeletonType: 'contact-location-map',
+        name: 'Studio Location & Service Areas',
+        tag: 'Studio Info',
+        features: ['Physical studio address and appointment hours', 'Destination travel radius info', 'Contact numbers & email'],
+        defaultContent: {
+          title: 'STUDIO LOCATION & SERVICE AREAS',
+          subtitle: 'Available for destination weddings across the Philippines and worldwide.',
+          hours: 'Mon – Sat: 9:00 AM – 7:00 PM (By Appointment)',
+        },
+      },
+      {
+        id: 'contact_faq',
         type: 'faq',
-        skeletonType: 'faq',
-        name: 'FAQ Accordion Grid',
+        variant: 'faq',
+        skeletonType: 'contact-faq',
+        name: 'FAQ Accordion Objection Buster',
         tag: 'Objection Buster',
         features: ['Interactive collapsible Q&A items', 'Answers booking deposits, turnaround times, and RAW files', 'Clean 2-column layout'],
         defaultContent: {
@@ -430,31 +723,11 @@ const sectionCategoryCatalog = [
           ],
         },
       },
-    ],
-  },
-  {
-    key: 'contact',
-    name: 'Contact & Booking',
-    icon: MessageSquare,
-    badgeColor: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-    description: 'Lead capture forms, promotional CTA strips, and physical studio location details.',
-    designs: [
       {
-        id: 'contact_form',
-        type: 'contact',
-        skeletonType: 'contact-split',
-        name: 'Split Booking Form & Studio Details',
-        tag: 'Lead Gen',
-        features: ['Direct inquiry lead capture form', 'Service type and event date selector', 'Studio hours & 24-hour response guarantee'],
-        defaultContent: {
-          title: 'LET’S CREATE MAGIC TOGETHER',
-          subtitle: 'Have an upcoming event or want a studio session? Send us your details below.',
-        },
-      },
-      {
-        id: 'contact_cta',
+        id: 'contact_cta_banner',
         type: 'cta',
-        skeletonType: 'cta-banner',
+        variant: 'cta_banner',
+        skeletonType: 'contact-cta-banner',
         name: 'Full-Width Gold Promo Banner',
         tag: 'Urgency CTA',
         features: ['High-impact promotional ribbon with gold styling', 'Season calendar urgency hook', 'Instant booking button'],
@@ -463,19 +736,6 @@ const sectionCategoryCatalog = [
           subheading: 'Dates fill quickly for the upcoming season. Inquire now to secure your schedule.',
           button_text: 'BOOK YOUR SESSION',
           button_link: '#contact',
-        },
-      },
-      {
-        id: 'contact_location',
-        type: 'location_map',
-        skeletonType: 'location-map',
-        name: 'Studio Location & Service Areas',
-        tag: 'Studio Info',
-        features: ['Physical studio address and appointment hours', 'Destination travel radius info', 'Contact numbers & email'],
-        defaultContent: {
-          title: 'STUDIO LOCATION & SERVICE AREAS',
-          subtitle: 'Available for destination weddings across the Philippines and worldwide.',
-          hours: 'Mon – Sat: 9:00 AM – 7:00 PM (By Appointment)',
         },
       },
     ],
@@ -501,10 +761,13 @@ const filteredCategoryDesigns = computed(() => {
   );
 });
 
-// Total design count across all categories
+// Total design count across all categories (9 * 4 = 36)
 const totalDesignsCount = computed(() => {
   return sectionCategoryCatalog.reduce((acc, cat) => acc + cat.designs.length, 0);
 });
+
+const hasNavbarSection = computed(() => allSections.value.some((s) => s.section_type === 'navbar'));
+const hasFooterSection = computed(() => allSections.value.some((s) => s.section_type === 'footer'));
 
 function moveUp(index) {
   if (index <= 0) return;
@@ -542,12 +805,46 @@ function openAddModal(index = null) {
 }
 
 function handleAddDesign(design) {
+  if (design.type === 'navbar') {
+    // If a navbar section already exists, update its variant and content directly
+    const existingNavbarIndex = allSections.value.findIndex((s) => s.section_type === 'navbar');
+    if (existingNavbarIndex !== -1) {
+      const existingNavbar = allSections.value[existingNavbarIndex];
+      const updatedNavbar = {
+        ...existingNavbar,
+        label: design.name,
+        content: JSON.parse(JSON.stringify(design.defaultContent)),
+        is_visible: true,
+      };
+      saveSection(updatedNavbar);
+    } else {
+      const newSec = {
+        id: `sec_${Date.now()}`,
+        section_type: 'navbar',
+        label: design.name,
+        is_visible: true,
+        sort_order: 0.5,
+        content: JSON.parse(JSON.stringify(design.defaultContent)),
+      };
+      const list = [newSec, ...allSections.value];
+      saveSection(newSec);
+      reorderSections(list.map((s) => s.id));
+    }
+
+    isAddModalOpen.value = false;
+    insertAtIndex.value = null;
+    // Directly applied without opening edit modal
+    return;
+  }
+
   const newSec = {
     id: `sec_${Date.now()}`,
     section_type: design.type,
     label: design.name,
     is_visible: true,
-    sort_order: insertAtIndex.value !== null ? insertAtIndex.value + 1.5 : allSections.value.length + 1,
+    sort_order: insertAtIndex.value !== null
+      ? insertAtIndex.value + 1.5
+      : allSections.value.length + 1,
     content: JSON.parse(JSON.stringify(design.defaultContent)),
   };
 
@@ -684,8 +981,25 @@ function handleAddDesign(design) {
 
     <!-- FULL PAGE LIVE VISUAL PREVIEW CANVAS -->
     <div class="rounded-3xl border border-white/[0.12] bg-[#141414] overflow-hidden shadow-2xl relative select-none isolate">
-      <!-- Embedded Live Navbar -->
-      <Navbar :is-preview="true" />
+      <!-- Prompt when no Navbar block exists in active flow -->
+      <div v-if="!hasNavbarSection" class="p-4 border-2 border-dashed border-amber-400/30 rounded-2xl bg-amber-400/[0.03] flex flex-wrap items-center justify-between gap-4 px-6 m-4">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-amber-400/10 text-amber-400 flex items-center justify-center font-bold">
+            <PanelTop class="w-4 h-4" />
+          </div>
+          <div class="text-left">
+            <h4 class="text-xs font-bold text-white">No Navigation Bar in Page Flow</h4>
+            <p class="text-[11px] text-neutral-400">Add a luxury floating, full-width, centered, or dynamic navbar to your page</p>
+          </div>
+        </div>
+        <button
+          @click="openAddModal(null); activeCategoryKey = 'navbar'"
+          class="px-4 py-2 rounded-xl bg-[#FFD700] text-black font-bold text-xs hover:bg-yellow-400 transition flex items-center gap-1.5 shadow-md shadow-yellow-500/20"
+        >
+          <Plus class="w-3.5 h-3.5" />
+          <span>Add Navbar Block</span>
+        </button>
+      </div>
 
       <!-- Full-Width Live Section Stack with Visual Inspector Controls -->
       <div class="space-y-0 relative">
@@ -697,8 +1011,8 @@ function handleAddDesign(design) {
               sec.is_visible ? 'border-transparent hover:border-[#FFD700]/70' : 'border-dashed border-red-500/30 opacity-40 hover:opacity-80'
             ]"
           >
-            <!-- Floating Inspector Pill Header on Section Hover -->
-            <div class="absolute top-4 right-6 z-30 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-1 group-hover:translate-y-0 flex items-center gap-1.5 bg-[#121212]/95 border border-white/[0.18] backdrop-blur-xl p-1.5 rounded-2xl shadow-2xl">
+            <!-- Floating Inspector Pill Header on Section Hover (Always Top-Level z-[100]) -->
+            <div class="absolute top-3 right-4 z-[100] opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-auto flex items-center gap-1.5 bg-[#121212]/98 border border-[#FFD700]/50 backdrop-blur-xl p-1.5 rounded-2xl shadow-2xl">
               <!-- Label Tag -->
               <span class="px-2.5 py-1 rounded-xl bg-white/[0.06] text-[11px] font-bold text-white flex items-center gap-1.5">
                 <span class="text-[#FFD700]">#{{ index + 1 }}</span>
@@ -759,6 +1073,7 @@ function handleAddDesign(design) {
               :is="sectionComponents[sec.section_type] || TextBlockSection"
               :content="sec.content"
               :variant="sec.content?.variant"
+              :is-preview="true"
             />
           </div>
 
@@ -778,8 +1093,25 @@ function handleAddDesign(design) {
         </template>
       </div>
 
-      <!-- Embedded Live Footer -->
-      <Footer />
+      <!-- Prompt when no Footer block exists in active flow -->
+      <div v-if="!hasFooterSection" class="p-4 border-2 border-dashed border-rose-400/30 rounded-2xl bg-rose-400/[0.03] flex flex-wrap items-center justify-between gap-4 px-6 m-4">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-rose-400/10 text-rose-400 flex items-center justify-center font-bold">
+            <PanelBottom class="w-4 h-4" />
+          </div>
+          <div class="text-left">
+            <h4 class="text-xs font-bold text-white">No Footer in Page Flow</h4>
+            <p class="text-[11px] text-neutral-400">Add a multi-column, minimal, newsletter, or map footer to your page</p>
+          </div>
+        </div>
+        <button
+          @click="openAddModal(allSections.length - 1); activeCategoryKey = 'footer'"
+          class="px-4 py-2 rounded-xl bg-[#FFD700] text-black font-bold text-xs hover:bg-yellow-400 transition flex items-center gap-1.5 shadow-md shadow-yellow-500/20"
+        >
+          <Plus class="w-3.5 h-3.5" />
+          <span>Add Footer Block</span>
+        </button>
+      </div>
     </div>
 
     <!-- Edit Section Modal -->
@@ -788,37 +1120,41 @@ function handleAddDesign(design) {
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
     >
       <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 md:p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto space-y-6 shadow-2xl">
+        <!-- Header: Simple & Refined -->
         <div class="flex justify-between items-center border-b border-white/[0.08] pb-4">
-          <div>
-            <h3 class="text-xl font-bold text-white tracking-wide">Edit {{ editingSection.label }}</h3>
-            <span class="text-xs font-semibold text-[#FFD700] uppercase">{{ editingSection.section_type }} block</span>
+          <div v-if="editingSection.section_type === 'navbar'">
+            <h3 class="text-lg font-bold text-white tracking-wide">Edit Navigation Bar</h3>
+            <p class="text-xs text-neutral-400 mt-0.5">Select a layout style and configure header actions.</p>
           </div>
-          <button @click="editingSection = null" class="text-neutral-400 hover:text-white p-1">
+          <div v-else>
+            <h3 class="text-xl font-bold text-white tracking-wide">Edit {{ editingSection.label }}</h3>
+            <span class="text-xs font-medium text-neutral-400 uppercase tracking-wider">{{ editingSection.section_type }}</span>
+          </div>
+          <button @click="editingSection = null" class="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/[0.05] transition">
             <X class="w-5 h-5" />
           </button>
         </div>
 
         <div class="space-y-4">
-          <div>
+          <div v-if="editingSection.section_type !== 'navbar'">
             <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Section Display Label</label>
             <input
               type="text"
               v-model="editingSection.label"
-              class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-white/30"
             />
           </div>
 
-          <!-- Hero Section Specific Fields & Design Variant Switcher -->
+          <!-- Hero Section Specific Fields & Design Variant Switcher (4 Hero Variants) -->
           <div v-if="editingSection.section_type === 'hero'" class="space-y-4">
             <div>
               <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Hero Visual Design Variant</label>
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div class="grid grid-cols-2 gap-2">
                 <button
                   v-for="v in [
                     { id: 'editorial', label: 'Luxury Editorial' },
                     { id: 'split_card', label: 'Split 2-Column' },
                     { id: 'minimalist_cinema', label: 'Minimalist Cinema' },
-                    { id: 'bento', label: 'Bento Box' },
                     { id: 'video_reel', label: 'Video Reel' }
                   ]"
                   :key="v.id"
@@ -898,6 +1234,247 @@ function handleAddDesign(design) {
                   class="w-full px-4 py-2 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
                 />
               </div>
+            </div>
+
+            <div v-if="editingSection.content.variant === 'video_reel'">
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1">Video URL (YouTube/Vimeo)</label>
+              <input
+                type="text"
+                v-model="editingSection.content.video_url"
+                class="w-full px-4 py-2 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
+          </div>
+
+          <!-- Pricing / Rates Specific Fields (4 Rates Variants) -->
+          <div v-else-if="editingSection.section_type === 'rates'" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Pricing Visual Variant</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  v-for="v in [
+                    { id: 'pricing_tiered', label: '3-Tier Luxury Cards' },
+                    { id: 'pricing_spotlight', label: 'Single All-Inclusive Spotlight' },
+                    { id: 'pricing_addons', label: 'A La Carte Deliverables' },
+                    { id: 'pricing_comparison', label: 'Feature Matrix Table' }
+                  ]"
+                  :key="v.id"
+                  type="button"
+                  @click="editingSection.content.variant = v.id"
+                  class="p-2.5 rounded-xl border text-xs font-bold tracking-wide transition flex items-center justify-between"
+                  :class="[
+                    (editingSection.content.variant || 'pricing_tiered') === v.id
+                      ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
+                      : 'bg-black/40 border-white/10 text-neutral-400 hover:text-white'
+                  ]"
+                >
+                  <span>{{ v.label }}</span>
+                  <Check v-if="(editingSection.content.variant || 'pricing_tiered') === v.id" class="w-3.5 h-3.5 text-[#FFD700]" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Title</label>
+              <input
+                type="text"
+                v-model="editingSection.content.title"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Subtitle</label>
+              <input
+                type="text"
+                v-model="editingSection.content.subtitle"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
+          </div>
+
+          <!-- Testimonials Specific Fields (4 Variants) -->
+          <div v-else-if="editingSection.section_type === 'testimonials'" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Testimonial Visual Variant</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  v-for="v in [
+                    { id: 'testimonials_dual', label: 'Dual Review Cards' },
+                    { id: 'testimonials_grid', label: '3-Column Review Wall' },
+                    { id: 'testimonials_featured', label: 'Full-Width Editorial Quote' },
+                    { id: 'trust_venues', label: 'Venues Marquee' }
+                  ]"
+                  :key="v.id"
+                  type="button"
+                  @click="editingSection.content.variant = v.id"
+                  class="p-2.5 rounded-xl border text-xs font-bold tracking-wide transition flex items-center justify-between"
+                  :class="[
+                    (editingSection.content.variant || 'testimonials_dual') === v.id
+                      ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
+                      : 'bg-black/40 border-white/10 text-neutral-400 hover:text-white'
+                  ]"
+                >
+                  <span>{{ v.label }}</span>
+                  <Check v-if="(editingSection.content.variant || 'testimonials_dual') === v.id" class="w-3.5 h-3.5 text-[#FFD700]" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Title</label>
+              <input
+                type="text"
+                v-model="editingSection.content.title"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Subtitle</label>
+              <input
+                type="text"
+                v-model="editingSection.content.subtitle"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
+          </div>
+
+          <!-- Gallery Grid Specific Fields (Masonry vs Mosaic) -->
+          <div v-else-if="editingSection.section_type === 'gallery_grid'" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Gallery Layout Variant</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  v-for="v in [
+                    { id: 'masonry', label: 'Masonry Photo Grid' },
+                    { id: 'mosaic', label: 'Edge-to-Edge Mosaic Wall' }
+                  ]"
+                  :key="v.id"
+                  type="button"
+                  @click="editingSection.content.variant = v.id"
+                  class="p-2.5 rounded-xl border text-xs font-bold tracking-wide transition flex items-center justify-between"
+                  :class="[
+                    (editingSection.content.variant || 'masonry') === v.id
+                      ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
+                      : 'bg-black/40 border-white/10 text-neutral-400 hover:text-white'
+                  ]"
+                >
+                  <span>{{ v.label }}</span>
+                  <Check v-if="(editingSection.content.variant || 'masonry') === v.id" class="w-3.5 h-3.5 text-[#FFD700]" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Title</label>
+              <input
+                type="text"
+                v-model="editingSection.content.title"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Subtitle</label>
+              <input
+                type="text"
+                v-model="editingSection.content.subtitle"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Max Photos to Display</label>
+              <input
+                type="number"
+                v-model.number="editingSection.content.limit"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
+          </div>
+
+          <!-- Navbar Specific Fields (4 Navbar Variants) -->
+          <div v-else-if="editingSection.section_type === 'navbar'" class="space-y-5">
+            <div>
+              <label class="block text-xs font-medium text-neutral-300 mb-2.5">Header Layout</label>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <button
+                  v-for="v in [
+                    { id: 'floating', name: 'Floating Glass Island', desc: 'Pill-shaped floating glass bar with CTA' },
+                    { id: 'fullwidth', name: 'Simple Translucent Split', desc: 'Center logo with transparent-to-translucent scroll' },
+                    { id: 'centered', name: 'Centered Luxury Monogram', desc: 'Centered logo with top gradient and dual dividers' },
+                    { id: 'dynamic', name: 'Dynamic Translucent Header', desc: 'Solid scroll transition with CTA button' }
+                  ]"
+                  :key="v.id"
+                  type="button"
+                  @click="editingSection.content.variant = v.id"
+                  class="p-3.5 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between gap-1 group cursor-pointer"
+                  :class="[
+                    (editingSection.content.variant || 'floating') === v.id
+                      ? 'bg-white/[0.08] border-white/30 text-white shadow-sm'
+                      : 'bg-white/[0.02] border-white/[0.06] text-neutral-400 hover:bg-white/[0.05] hover:text-neutral-200'
+                  ]"
+                >
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold" :class="[(editingSection.content.variant || 'floating') === v.id ? 'text-white' : 'text-neutral-300']">
+                      {{ v.name }}
+                    </span>
+                    <div
+                      class="w-2 h-2 rounded-full transition"
+                      :class="[(editingSection.content.variant || 'floating') === v.id ? 'bg-[#FFD700]' : 'bg-transparent border border-white/20']"
+                    ></div>
+                  </div>
+                  <span class="text-[11px] text-neutral-500 leading-tight">{{ v.desc }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- CTA Button Field (When applicable: floating, dynamic) -->
+            <div v-if="['floating', 'dynamic'].includes(editingSection.content.variant || 'floating')" class="space-y-1.5 pt-1">
+              <label class="block text-xs font-medium text-neutral-300">Call-to-Action (CTA) Text</label>
+              <input
+                type="text"
+                v-model="editingSection.content.cta_text"
+                placeholder="Book Now"
+                class="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+              />
+            </div>
+
+            <!-- Included Core Navigation Links Note -->
+            <div class="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between text-xs text-neutral-400">
+              <span class="text-[11px] text-neutral-500">Navigation Buttons</span>
+              <span class="text-[11px] font-mono text-neutral-300">Home • Portfolio • Pricing • Gallery • Contact</span>
+            </div>
+          </div>
+
+          <!-- Footer Specific Fields (4 Footer Variants) -->
+          <div v-else-if="editingSection.section_type === 'footer'" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Footer Visual Variant</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  v-for="v in [
+                    { id: 'multi_column', label: '4-Column Studio Hub' },
+                    { id: 'minimal', label: 'Centered Minimalist Luxury' },
+                    { id: 'newsletter', label: 'VIP Newsletter Lead Capture' },
+                    { id: 'split_map', label: 'Split Studio Map & Hours' }
+                  ]"
+                  :key="v.id"
+                  type="button"
+                  @click="editingSection.content.variant = v.id"
+                  class="p-2.5 rounded-xl border text-xs font-bold tracking-wide transition flex items-center justify-between"
+                  :class="[
+                    (editingSection.content.variant || 'multi_column') === v.id
+                      ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
+                      : 'bg-black/40 border-white/10 text-neutral-400 hover:text-white'
+                  ]"
+                >
+                  <span>{{ v.label }}</span>
+                  <Check v-if="(editingSection.content.variant || 'multi_column') === v.id" class="w-3.5 h-3.5 text-[#FFD700]" />
+                </button>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Brand Tagline</label>
+              <textarea
+                v-model="editingSection.content.tagline"
+                rows="3"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              ></textarea>
             </div>
           </div>
 
@@ -998,19 +1575,43 @@ function handleAddDesign(design) {
                 class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
               />
             </div>
+            <div v-if="'heading' in editingSection.content">
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Heading</label>
+              <input
+                type="text"
+                v-model="editingSection.content.heading"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
+            <div v-if="'subheading' in editingSection.content">
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Subheading</label>
+              <input
+                type="text"
+                v-model="editingSection.content.subheading"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
+            <div v-if="'button_text' in editingSection.content">
+              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Button Text</label>
+              <input
+                type="text"
+                v-model="editingSection.content.button_text"
+                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+              />
+            </div>
           </div>
         </div>
 
-        <div class="flex justify-end gap-3 pt-4 border-t border-white/[0.08]">
+        <div class="flex justify-end items-center gap-3 pt-4 border-t border-white/[0.08]">
           <button
             @click="editingSection = null"
-            class="px-5 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
+            class="px-5 py-2.5 rounded-xl border border-white/10 text-neutral-400 hover:text-white text-xs font-medium hover:bg-white/[0.05] transition"
           >
             Cancel
           </button>
           <button
             @click="handleSaveEdit"
-            class="px-6 py-2 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 transition"
+            class="px-6 py-2.5 rounded-xl bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 transition shadow-md shadow-yellow-500/20"
           >
             Save Changes
           </button>
@@ -1035,7 +1636,7 @@ function handleAddDesign(design) {
             </div>
             <div>
               <h3 class="text-lg font-extrabold text-white tracking-wide">Section Template Studio</h3>
-              <p class="text-xs text-neutral-400">Choose from {{ totalDesignsCount }}+ distinct visual design variations across {{ sectionCategoryCatalog.length }} categories</p>
+              <p class="text-xs text-neutral-400">Choose from {{ totalDesignsCount }} distinct visual design variations across {{ sectionCategoryCatalog.length }} categories (4 designs each)</p>
             </div>
           </div>
 
@@ -1064,10 +1665,10 @@ function handleAddDesign(design) {
         <!-- Master-Detail Body: Category Sidebar (Left) + Design Options Gallery (Right) -->
         <div class="flex-1 flex flex-col md:flex-row overflow-hidden">
           
-          <!-- LEFT SIDEBAR: CATEGORIES LIST -->
+          <!-- LEFT SIDEBAR: CATEGORIES LIST (9 CATEGORIES) -->
           <div class="w-full md:w-72 bg-[#111111] border-b md:border-b-0 md:border-r border-white/[0.08] p-4 overflow-y-auto space-y-1.5 flex-shrink-0">
             <div class="px-2 py-1 text-[10px] font-bold text-neutral-500 uppercase tracking-wider">
-              Section Categories
+              Section Categories ({{ sectionCategoryCatalog.length }})
             </div>
 
             <button
@@ -1077,7 +1678,7 @@ function handleAddDesign(design) {
               class="w-full text-left p-3 rounded-2xl flex items-center justify-between gap-3 transition-all duration-200 group"
               :class="[
                 activeCategoryKey === cat.key
-                  ? 'bg-white/[0.08] border border-[#FFD700]/50 shadow-md'
+                  ? 'bg-white/[0.08] border border-white/20 shadow-md'
                   : 'hover:bg-white/[0.04] border border-transparent'
               ]"
             >
@@ -1086,7 +1687,7 @@ function handleAddDesign(design) {
                   class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition"
                   :class="[
                     activeCategoryKey === cat.key
-                      ? 'bg-[#FFD700] text-black'
+                      ? 'bg-white/90 text-black'
                       : 'bg-white/[0.05] text-neutral-300 group-hover:text-white'
                   ]"
                 >
@@ -1095,7 +1696,7 @@ function handleAddDesign(design) {
                 <div class="min-w-0">
                   <h4
                     class="text-xs font-bold truncate transition"
-                    :class="[activeCategoryKey === cat.key ? 'text-[#FFD700]' : 'text-neutral-200 group-hover:text-white']"
+                    :class="[activeCategoryKey === cat.key ? 'text-white' : 'text-neutral-300 group-hover:text-white']"
                   >
                     {{ cat.name }}
                   </h4>
@@ -1107,7 +1708,7 @@ function handleAddDesign(design) {
                 class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold transition"
                 :class="[
                   activeCategoryKey === cat.key
-                    ? 'bg-[#FFD700]/20 text-[#FFD700]'
+                    ? 'bg-white/10 text-neutral-200'
                     : 'bg-white/[0.04] text-neutral-500'
                 ]"
               >
@@ -1123,7 +1724,7 @@ function handleAddDesign(design) {
               <div class="space-y-1">
                 <div class="flex items-center gap-2">
                   <h3 class="text-lg font-bold text-white tracking-wide">{{ activeCategory.name }}</h3>
-                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border" :class="activeCategory.badgeColor">
+                  <span class="px-2.5 py-0.5 rounded-full text-[10px] font-medium uppercase border" :class="activeCategory.badgeColor">
                     {{ filteredCategoryDesigns.length }} Designs Available
                   </span>
                 </div>
@@ -1137,7 +1738,7 @@ function handleAddDesign(design) {
                 v-for="design in filteredCategoryDesigns"
                 :key="design.id"
                 @click="handleAddDesign(design)"
-                class="p-4 rounded-2xl bg-black/40 border border-white/[0.08] hover:border-[#FFD700] cursor-pointer transition-all duration-300 group flex flex-col justify-between space-y-4 shadow-xl hover:scale-[1.01]"
+                class="p-4 rounded-2xl bg-black/40 border border-white/[0.08] hover:border-white/25 cursor-pointer transition-all duration-300 group flex flex-col justify-between space-y-4 shadow-xl hover:scale-[1.01]"
               >
                 <!-- Wireframe Layout Skeleton Preview -->
                 <SectionSkeletonPreview :type="design.skeletonType || design.type" />
@@ -1145,12 +1746,12 @@ function handleAddDesign(design) {
                 <!-- Design Details -->
                 <div class="space-y-2">
                   <div class="flex items-start justify-between gap-2">
-                    <h4 class="text-sm font-bold text-white group-hover:text-[#FFD700] transition tracking-wide leading-snug">
+                    <h4 class="text-sm font-bold text-white group-hover:text-neutral-100 transition tracking-wide leading-snug">
                       {{ design.name }}
                     </h4>
                     <span
                       v-if="design.tag"
-                      class="px-2 py-0.5 rounded-md bg-[#FFD700]/10 border border-[#FFD700]/30 text-[#FFD700] text-[10px] font-bold uppercase tracking-wider flex-shrink-0"
+                      class="px-2 py-0.5 rounded-md bg-white/[0.06] border border-white/10 text-neutral-300 text-[10px] font-medium tracking-wider flex-shrink-0"
                     >
                       {{ design.tag }}
                     </span>
@@ -1163,7 +1764,7 @@ function handleAddDesign(design) {
                       :key="fIdx"
                       class="text-[11px] text-neutral-400 flex items-center gap-1.5"
                     >
-                      <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700]/70 flex-shrink-0"></span>
+                      <span class="w-1.5 h-1.5 rounded-full bg-neutral-500 flex-shrink-0"></span>
                       <span>{{ feat }}</span>
                     </li>
                   </ul>
@@ -1175,7 +1776,7 @@ function handleAddDesign(design) {
                     {{ design.type }} {{ design.variant ? `• ${design.variant}` : '' }}
                   </span>
                   <button
-                    class="px-4 py-1.5 rounded-xl bg-[#FFD700] text-black text-xs font-bold group-hover:bg-yellow-400 transition flex items-center gap-1 shadow-md shadow-yellow-500/10"
+                    class="px-4 py-1.5 rounded-xl bg-white/10 hover:bg-[#FFD700] hover:text-black text-white text-xs font-bold transition flex items-center gap-1 shadow-md"
                   >
                     <span>Use This Layout</span>
                     <span>+</span>

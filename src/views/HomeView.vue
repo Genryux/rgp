@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import Navbar from '../components/public/Navbar.vue';
 import Footer from '../components/public/Footer.vue';
 
@@ -33,7 +33,11 @@ const { fetchPackages } = usePackages();
 const { fetchGallery } = useGallery();
 const { fetchSettings } = useSettings();
 
+const hasNavbarSection = computed(() => visibleSections.value.some((s) => s.section_type === 'navbar'));
+const hasFooterSection = computed(() => visibleSections.value.some((s) => s.section_type === 'footer'));
+
 const sectionComponents = {
+  navbar: Navbar,
   hero: HeroSection,
   carousel: CarouselSection,
   video: VideoSection,
@@ -52,6 +56,7 @@ const sectionComponents = {
   instagram: InstagramFeedSection,
   location_map: LocationMapSection,
   before_after: BeforeAfterSection,
+  footer: Footer,
 };
 
 onMounted(() => {
@@ -64,8 +69,8 @@ onMounted(() => {
 
 <template>
   <div class="bg-[#141414] min-h-screen text-[#f8f8f8] selection:bg-[#FFD700] selection:text-black">
-    <!-- Top Navigation Bar -->
-    <Navbar />
+    <!-- Top Navigation Bar (Fallback if no navbar block in page sections) -->
+    <Navbar v-if="!hasNavbarSection" />
 
     <!-- Dynamic Section Blocks in Configured Order -->
     <main>
@@ -74,10 +79,11 @@ onMounted(() => {
         :key="sec.id"
         :is="sectionComponents[sec.section_type] || TextBlockSection"
         :content="sec.content"
+        :variant="sec.content?.variant"
       />
     </main>
 
-    <!-- Footer -->
-    <Footer />
+    <!-- Footer (Fallback if no footer block in page sections) -->
+    <Footer v-if="!hasFooterSection" />
   </div>
 </template>

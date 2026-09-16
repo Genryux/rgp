@@ -21,7 +21,7 @@ function handleInput(e) {
 </script>
 
 <template>
-  <section class="py-24 bg-[#111111] border-b border-white/5 font-manrope">
+  <section id="portfolio" class="py-24 bg-[#111111] border-b border-white/5 font-manrope relative">
     <div class="max-w-5xl mx-auto px-4">
       <div class="text-center mb-12">
         <span class="text-xs font-semibold uppercase tracking-widest text-[#FFD700]">POST-PRODUCTION MASTERY</span>

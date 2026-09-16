@@ -17,7 +17,7 @@ const { gallery } = useGallery();
 </script>
 
 <template>
-  <section class="py-20 bg-[#0e0e0e] border-b border-white/5 font-manrope">
+  <section id="gallery" class="py-20 bg-[#0e0e0e] border-b border-white/5 font-manrope">
     <div class="max-w-6xl mx-auto px-4 text-center">
       <span class="text-xs font-semibold uppercase tracking-widest text-[#FFD700]">SOCIAL FEED</span>
       <h2 class="text-3xl md:text-5xl font-bebas text-white tracking-wider mt-1 mb-2">

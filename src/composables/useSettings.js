@@ -17,8 +17,46 @@ const DEFAULT_SETTINGS = {
   meta_description: 'Professional photography and videography services. Turning moments into masterpieces. Book your session today.',
 };
 
-const settings = ref(DEFAULT_SETTINGS);
+const SETTINGS_STORAGE_KEY = 'rgp_settings';
+
+function getInitialSettings() {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      if (saved) {
+        return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      console.error('[Settings] Error loading from localStorage:', e);
+    }
+  }
+  return DEFAULT_SETTINGS;
+}
+
+const settings = ref(getInitialSettings());
 const loading = ref(false);
+
+function persistSettings() {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings.value));
+    } catch (e) {
+      console.error('[Settings] Error saving to localStorage:', e);
+    }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === SETTINGS_STORAGE_KEY && e.newValue) {
+      try {
+        settings.value = { ...DEFAULT_SETTINGS, ...JSON.parse(e.newValue) };
+      } catch (err) {
+        console.error('[Settings] Error synchronizing settings across tabs:', err);
+      }
+    }
+  });
+}
 
 export function useSettings() {
   async function fetchSettings() {
@@ -34,6 +72,7 @@ export function useSettings() {
       if (error && error.code !== 'PGRST116') throw error;
       if (data) {
         settings.value = { ...DEFAULT_SETTINGS, ...data };
+        persistSettings();
       }
     } catch (err) {
       console.error('[Settings] Error fetching settings:', err);
@@ -44,6 +83,7 @@ export function useSettings() {
 
   async function updateSettings(newSettings) {
     settings.value = { ...settings.value, ...newSettings };
+    persistSettings();
 
     if (isSupabaseConfigured && supabase) {
       try {

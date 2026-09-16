@@ -95,9 +95,50 @@ const DEFAULT_PACKAGES = [
   },
 ];
 
-const packages = ref(DEFAULT_PACKAGES);
+const PACKAGES_STORAGE_KEY = 'rgp_packages';
+
+function getInitialPackages() {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(PACKAGES_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('[Packages] Error loading from localStorage:', e);
+    }
+  }
+  return DEFAULT_PACKAGES;
+}
+
+const packages = ref(getInitialPackages());
 const isGlobalPriceMasked = ref(localStorage.getItem('rgp_mask_prices') === 'true');
 const loading = ref(false);
+
+function persistPackages() {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(PACKAGES_STORAGE_KEY, JSON.stringify(packages.value));
+    } catch (e) {
+      console.error('[Packages] Error saving to localStorage:', e);
+    }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === PACKAGES_STORAGE_KEY && e.newValue) {
+      try {
+        packages.value = JSON.parse(e.newValue);
+      } catch (err) {
+        console.error('[Packages] Error synchronizing packages across tabs:', err);
+      }
+    }
+  });
+}
 
 export function usePackages() {
   function toggleGlobalPriceMask() {
@@ -117,6 +158,7 @@ export function usePackages() {
       if (error) throw error;
       if (data && data.length > 0) {
         packages.value = data;
+        persistPackages();
       }
     } catch (err) {
       console.error('[Packages] Error fetching packages:', err);
@@ -154,6 +196,7 @@ export function usePackages() {
           } else {
             packages.value.push(data);
           }
+          persistPackages();
           return { data, error: null };
         }
       } catch (err) {
@@ -169,12 +212,14 @@ export function usePackages() {
         const idx = packages.value.findIndex((p) => p.id === pkg.id);
         if (idx !== -1) packages.value[idx] = targetPkg;
       }
+      persistPackages();
       return { data: targetPkg, error: null };
     }
   }
 
   async function deletePackage(id) {
     packages.value = packages.value.filter((p) => p.id !== id);
+    persistPackages();
     if (isSupabaseConfigured && supabase) {
       try {
         const { error } = await supabase.from('packages').delete().eq('id', id);

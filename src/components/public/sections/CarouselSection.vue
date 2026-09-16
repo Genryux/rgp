@@ -78,7 +78,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <section id="showcase" class="py-24 bg-[#141414] overflow-hidden select-none border-b border-white/5">
+  <section id="portfolio" class="py-24 bg-[#141414] overflow-hidden select-none border-b border-white/5 relative">
+    <span id="showcase" class="absolute -top-24"></span>
     <div class="max-w-6xl mx-auto px-4 mb-10 text-center">
       <h2 class="text-3xl md:text-5xl font-bebas tracking-wider text-[#f8f8f8] mb-3">
         {{ content.title || 'PORTFOLIO SHOWCASE' }}

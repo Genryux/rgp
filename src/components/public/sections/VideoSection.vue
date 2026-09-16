@@ -31,6 +31,7 @@ const embedUrl = computed(() => {
 
 <template>
   <section id="highlights" class="py-24 bg-[#111111] border-b border-white/5 relative overflow-hidden">
+    <span id="portfolio" class="absolute -top-24"></span>
     <div class="max-w-5xl mx-auto px-4 text-center">
       <h2 class="text-3xl md:text-5xl font-bebas tracking-wider text-[#f8f8f8] mb-3">
         {{ content.title || 'CINEMATIC HIGHLIGHTS' }}

@@ -11,7 +11,7 @@ defineProps({
   <div class="w-full h-32 rounded-xl bg-black/60 border border-white/[0.08] p-3 flex flex-col justify-center items-center overflow-hidden relative select-none group-hover:border-[#FFD700]/40 transition duration-300">
     
     <!-- ========================================== -->
-    <!-- 1. HERO VARIANTS -->
+    <!-- 1. HERO VARIANTS (4 Blocks) -->
     <!-- ========================================== -->
     <!-- Hero 1: Luxury Editorial -->
     <div v-if="type === 'hero' || type === 'hero-editorial'" class="w-full h-full flex flex-col justify-center items-center gap-1.5">
@@ -49,27 +49,10 @@ defineProps({
       <div class="w-20 h-3 rounded-full bg-[#FFD700] mt-1"></div>
     </div>
 
-    <!-- Hero 4: Modern Bento Box Hero -->
-    <div v-else-if="type === 'hero-bento'" class="w-full h-full grid grid-cols-3 gap-1.5 p-1">
-      <div class="col-span-2 rounded-lg bg-white/10 border border-white/15 p-1.5 flex flex-col justify-between">
-        <div class="w-12 h-1 rounded bg-[#FFD700]"></div>
-        <div class="w-full h-2 rounded bg-white/30"></div>
-        <div class="w-10 h-2 rounded bg-[#FFD700]"></div>
-      </div>
-      <div class="col-span-1 space-y-1">
-        <div class="h-10 rounded-md bg-white/5 border border-white/10 p-1">
-          <div class="w-6 h-1 rounded bg-[#FFD700]"></div>
-        </div>
-        <div class="h-10 rounded-md bg-white/5 border border-white/10 p-1">
-          <div class="w-6 h-1 rounded bg-emerald-400"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Hero 5: Fullscreen Video Reel Hero -->
+    <!-- Hero 4: Fullscreen Video Reel Hero -->
     <div v-else-if="type === 'hero-video'" class="w-full h-full flex flex-col justify-between p-1.5 bg-neutral-900/60 rounded-lg relative">
       <div class="w-8 h-1 rounded bg-[#FFD700]"></div>
-      <div class="w-8 h-8 rounded-full bg-[#FFD700] self-center flex items-center justify-center">
+      <div class="w-8 h-8 rounded-full bg-[#FFD700] self-center flex items-center justify-center shadow-lg shadow-yellow-500/20">
         <div class="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-black ml-0.5"></div>
       </div>
       <div class="w-full h-4 rounded-md bg-black/70 border border-white/10 px-2 flex items-center justify-between">
@@ -79,115 +62,36 @@ defineProps({
     </div>
 
     <!-- ========================================== -->
-    <!-- 2. SHOWCASE & MEDIA VARIANTS -->
+    <!-- 2. FEATURES SECTION (4 Blocks) -->
     <!-- ========================================== -->
-    <!-- Showcase 1: Infinite 3-Card Carousel -->
-    <div v-else-if="type === 'carousel'" class="w-full h-full flex flex-col justify-between py-1">
-      <div class="flex justify-center gap-1">
-        <div class="w-6 h-1.5 rounded-full bg-[#FFD700]"></div>
-        <div class="w-6 h-1.5 rounded-full bg-white/10"></div>
-        <div class="w-6 h-1.5 rounded-full bg-white/10"></div>
-      </div>
-      <div class="flex items-center justify-center gap-1.5 px-1">
-        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/10 opacity-40 scale-90"></div>
-        <div class="w-24 h-16 rounded-xl bg-white/10 border border-[#FFD700]/60 shadow-lg relative flex items-end p-1.5">
-          <div class="w-12 h-1.5 rounded-full bg-[#FFD700]/80"></div>
-        </div>
-        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/10 opacity-40 scale-90"></div>
-      </div>
-      <div class="flex justify-center gap-1">
-        <div class="w-3 h-1 rounded-full bg-[#FFD700]"></div>
-        <div class="w-1 h-1 rounded-full bg-white/20"></div>
-      </div>
-    </div>
-
-    <!-- Showcase 2: Masonry Photo Grid -->
-    <div v-else-if="type === 'gallery_grid' || type === 'gallery-grid'" class="w-full h-full flex flex-col justify-between py-1 px-1">
-      <div class="w-16 h-1.5 rounded-full bg-white/20 mx-auto"></div>
-      <div class="grid grid-cols-4 gap-1.5 w-full">
-        <div class="h-18 rounded-md bg-neutral-800 border border-white/10"></div>
-        <div class="h-18 rounded-md bg-neutral-800 border border-[#FFD700]/40"></div>
-        <div class="h-18 rounded-md bg-neutral-800 border border-white/10"></div>
-        <div class="h-18 rounded-md bg-neutral-800 border border-white/10"></div>
-      </div>
-    </div>
-
-    <!-- Showcase 3: Editorial Filmstrip -->
-    <div v-else-if="type === 'filmstrip'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-1">
-      <div class="w-20 h-1 rounded-full bg-white/20"></div>
-      <div class="flex gap-1.5 w-full overflow-hidden justify-center items-center">
-        <div v-for="i in 4" :key="i" class="w-16 h-16 rounded-md bg-neutral-900 border border-white/20 relative p-1 flex flex-col justify-between">
-          <div class="w-4 h-0.5 bg-[#FFD700]"></div>
-          <div class="w-full h-1 bg-white/10"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Showcase 4: Before / After Slider -->
-    <div v-else-if="type === 'before_after' || type === 'before-after'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-3">
-      <div class="w-20 h-1.5 rounded-full bg-white/20"></div>
-      <div class="w-full h-18 rounded-xl bg-neutral-900 border border-white/10 relative overflow-hidden flex">
-        <div class="w-1/2 h-full bg-neutral-800 flex items-center justify-start p-2">
-          <span class="text-[8px] text-neutral-400 font-bold">RAW</span>
-        </div>
-        <div class="w-1/2 h-full bg-[#FFD700]/10 flex items-center justify-end p-2 border-l border-[#FFD700]">
-          <span class="text-[8px] text-[#FFD700] font-bold">GRADED</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Showcase 5: Instagram Social Snapshot Grid -->
-    <div v-else-if="type === 'instagram'" class="w-full h-full flex flex-col justify-between py-1 px-1">
+    <!-- Features 1: 3-Column Studio Highlights -->
+    <div v-else-if="type === 'features-grid' || type === 'about-split' || type === 'about'" class="w-full h-full flex flex-col justify-between py-1 px-2">
       <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
-      <div class="grid grid-cols-6 gap-1 w-full">
-        <div v-for="i in 6" :key="i" class="h-14 rounded-md bg-neutral-800 border border-white/10"></div>
-      </div>
-      <div class="w-16 h-1 rounded-full bg-[#FFD700] mx-auto"></div>
-    </div>
-
-    <!-- ========================================== -->
-    <!-- 3. ABOUT & TEAM VARIANTS -->
-    <!-- ========================================== -->
-    <!-- About 1: Split Story & Stats -->
-    <div v-else-if="type === 'about' || type === 'about-split'" class="w-full h-full flex items-center justify-center gap-3 px-3">
-      <div class="w-16 h-22 rounded-xl bg-neutral-900 border border-[#FFD700]/40 flex-shrink-0"></div>
-      <div class="flex-1 space-y-1.5">
-        <div class="w-10 h-1 rounded-full bg-[#FFD700]"></div>
-        <div class="w-24 h-2 rounded-full bg-white/30"></div>
-        <div class="w-full h-1 rounded-full bg-white/10"></div>
-        <div class="flex gap-1.5 pt-1">
-          <div class="w-6 h-3 rounded bg-white/5 border border-white/10"></div>
-          <div class="w-6 h-3 rounded bg-white/5 border border-white/10"></div>
-          <div class="w-6 h-3 rounded bg-white/5 border border-white/10"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- About 2: Founder Signature & Manifesto -->
-    <div v-else-if="type === 'about-manifesto'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-4 text-center">
-      <div class="w-12 h-1 rounded-full bg-[#FFD700]"></div>
-      <div class="w-3/4 h-2 rounded-full bg-white/30"></div>
-      <div class="w-full h-1 rounded-full bg-white/10"></div>
-      <div class="w-2/3 h-1 rounded-full bg-white/10"></div>
-      <div class="w-14 h-2 rounded-full bg-[#FFD700]/70 mt-1"></div>
-    </div>
-
-    <!-- About 3: Creative Team Grid -->
-    <div v-else-if="type === 'team'" class="w-full h-full flex flex-col justify-between py-1 px-2">
-      <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
-      <div class="grid grid-cols-3 gap-2 w-full">
-        <div v-for="i in 3" :key="i" class="rounded-lg bg-white/5 border border-white/10 overflow-hidden flex flex-col h-20">
-          <div class="h-12 bg-neutral-800"></div>
-          <div class="p-1 space-y-0.5">
-            <div class="w-8 h-1 rounded-full bg-[#FFD700]"></div>
-            <div class="w-12 h-1 rounded-full bg-white/20"></div>
+      <div class="grid grid-cols-3 gap-1.5 w-full">
+        <div v-for="i in 3" :key="i" class="p-1.5 rounded-lg bg-white/5 border border-white/10 flex flex-col justify-between h-20">
+          <div class="w-4 h-4 rounded-full bg-[#FFD700]/20 flex items-center justify-center">
+            <div class="w-2 h-2 rounded-full bg-[#FFD700]"></div>
           </div>
+          <div class="w-full h-1.5 rounded bg-white/30"></div>
+          <div class="w-3/4 h-1 rounded bg-white/10"></div>
         </div>
       </div>
     </div>
 
-    <!-- About 4: Camera & Drone Gear Arsenal -->
-    <div v-else-if="type === 'gear'" class="w-full h-full flex flex-col justify-between py-1 px-2">
+    <!-- Features 2: 4-Step Process Timeline -->
+    <div v-else-if="type === 'process-timeline' || type === 'process'" class="w-full h-full flex flex-col justify-between py-1 px-2">
+      <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
+      <div class="grid grid-cols-4 gap-1.5 w-full">
+        <div v-for="i in 4" :key="i" class="p-1 rounded-lg bg-white/5 border border-white/10 flex flex-col justify-between h-20">
+          <span class="text-[9px] font-bold text-[#FFD700]">0{{ i }}</span>
+          <div class="w-full h-1 rounded-full bg-white/20"></div>
+          <div class="w-3/4 h-1 rounded-full bg-white/10"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features 3: Camera & Cinema Gear Arsenal -->
+    <div v-else-if="type === 'gear-arsenal' || type === 'gear'" class="w-full h-full flex flex-col justify-between py-1 px-2">
       <div class="w-24 h-1.5 rounded-full bg-white/20 mx-auto"></div>
       <div class="grid grid-cols-4 gap-1.5 w-full">
         <div v-for="i in 4" :key="i" class="p-1 rounded-lg bg-white/5 border border-white/10 space-y-1 h-20">
@@ -198,11 +102,20 @@ defineProps({
       </div>
     </div>
 
+    <!-- Features 4: Studio Story & Philosophy Manifesto -->
+    <div v-else-if="type === 'story-manifesto' || type === 'about-manifesto' || type === 'text_block'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-4 text-center">
+      <div class="w-12 h-1 rounded-full bg-[#FFD700]"></div>
+      <div class="w-3/4 h-2 rounded-full bg-white/30"></div>
+      <div class="w-full h-1 rounded-full bg-white/10"></div>
+      <div class="w-2/3 h-1 rounded-full bg-white/10"></div>
+      <div class="w-14 h-2 rounded-full bg-[#FFD700]/70 mt-1"></div>
+    </div>
+
     <!-- ========================================== -->
-    <!-- 4. SERVICES & RATES VARIANTS -->
+    <!-- 3. PRICING COMPONENT (4 Blocks) -->
     <!-- ========================================== -->
-    <!-- Rates 1: 3-Tier Luxury Pricing Cards -->
-    <div v-else-if="type === 'rates' || type === 'rates-tiered'" class="w-full h-full flex flex-col justify-between py-1">
+    <!-- Pricing 1: 3-Tier Luxury Pricing Cards -->
+    <div v-else-if="type === 'pricing-tiered' || type === 'rates-tiered' || type === 'rates'" class="w-full h-full flex flex-col justify-between py-1">
       <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
       <div class="grid grid-cols-3 gap-1.5 w-full px-2">
         <div class="rounded-lg bg-white/5 border border-white/10 p-1.5 flex flex-col justify-between h-20">
@@ -226,50 +139,57 @@ defineProps({
       </div>
     </div>
 
-    <!-- Rates 2: Minimalist Rates List Table -->
-    <div v-else-if="type === 'rates-list'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-3">
+    <!-- Pricing 2: Single All-Inclusive Spotlight -->
+    <div v-else-if="type === 'pricing-spotlight'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-3">
       <div class="w-20 h-1.5 rounded-full bg-white/20"></div>
-      <div class="w-full space-y-1">
-        <div v-for="i in 3" :key="i" class="w-full h-5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-between px-2">
-          <div class="w-24 h-1 rounded bg-white/30"></div>
-          <div class="w-8 h-1 rounded bg-[#FFD700]"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Rates 3: Tabbed Milestone Switcher -->
-    <div v-else-if="type === 'rates-tabbed'" class="w-full h-full flex flex-col justify-between py-1 px-3">
-      <div class="flex justify-center gap-1">
-        <div class="w-10 h-2 rounded-full bg-[#FFD700]"></div>
-        <div class="w-10 h-2 rounded-full bg-white/10"></div>
-        <div class="w-10 h-2 rounded-full bg-white/10"></div>
-      </div>
-      <div class="w-full h-16 rounded-xl bg-white/5 border border-white/10 p-2 flex items-center justify-between">
+      <div class="w-full h-20 rounded-xl bg-gradient-to-r from-amber-500/10 via-[#FFD700]/15 to-amber-500/10 border border-[#FFD700]/50 p-2 flex items-center justify-between">
         <div class="space-y-1">
           <div class="w-16 h-2 rounded bg-[#FFD700]"></div>
-          <div class="w-24 h-1 rounded bg-white/20"></div>
+          <div class="w-28 h-1 rounded bg-white/30"></div>
+          <div class="w-20 h-1 rounded bg-white/20"></div>
         </div>
-        <div class="w-10 h-4 rounded bg-[#FFD700]"></div>
+        <div class="flex flex-col items-end gap-1">
+          <div class="w-12 h-3 rounded bg-[#FFD700]"></div>
+          <div class="w-10 h-2 rounded bg-white/20"></div>
+        </div>
       </div>
     </div>
 
-    <!-- Rates 4: 4-Step Process Timeline -->
-    <div v-else-if="type === 'process'" class="w-full h-full flex flex-col justify-between py-1 px-2">
+    <!-- Pricing 3: A La Carte Deliverables & Add-ons -->
+    <div v-else-if="type === 'pricing-addons'" class="w-full h-full flex flex-col justify-between py-1 px-3">
       <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
-      <div class="grid grid-cols-4 gap-1.5 w-full">
-        <div v-for="i in 4" :key="i" class="p-1 rounded-lg bg-white/5 border border-white/10 flex flex-col justify-between h-20">
-          <span class="text-[9px] font-bold text-[#FFD700]">0{{ i }}</span>
-          <div class="w-full h-1 rounded-full bg-white/20"></div>
-          <div class="w-3/4 h-1 rounded-full bg-white/10"></div>
+      <div class="grid grid-cols-2 gap-1.5 w-full">
+        <div v-for="i in 4" :key="i" class="p-1 rounded-lg bg-white/5 border border-white/10 flex items-center justify-between">
+          <div class="w-14 h-1 rounded bg-white/30"></div>
+          <div class="w-6 h-1 rounded bg-[#FFD700]"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pricing 4: Feature Comparison Matrix Table -->
+    <div v-else-if="type === 'pricing-comparison'" class="w-full h-full flex flex-col justify-between py-1 px-3">
+      <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
+      <div class="w-full space-y-1">
+        <div class="grid grid-cols-4 gap-1 p-1 bg-white/10 rounded">
+          <div class="w-full h-1 bg-white/30"></div>
+          <div class="w-full h-1 bg-[#FFD700]"></div>
+          <div class="w-full h-1 bg-[#FFD700]"></div>
+          <div class="w-full h-1 bg-[#FFD700]"></div>
+        </div>
+        <div v-for="i in 3" :key="i" class="grid grid-cols-4 gap-1 p-1 bg-white/5 rounded border border-white/5">
+          <div class="w-full h-1 bg-white/20"></div>
+          <div class="w-2 h-2 rounded-full bg-emerald-400 mx-auto"></div>
+          <div class="w-2 h-2 rounded-full bg-emerald-400 mx-auto"></div>
+          <div class="w-2 h-2 rounded-full bg-emerald-400 mx-auto"></div>
         </div>
       </div>
     </div>
 
     <!-- ========================================== -->
-    <!-- 5. TRUST & REVIEWS VARIANTS -->
+    <!-- 4. TESTIMONIALS COMPONENT (4 Blocks) -->
     <!-- ========================================== -->
     <!-- Testimonials 1: Dual Review Cards -->
-    <div v-else-if="type === 'testimonials' || type === 'testimonials-dual'" class="w-full h-full flex flex-col justify-between py-1 px-2">
+    <div v-else-if="type === 'testimonials-dual' || type === 'testimonials'" class="w-full h-full flex flex-col justify-between py-1 px-2">
       <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
       <div class="grid grid-cols-2 gap-2 w-full">
         <div v-for="i in 2" :key="i" class="p-2 rounded-xl bg-white/5 border border-white/10 space-y-1">
@@ -281,26 +201,302 @@ defineProps({
       </div>
     </div>
 
-    <!-- Testimonials 2: Spotlight Quote -->
-    <div v-else-if="type === 'testimonials-spotlight'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-4 text-center">
+    <!-- Testimonials 2: 3-Column Review Wall -->
+    <div v-else-if="type === 'testimonials-grid'" class="w-full h-full flex flex-col justify-between py-1 px-2">
+      <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
+      <div class="grid grid-cols-3 gap-1.5 w-full">
+        <div v-for="i in 3" :key="i" class="p-1.5 rounded-lg bg-white/5 border border-white/10 space-y-1 h-20">
+          <div class="w-8 h-1 rounded bg-[#FFD700]"></div>
+          <div class="w-full h-0.5 rounded bg-white/20"></div>
+          <div class="w-3/4 h-0.5 rounded bg-white/20"></div>
+          <div class="w-8 h-0.5 rounded bg-white/40"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Testimonials 3: Full-Width Editorial Quote -->
+    <div v-else-if="type === 'testimonials-featured' || type === 'testimonials-spotlight'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-4 text-center">
       <div class="w-8 h-1 rounded-full bg-[#FFD700]"></div>
       <div class="w-4/5 h-2 rounded-full bg-white/30"></div>
       <div class="w-3/5 h-2 rounded-full bg-white/30"></div>
       <div class="w-16 h-1 rounded-full bg-[#FFD700] mt-1"></div>
     </div>
 
-    <!-- Testimonials 3: Venues Marquee -->
-    <div v-else-if="type === 'venues'" class="w-full h-full flex flex-col justify-center items-center gap-2 px-2">
+    <!-- Testimonials 4: Partner Venues Marquee -->
+    <div v-else-if="type === 'trust-venues' || type === 'venues'" class="w-full h-full flex flex-col justify-center items-center gap-2 px-2">
       <div class="w-24 h-1.5 rounded-full bg-white/20"></div>
       <div class="flex gap-1.5 w-full overflow-hidden justify-center">
-        <div class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] text-[#FFD700]">Venue A</div>
-        <div class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] text-[#FFD700]">Venue B</div>
-        <div class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] text-[#FFD700]">Venue C</div>
+        <div class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] text-[#FFD700]">Tagaytay</div>
+        <div class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] text-[#FFD700]">Shangri-La</div>
+        <div class="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-[8px] text-[#FFD700]">Balesin</div>
       </div>
     </div>
 
-    <!-- Testimonials 4: FAQ Accordion -->
-    <div v-else-if="type === 'faq'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-3">
+    <!-- ========================================== -->
+    <!-- 5. PORTFOLIO (4 Blocks) -->
+    <!-- ========================================== -->
+    <!-- Portfolio 1: 4K Cinema Video Reel Player -->
+    <div v-else-if="type === 'portfolio-video' || type === 'video'" class="w-full h-full flex flex-col justify-between py-1 px-3">
+      <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
+      <div class="w-full h-20 rounded-xl bg-neutral-900 border border-[#FFD700]/50 relative flex items-center justify-center">
+        <div class="w-8 h-8 rounded-full bg-[#FFD700] flex items-center justify-center shadow-lg shadow-yellow-500/20">
+          <div class="w-0 h-0 border-t-[4px] border-t-transparent border-b-[4px] border-b-transparent border-l-[6px] border-l-black ml-0.5"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Portfolio 2: Interactive RAW vs Color Graded Slider -->
+    <div v-else-if="type === 'portfolio-before-after' || type === 'before-after' || type === 'before_after'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-3">
+      <div class="w-20 h-1.5 rounded-full bg-white/20"></div>
+      <div class="w-full h-18 rounded-xl bg-neutral-900 border border-white/10 relative overflow-hidden flex">
+        <div class="w-1/2 h-full bg-neutral-800 flex items-center justify-start p-2">
+          <span class="text-[8px] text-neutral-400 font-bold">RAW</span>
+        </div>
+        <div class="w-1/2 h-full bg-[#FFD700]/10 flex items-center justify-end p-2 border-l border-[#FFD700]">
+          <span class="text-[8px] text-[#FFD700] font-bold">GRADED</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Portfolio 3: Curated Featured Works Slider -->
+    <div v-else-if="type === 'portfolio-curated'" class="w-full h-full flex flex-col justify-between py-1">
+      <div class="flex justify-center gap-1">
+        <div class="w-6 h-1.5 rounded-full bg-[#FFD700]"></div>
+        <div class="w-6 h-1.5 rounded-full bg-white/10"></div>
+        <div class="w-6 h-1.5 rounded-full bg-white/10"></div>
+      </div>
+      <div class="flex items-center justify-center gap-1.5 px-1">
+        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/10 opacity-40 scale-90"></div>
+        <div class="w-24 h-16 rounded-xl bg-white/10 border border-[#FFD700]/60 shadow-lg relative flex items-end p-1.5">
+          <div class="w-12 h-1.5 rounded-full bg-[#FFD700]/80"></div>
+        </div>
+        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/10 opacity-40 scale-90"></div>
+      </div>
+      <div class="flex justify-center gap-1">
+        <div class="w-3 h-1 rounded-full bg-[#FFD700]"></div>
+        <div class="w-1 h-1 rounded-full bg-white/20"></div>
+      </div>
+    </div>
+
+    <!-- Portfolio 4: Editorial Filmstrip -->
+    <div v-else-if="type === 'portfolio-filmstrip' || type === 'filmstrip'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-1">
+      <div class="w-20 h-1 rounded-full bg-white/20"></div>
+      <div class="flex gap-1.5 w-full overflow-hidden justify-center items-center">
+        <div v-for="i in 4" :key="i" class="w-16 h-16 rounded-md bg-neutral-900 border border-white/20 relative p-1 flex flex-col justify-between">
+          <div class="w-4 h-0.5 bg-[#FFD700]"></div>
+          <div class="w-full h-1 bg-white/10"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 6. GALLERY COMPONENT (4 Blocks) -->
+    <!-- ========================================== -->
+    <!-- Gallery 1: Masonry Photo Grid -->
+    <div v-else-if="type === 'gallery-masonry' || type === 'gallery-grid' || type === 'gallery_grid'" class="w-full h-full flex flex-col justify-between py-1 px-1">
+      <div class="w-16 h-1.5 rounded-full bg-white/20 mx-auto"></div>
+      <div class="grid grid-cols-4 gap-1.5 w-full">
+        <div class="h-18 rounded-md bg-neutral-800 border border-white/10"></div>
+        <div class="h-18 rounded-md bg-neutral-800 border border-[#FFD700]/40"></div>
+        <div class="h-18 rounded-md bg-neutral-800 border border-white/10"></div>
+        <div class="h-18 rounded-md bg-neutral-800 border border-white/10"></div>
+      </div>
+    </div>
+
+    <!-- Gallery 2: Infinite 3-Card Carousel -->
+    <div v-else-if="type === 'gallery-carousel' || type === 'carousel'" class="w-full h-full flex flex-col justify-between py-1">
+      <div class="flex justify-center gap-1">
+        <div class="w-6 h-1.5 rounded-full bg-[#FFD700]"></div>
+        <div class="w-6 h-1.5 rounded-full bg-white/10"></div>
+        <div class="w-6 h-1.5 rounded-full bg-white/10"></div>
+      </div>
+      <div class="flex items-center justify-center gap-1.5 px-1">
+        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/10 opacity-40 scale-90"></div>
+        <div class="w-24 h-16 rounded-xl bg-white/10 border border-[#FFD700]/60 shadow-lg relative flex items-end p-1.5">
+          <div class="w-12 h-1.5 rounded-full bg-[#FFD700]/80"></div>
+        </div>
+        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/10 opacity-40 scale-90"></div>
+      </div>
+      <div class="flex justify-center gap-1">
+        <div class="w-3 h-1 rounded-full bg-[#FFD700]"></div>
+        <div class="w-1 h-1 rounded-full bg-white/20"></div>
+      </div>
+    </div>
+
+    <!-- Gallery 3: Instagram Social Snapshot Grid -->
+    <div v-else-if="type === 'gallery-instagram' || type === 'instagram'" class="w-full h-full flex flex-col justify-between py-1 px-1">
+      <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
+      <div class="grid grid-cols-6 gap-1 w-full">
+        <div v-for="i in 6" :key="i" class="h-14 rounded-md bg-neutral-800 border border-white/10"></div>
+      </div>
+      <div class="w-16 h-1 rounded-full bg-[#FFD700] mx-auto"></div>
+    </div>
+
+    <!-- Gallery 4: Edge-to-Edge Mosaic Wall -->
+    <div v-else-if="type === 'gallery-mosaic'" class="w-full h-full flex flex-col justify-between py-1 px-1">
+      <div class="w-16 h-1 rounded-full bg-white/20 mx-auto"></div>
+      <div class="grid grid-cols-6 gap-1 w-full">
+        <div v-for="i in 12" :key="i" class="h-8 rounded bg-neutral-800 border border-white/10"></div>
+      </div>
+      <div class="w-12 h-1 rounded-full bg-[#FFD700] mx-auto"></div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 7. FOOTER COMPONENT (4 Blocks) -->
+    <!-- ========================================== -->
+    <!-- Footer 1: Multi-Column Studio Hub -->
+    <div v-else-if="type === 'footer-multi-column' || type === 'footer'" class="w-full h-full flex flex-col justify-between py-2 px-3 bg-[#0a0a0a]">
+      <div class="grid grid-cols-4 gap-2 w-full">
+        <div class="col-span-2 space-y-1">
+          <div class="w-12 h-2 rounded bg-[#FFD700]"></div>
+          <div class="w-full h-1 rounded bg-white/20"></div>
+          <div class="w-3/4 h-1 rounded bg-white/10"></div>
+        </div>
+        <div class="space-y-1">
+          <div class="w-8 h-1 rounded bg-white/30"></div>
+          <div class="w-10 h-0.5 rounded bg-white/15"></div>
+          <div class="w-8 h-0.5 rounded bg-white/15"></div>
+        </div>
+        <div class="space-y-1">
+          <div class="w-8 h-1 rounded bg-white/30"></div>
+          <div class="w-10 h-0.5 rounded bg-white/15"></div>
+        </div>
+      </div>
+      <div class="w-full border-t border-white/10 pt-1 flex justify-between">
+        <div class="w-16 h-1 rounded bg-white/20"></div>
+        <div class="w-12 h-1 rounded bg-[#FFD700]/50"></div>
+      </div>
+    </div>
+
+    <!-- Footer 2: Centered Minimalist Luxury -->
+    <div v-else-if="type === 'footer-minimal'" class="w-full h-full flex flex-col justify-center items-center gap-2 px-4 text-center bg-[#0a0a0a]">
+      <div class="w-16 h-2 rounded bg-[#FFD700]"></div>
+      <div class="flex gap-2">
+        <div class="w-8 h-1 rounded bg-white/20"></div>
+        <div class="w-8 h-1 rounded bg-white/20"></div>
+        <div class="w-8 h-1 rounded bg-white/20"></div>
+      </div>
+      <div class="w-24 h-1 rounded bg-white/10"></div>
+    </div>
+
+    <!-- Footer 3: VIP Newsletter & Booking CTA -->
+    <div v-else-if="type === 'footer-newsletter'" class="w-full h-full flex flex-col justify-between py-2 px-3 bg-[#0a0a0a]">
+      <div class="flex items-center justify-between">
+        <div class="space-y-1">
+          <div class="w-20 h-2 rounded bg-[#FFD700]"></div>
+          <div class="w-28 h-1 rounded bg-white/20"></div>
+        </div>
+        <div class="w-20 h-4 rounded-md bg-white/10 border border-white/15 flex items-center px-1">
+          <div class="w-10 h-2 rounded bg-[#FFD700]"></div>
+        </div>
+      </div>
+      <div class="w-full border-t border-white/10 pt-1 flex justify-between">
+        <div class="w-14 h-1 rounded bg-white/20"></div>
+        <div class="w-10 h-1 rounded bg-white/20"></div>
+      </div>
+    </div>
+
+    <!-- Footer 4: Split Map & Studio Hours -->
+    <div v-else-if="type === 'footer-split-map'" class="w-full h-full grid grid-cols-2 gap-2 items-center px-2 bg-[#0a0a0a]">
+      <div class="space-y-1">
+        <div class="w-14 h-2 rounded bg-[#FFD700]"></div>
+        <div class="w-full h-1 rounded bg-white/20"></div>
+        <div class="w-20 h-1 rounded bg-white/10"></div>
+      </div>
+      <div class="h-20 rounded-lg bg-neutral-900 border border-white/10 flex items-center justify-center">
+        <div class="w-3 h-3 rounded-full bg-[#FFD700]"></div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 1. NAVBAR COMPONENT (4 Blocks) -->
+    <!-- ========================================== -->
+    <!-- Navbar 1: Floating Glass Island -->
+    <div v-else-if="type === 'navbar-floating' || type === 'navbar'" class="w-full h-full flex flex-col justify-center items-center px-3">
+      <div class="w-full h-8 rounded-full bg-white/[0.08] border border-[#FFD700]/50 backdrop-blur-md flex items-center justify-between px-3 shadow-lg">
+        <div class="w-8 h-2 rounded bg-[#FFD700]"></div>
+        <div class="flex gap-2">
+          <div class="w-5 h-1 rounded bg-white/40"></div>
+          <div class="w-5 h-1 rounded bg-white/40"></div>
+          <div class="w-5 h-1 rounded bg-white/40"></div>
+        </div>
+        <div class="w-9 h-3 rounded-full bg-[#FFD700]"></div>
+      </div>
+    </div>
+
+    <!-- Navbar 2: Simple Translucent Split Navbar (Center Logo) -->
+    <div v-else-if="type === 'navbar-fullwidth'" class="w-full h-full flex flex-col justify-center px-2">
+      <div class="w-full h-8 bg-black/60 backdrop-blur-md border-b border-white/15 flex items-center justify-between px-3 rounded-lg">
+        <div class="flex gap-2 flex-1 justify-end pr-3">
+          <div class="w-5 h-1 rounded bg-white/40"></div>
+          <div class="w-5 h-1 rounded bg-white/40"></div>
+        </div>
+        <div class="w-7 h-3 rounded bg-[#FFD700] shrink-0"></div>
+        <div class="flex gap-2 flex-1 justify-start pl-3">
+          <div class="w-5 h-1 rounded bg-white/40"></div>
+          <div class="w-5 h-1 rounded bg-white/40"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navbar 3: Centered Monogram Header -->
+    <div v-else-if="type === 'navbar-centered'" class="w-full h-full flex flex-col justify-center items-center px-3">
+      <div class="w-full h-10 border-y border-white/10 flex flex-col justify-center items-center gap-1.5 bg-gradient-to-b from-black/80 to-transparent">
+        <div class="w-12 h-2.5 rounded bg-[#FFD700]"></div>
+        <div class="flex gap-2">
+          <div class="w-6 h-1 rounded bg-white/40"></div>
+          <div class="w-6 h-1 rounded bg-white/40"></div>
+          <div class="w-6 h-1 rounded bg-white/40"></div>
+          <div class="w-6 h-1 rounded bg-white/40"></div>
+          <div class="w-6 h-1 rounded bg-white/40"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navbar 4: Dynamic Translucent Header -->
+    <div v-else-if="type === 'navbar-dynamic'" class="w-full h-full flex flex-col justify-center items-center px-3">
+      <div class="w-full h-8 bg-gradient-to-r from-black/60 via-white/[0.04] to-black/60 border-b border-white/15 flex items-center justify-between px-3">
+        <div class="w-8 h-2 rounded bg-[#FFD700]"></div>
+        <div class="flex gap-2">
+          <div class="w-5 h-1 rounded bg-white/40"></div>
+          <div class="w-5 h-1 rounded bg-white/40"></div>
+          <div class="w-5 h-1 rounded bg-white/40"></div>
+        </div>
+        <div class="w-10 h-3 rounded-full bg-[#FFD700]/20 border border-[#FFD700]"></div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 9. CONTACT US PAGE (4 Blocks) -->
+    <!-- ========================================== -->
+    <!-- Contact 1: Split Booking Form -->
+    <div v-else-if="type === 'contact-split' || type === 'contact'" class="w-full h-full grid grid-cols-2 gap-2 items-center px-2">
+      <div class="space-y-1">
+        <div class="w-12 h-1 rounded bg-[#FFD700]"></div>
+        <div class="w-full h-2 rounded bg-white/20"></div>
+        <div class="w-3/4 h-1 rounded bg-white/10"></div>
+      </div>
+      <div class="p-1.5 rounded-lg bg-white/5 border border-white/10 space-y-1">
+        <div class="w-full h-2 rounded bg-white/10"></div>
+        <div class="w-full h-2 rounded bg-white/10"></div>
+        <div class="w-full h-2 rounded bg-[#FFD700]"></div>
+      </div>
+    </div>
+
+    <!-- Contact 2: Location Map Card -->
+    <div v-else-if="type === 'contact-location-map' || type === 'location-map' || type === 'location_map'" class="w-full h-full flex items-center justify-center gap-2 px-2">
+      <div class="w-20 h-20 rounded-lg bg-neutral-800 border border-white/10 flex items-center justify-center">
+        <div class="w-3 h-3 rounded-full bg-[#FFD700]"></div>
+      </div>
+      <div class="flex-1 space-y-1.5">
+        <div class="w-14 h-1 rounded bg-[#FFD700]"></div>
+        <div class="w-full h-1.5 rounded bg-white/30"></div>
+        <div class="w-3/4 h-1 rounded bg-white/10"></div>
+      </div>
+    </div>
+
+    <!-- Contact 3: FAQ Accordion -->
+    <div v-else-if="type === 'contact-faq' || type === 'faq'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-3">
       <div class="w-20 h-1.5 rounded-full bg-white/20"></div>
       <div class="w-full space-y-1">
         <div class="w-full h-5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-between px-2">
@@ -314,40 +510,11 @@ defineProps({
       </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- 6. CONTACT & BOOKING VARIANTS -->
-    <!-- ========================================== -->
-    <!-- Contact 1: Split Booking Form -->
-    <div v-else-if="type === 'contact' || type === 'contact-split'" class="w-full h-full grid grid-cols-2 gap-2 items-center px-2">
-      <div class="space-y-1">
-        <div class="w-12 h-1 rounded bg-[#FFD700]"></div>
-        <div class="w-full h-2 rounded bg-white/20"></div>
-        <div class="w-3/4 h-1 rounded bg-white/10"></div>
-      </div>
-      <div class="p-1.5 rounded-lg bg-white/5 border border-white/10 space-y-1">
-        <div class="w-full h-2 rounded bg-white/10"></div>
-        <div class="w-full h-2 rounded bg-white/10"></div>
-        <div class="w-full h-2 rounded bg-[#FFD700]"></div>
-      </div>
-    </div>
-
-    <!-- Contact 2: CTA Banner -->
-    <div v-else-if="type === 'cta' || type === 'cta-banner'" class="w-full h-full flex flex-col justify-center items-center gap-2 px-3 bg-gradient-to-r from-amber-500/10 via-[#FFD700]/20 to-amber-500/10 rounded-lg">
+    <!-- Contact 4: CTA Banner -->
+    <div v-else-if="type === 'contact-cta-banner' || type === 'cta-banner' || type === 'cta'" class="w-full h-full flex flex-col justify-center items-center gap-2 px-3 bg-gradient-to-r from-amber-500/10 via-[#FFD700]/20 to-amber-500/10 rounded-lg">
       <div class="w-3/4 h-2.5 rounded-full bg-[#FFD700]"></div>
       <div class="w-1/2 h-1 rounded-full bg-white/20"></div>
       <div class="w-20 h-3 rounded-full bg-[#FFD700] text-black text-[7px] font-bold flex items-center justify-center">BOOK NOW</div>
-    </div>
-
-    <!-- Contact 3: Location Map Card -->
-    <div v-else-if="type === 'location_map' || type === 'location-map'" class="w-full h-full flex items-center justify-center gap-2 px-2">
-      <div class="w-20 h-20 rounded-lg bg-neutral-800 border border-white/10 flex items-center justify-center">
-        <div class="w-3 h-3 rounded-full bg-[#FFD700]"></div>
-      </div>
-      <div class="flex-1 space-y-1.5">
-        <div class="w-14 h-1 rounded bg-[#FFD700]"></div>
-        <div class="w-full h-1.5 rounded bg-white/30"></div>
-        <div class="w-3/4 h-1 rounded bg-white/10"></div>
-      </div>
     </div>
 
     <!-- Fallback Generic Skeleton -->
