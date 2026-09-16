@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useSections } from '../../../composables/useSections';
+import { useGallery } from '../../../composables/useGallery';
 import { useModalState } from '../../../composables/useModalState';
 import SectionSkeletonPreview from '../SectionSkeletonPreview.vue';
 
@@ -48,9 +49,12 @@ import {
   Search,
   Check,
   LayoutGrid,
+  Image as ImageIcon,
+  Folder as FolderIcon,
 } from '@lucide/vue';
 
 const { allSections, saveSection, reorderSections, toggleSectionVisibility, deleteSection } = useSections();
+const { gallery, folders, folderCounts } = useGallery();
 const { openModal, closeModal } = useModalState();
 
 const editingSection = ref(null);
@@ -58,8 +62,55 @@ const isAddModalOpen = ref(false);
 const isDrawerOpen = ref(false);
 const insertAtIndex = ref(null);
 
+// Media Picker Modal State for Hero & other background media selection
+const isMediaPickerOpen = ref(false);
+const mediaPickerActiveFolder = ref('All');
+const mediaPickerSearch = ref('');
+
+const pickerFilteredMedia = computed(() => {
+  let list = gallery.value || [];
+  if (mediaPickerActiveFolder.value !== 'All') {
+    list = list.filter((item) => (item.category || 'General') === mediaPickerActiveFolder.value);
+  }
+  if (mediaPickerSearch.value.trim()) {
+    const q = mediaPickerSearch.value.toLowerCase().trim();
+    list = list.filter((item) => {
+      const name = (item.title || item.image_url || '').toLowerCase();
+      const cat = (item.category || '').toLowerCase();
+      return name.includes(q) || cat.includes(q);
+    });
+  }
+  return list;
+});
+
+function openMediaPicker() {
+  mediaPickerSearch.value = '';
+  mediaPickerActiveFolder.value = 'All';
+  isMediaPickerOpen.value = true;
+}
+
+function selectImageForHero(imageUrl) {
+  if (editingSection.value && editingSection.value.content) {
+    editingSection.value.content.bg_source = 'image';
+    editingSection.value.content.bg_image = imageUrl;
+  }
+  isMediaPickerOpen.value = false;
+}
+
+function selectFolderForHero(folderName) {
+  if (editingSection.value && editingSection.value.content) {
+    editingSection.value.content.bg_source = 'folder';
+    editingSection.value.content.bg_folder = folderName;
+  }
+}
+
+function getFolderPreviewPhotos(folderName, limit = 4) {
+  if (!gallery.value) return [];
+  return gallery.value.filter((i) => i.category === folderName).slice(0, limit);
+}
+
 watch(
-  () => Boolean(isAddModalOpen.value || editingSection.value || isDrawerOpen.value),
+  () => Boolean(isAddModalOpen.value || editingSection.value || isDrawerOpen.value || isMediaPickerOpen.value),
   (isOpen, wasOpen) => {
     if (isOpen && !wasOpen) openModal();
     else if (!isOpen && wasOpen) closeModal();
@@ -185,7 +236,7 @@ const sectionCategoryCatalog = [
           heading_accent2: 'Masterpiece.',
           subheading: 'Professional photography and videography services crafted to preserve your milestones in timeless elegance.',
           bg_image: '/images/hero-bg.jpg',
-          cta_text: 'Book a Session',
+          cta_text: 'BOOK A SESSION',
           cta_link: '#contact',
         },
       },
@@ -196,14 +247,21 @@ const sectionCategoryCatalog = [
         skeletonType: 'hero-split',
         name: 'Split 2-Column with Framed Showcase Card',
         tag: 'High Conversion',
-        features: ['Left-aligned headline with gold gradient', 'Right-framed showcase visual with gold border', '5.0 Star trust badge strip'],
+        features: ['Left-aligned headline with gold radial accent', 'Clean right-framed visual showcase', 'Dynamic milestone credibility stats'],
         defaultContent: {
           variant: 'split_card',
           badge_text: 'Premium Visual Storytelling',
-          heading_line1: 'Capturing',
-          heading_accent1: 'Pure Emotion',
-          heading_accent2: '& Timeless Elegance.',
+          heading_line1: 'Turning',
+          heading_accent1: 'Moments',
+          heading_line2: 'into',
+          heading_accent2: 'Masterpiece.',
           subheading: 'Specialized in editorial wedding cinema, intimate portraits, and high-impact commercial campaigns.',
+          stat1_value: '5+ Years',
+          stat1_label: 'Crafting Stories',
+          stat2_value: '250+',
+          stat2_label: 'Events Captured',
+          stat3_value: '100%',
+          stat3_label: 'Bespoke Color Graded',
           bg_image: '/images/hero-bg.jpg',
           cta_text: 'Reserve Your Date',
           cta_link: '#contact',
@@ -219,8 +277,10 @@ const sectionCategoryCatalog = [
         features: ['Oversized centered statement', 'Ambient spotlight lighting glow', 'Sleek luxury capsule buttons'],
         defaultContent: {
           variant: 'minimalist_cinema',
+          badge_text: 'RGP Films & Studio • Est. 2019',
           heading_line1: 'CINEMATIC',
           heading_accent1: 'Artistry',
+          heading_line2: 'into',
           heading_accent2: 'FOR YOUR STORY',
           subheading: 'Crafting evocative, documentary-grade films and photography for discerning couples and brands.',
           cta_text: 'CHECK AVAILABILITY',
@@ -1114,135 +1174,468 @@ function handleAddDesign(design) {
       </div>
     </div>
 
-    <!-- Edit Section Modal -->
+    <!-- Edit Section Side Modal (Slide-Over Drawer) -->
     <div
       v-if="editingSection"
-      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+      class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex justify-end"
+      @click.self="editingSection = null"
     >
-      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 md:p-8 max-w-2xl w-full max-h-[85vh] overflow-y-auto space-y-6 shadow-2xl">
-        <!-- Header: Simple & Refined -->
-        <div class="flex justify-between items-center border-b border-white/[0.08] pb-4">
+      <div class="bg-[#121212] border-l border-white/[0.12] w-full max-w-xl md:max-w-2xl xl:max-w-3xl h-full flex flex-col shadow-2xl overflow-hidden">
+        <!-- Sticky Header -->
+        <div class="px-8 py-6 border-b border-white/[0.08] flex items-center justify-between bg-[#151515] shrink-0">
           <div v-if="editingSection.section_type === 'navbar'">
             <h3 class="text-lg font-bold text-white tracking-wide">Edit Navigation Bar</h3>
-            <p class="text-xs text-neutral-400 mt-0.5">Select a layout style and configure header actions.</p>
+            <p class="text-xs text-neutral-400 mt-1">Select a layout style and configure header actions.</p>
+          </div>
+          <div v-else-if="editingSection.section_type === 'hero'">
+            <h3 class="text-lg font-bold text-white tracking-wide">Edit Hero Section</h3>
+            <p class="text-xs text-neutral-400 mt-1">Customize visual layout, headline typography, and background media.</p>
           </div>
           <div v-else>
-            <h3 class="text-xl font-bold text-white tracking-wide">Edit {{ editingSection.label }}</h3>
-            <span class="text-xs font-medium text-neutral-400 uppercase tracking-wider">{{ editingSection.section_type }}</span>
+            <h3 class="text-lg font-bold text-white tracking-wide">Edit {{ editingSection.label }}</h3>
+            <span class="text-[11px] font-mono text-neutral-400 uppercase tracking-wider mt-1 block">{{ editingSection.section_type }}</span>
           </div>
-          <button @click="editingSection = null" class="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/[0.05] transition">
+          <button @click="editingSection = null" class="p-2.5 rounded-xl text-neutral-400 hover:text-white hover:bg-white/[0.08] transition cursor-pointer">
             <X class="w-5 h-5" />
           </button>
         </div>
 
-        <div class="space-y-4">
-          <div v-if="editingSection.section_type !== 'navbar'">
-            <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Section Display Label</label>
+        <!-- Scrollable Content Body with Generous Spacing -->
+        <div class="flex-1 overflow-y-auto p-8 space-y-8">
+          <div v-if="!['navbar', 'hero'].includes(editingSection.section_type)">
+            <label class="block text-xs font-semibold uppercase text-neutral-400 mb-2">Section Display Label</label>
             <input
               type="text"
               v-model="editingSection.label"
-              class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-white/30"
+              class="w-full px-4 py-3 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-white/30"
             />
           </div>
 
           <!-- Hero Section Specific Fields & Design Variant Switcher (4 Hero Variants) -->
-          <div v-if="editingSection.section_type === 'hero'" class="space-y-4">
+          <div v-if="editingSection.section_type === 'hero'" class="space-y-8">
+            <!-- 1. Layout Variant Selection -->
             <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Hero Visual Design Variant</label>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="flex items-center justify-between mb-3.5">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Hero Visual Layout</label>
+                <span class="text-[11px] text-neutral-500 font-mono">4 Variants</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <button
                   v-for="v in [
-                    { id: 'editorial', label: 'Luxury Editorial' },
-                    { id: 'split_card', label: 'Split 2-Column' },
-                    { id: 'minimalist_cinema', label: 'Minimalist Cinema' },
-                    { id: 'video_reel', label: 'Video Reel' }
+                    { id: 'editorial', name: 'Luxury Editorial', desc: 'Dual-font typography with script accent & full-bleed backdrop' },
+                    { id: 'split_card', name: 'Split 2-Column', desc: 'Left headline with framed visual card & star proof' },
+                    { id: 'minimalist_cinema', name: 'Minimalist Cinema', desc: 'Centered typography with ambient spotlight glow' },
+                    { id: 'video_reel', name: 'Fullscreen Video Reel', desc: 'Cinematic video backdrop with play highlight trigger' }
                   ]"
                   :key="v.id"
                   type="button"
                   @click="editingSection.content.variant = v.id"
-                  class="p-2.5 rounded-xl border text-xs font-bold tracking-wide transition flex items-center justify-between"
+                  class="p-4 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between gap-2.5 group cursor-pointer"
                   :class="[
                     (editingSection.content.variant || 'editorial') === v.id
-                      ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
-                      : 'bg-black/40 border-white/10 text-neutral-400 hover:text-white'
+                      ? 'bg-white/[0.08] border-white/30 text-white shadow-sm'
+                      : 'bg-white/[0.02] border-white/[0.06] text-neutral-400 hover:bg-white/[0.05] hover:text-neutral-200'
                   ]"
                 >
-                  <span>{{ v.label }}</span>
-                  <Check v-if="(editingSection.content.variant || 'editorial') === v.id" class="w-3.5 h-3.5 text-[#FFD700]" />
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold" :class="[(editingSection.content.variant || 'editorial') === v.id ? 'text-white' : 'text-neutral-300']">
+                      {{ v.name }}
+                    </span>
+                    <div
+                      class="w-2.5 h-2.5 rounded-full transition"
+                      :class="[(editingSection.content.variant || 'editorial') === v.id ? 'bg-[#FFD700]' : 'bg-transparent border border-white/20']"
+                    ></div>
+                  </div>
+                  <span class="text-[11px] text-neutral-400 leading-relaxed">{{ v.desc }}</span>
                 </button>
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1">Heading Line 1</label>
-                <input
-                  type="text"
-                  v-model="editingSection.content.heading_line1"
-                  class="w-full px-4 py-2 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-                />
+            <!-- 2. Typography & Headline Fields (Context-Aware per Variant) -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-5">
+              <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Headline & Copywriting</label>
+                <span class="text-[11px] text-neutral-500 capitalize">{{ (editingSection.content.variant || 'editorial').replace('_', ' ') }}</span>
               </div>
-              <div>
-                <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1">Accent Word 1</label>
-                <input
-                  type="text"
-                  v-model="editingSection.content.heading_accent1"
-                  class="w-full px-4 py-2 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1">Heading Line 2</label>
-                <input
-                  type="text"
-                  v-model="editingSection.content.heading_line2"
-                  class="w-full px-4 py-2 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1">Accent Word 2</label>
-                <input
-                  type="text"
-                  v-model="editingSection.content.heading_accent2"
-                  class="w-full px-4 py-2 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-                />
-              </div>
+
+              <!-- Variant 1: Luxury Editorial Fields -->
+              <template v-if="(editingSection.content.variant || 'editorial') === 'editorial'">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Heading Line 1</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_line1"
+                      placeholder="Turning"
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Cursive Script Accent</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_accent1"
+                      placeholder="Moments"
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Heading Line 2</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_line2"
+                      placeholder="into"
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Headline Word Accent</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_accent2"
+                      placeholder="Masterpiece."
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                </div>
+              </template>
+
+              <!-- Variant 2: Split 2-Column Fields -->
+              <template v-else-if="editingSection.content.variant === 'split_card'">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-300 mb-2">Trust Badge Text</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.badge_text"
+                    placeholder="Premium Visual Storytelling"
+                    class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                  />
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Heading Line 1</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_line1"
+                      placeholder="Turning"
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Headline Accent 1</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_accent1"
+                      placeholder="Moments"
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Heading Line 2</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_line2"
+                      placeholder="into"
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Headline Word Accent 2</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_accent2"
+                      placeholder="Masterpiece."
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                </div>
+
+                <!-- Milestone Stats (Flat, clean, unnested) -->
+                <div class="space-y-2 pt-1">
+                  <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Milestone Stats (3 Counters)</label>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="space-y-1.5">
+                      <input
+                        type="text"
+                        v-model="editingSection.content.stat1_value"
+                        placeholder="Stat 1: 5+ Years"
+                        class="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition font-bold"
+                      />
+                      <input
+                        type="text"
+                        v-model="editingSection.content.stat1_label"
+                        placeholder="Label: Crafting Stories"
+                        class="w-full px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06] text-neutral-300 text-xs placeholder-neutral-500 focus:outline-none focus:border-white/20 transition"
+                      />
+                    </div>
+                    <div class="space-y-1.5">
+                      <input
+                        type="text"
+                        v-model="editingSection.content.stat2_value"
+                        placeholder="Stat 2: 250+"
+                        class="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition font-bold"
+                      />
+                      <input
+                        type="text"
+                        v-model="editingSection.content.stat2_label"
+                        placeholder="Label: Events Captured"
+                        class="w-full px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06] text-neutral-300 text-xs placeholder-neutral-500 focus:outline-none focus:border-white/20 transition"
+                      />
+                    </div>
+                    <div class="space-y-1.5">
+                      <input
+                        type="text"
+                        v-model="editingSection.content.stat3_value"
+                        placeholder="Stat 3: 100%"
+                        class="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition font-bold"
+                      />
+                      <input
+                        type="text"
+                        v-model="editingSection.content.stat3_label"
+                        placeholder="Label: Bespoke Color Graded"
+                        class="w-full px-4 py-2 rounded-xl bg-white/[0.02] border border-white/[0.06] text-neutral-300 text-xs placeholder-neutral-500 focus:outline-none focus:border-white/20 transition"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Variant 3: Minimalist Cinema Fields -->
+              <template v-else-if="editingSection.content.variant === 'minimalist_cinema'">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-300 mb-2">Trust Badge Text</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.badge_text"
+                    placeholder="RGP Films & Studio • Est. 2019"
+                    class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                  />
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Heading Line 1</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_line1"
+                      placeholder="Turning"
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Center Script Accent</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_accent1"
+                      placeholder="Moments"
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Heading Line 2</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_line2"
+                      placeholder="into"
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-300 mb-2">Bottom Headline Accent</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.heading_accent2"
+                      placeholder="Masterpiece."
+                      class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                    />
+                  </div>
+                </div>
+              </template>
+
+              <!-- Variant 4: Video Reel Fields -->
+              <template v-else-if="editingSection.content.variant === 'video_reel'">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-300 mb-2">Headline</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.heading_line1"
+                    placeholder="Capturing Every Heartbeat"
+                    class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-neutral-300 mb-2">Video URL (YouTube/Vimeo)</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.video_url"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                  />
+                </div>
+              </template>
             </div>
 
+            <!-- 3. Subheading / Description -->
             <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1">Subheading / Description</label>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300 mb-2">Subheading / Description</label>
               <textarea
                 v-model="editingSection.content.subheading"
-                rows="2"
-                class="w-full px-4 py-2 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+                rows="3"
+                placeholder="Professional photography and videography services crafted to preserve your milestones in timeless elegance."
+                class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition leading-relaxed"
               ></textarea>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1">CTA Button Text</label>
-                <input
-                  type="text"
-                  v-model="editingSection.content.cta_text"
-                  class="w-full px-4 py-2 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-                />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1">Background Image URL</label>
-                <input
-                  type="text"
-                  v-model="editingSection.content.bg_image"
-                  class="w-full px-4 py-2 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-                />
-              </div>
-            </div>
-
-            <div v-if="editingSection.content.variant === 'video_reel'">
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1">Video URL (YouTube/Vimeo)</label>
+            <!-- 4. CTA Button Text -->
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300 mb-2">Primary CTA Button Text</label>
               <input
                 type="text"
-                v-model="editingSection.content.video_url"
-                class="w-full px-4 py-2 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+                v-model="editingSection.content.cta_text"
+                placeholder="BOOK A SESSION"
+                class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
               />
+            </div>
+
+            <!-- 5. Hero Background Media (Media Showcase Selection: Image or Folder - Hidden for Minimalist Cinema & Video Reel) -->
+            <div v-if="!['minimalist_cinema', 'video_reel'].includes(editingSection.content.variant)" class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-5">
+              <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+                <div>
+                  <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Background Media</label>
+                  <p class="text-[11px] text-neutral-500 mt-0.5">Select a photo from showcase or a folder for slideshow</p>
+                </div>
+                
+                <!-- Segmented Mode Control -->
+                <div class="inline-flex p-1 rounded-xl bg-white/[0.04] border border-white/10">
+                  <button
+                    type="button"
+                    @click="editingSection.content.bg_source = 'image'"
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 cursor-pointer"
+                    :class="[
+                      (editingSection.content.bg_source || 'image') === 'image'
+                        ? 'bg-white/10 text-white shadow-sm'
+                        : 'text-neutral-400 hover:text-white'
+                    ]"
+                  >
+                    <ImageIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                    <span>Single Photo</span>
+                  </button>
+                  <button
+                    type="button"
+                    @click="editingSection.content.bg_source = 'folder'; if (!editingSection.content.bg_folder && folders.length) editingSection.content.bg_folder = folders[0]"
+                    class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 cursor-pointer"
+                    :class="[
+                      editingSection.content.bg_source === 'folder'
+                        ? 'bg-white/10 text-white shadow-sm'
+                        : 'text-neutral-400 hover:text-white'
+                    ]"
+                  >
+                    <FolderIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                    <span>Showcase Folder</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Mode A: Single Photo Selected -->
+              <div v-if="(editingSection.content.bg_source || 'image') === 'image'" class="space-y-3">
+                <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-between gap-4">
+                  <div class="flex items-center gap-3.5 min-w-0">
+                    <div class="w-16 h-16 rounded-xl overflow-hidden bg-neutral-800 border border-white/10 shrink-0 relative">
+                      <img
+                        :src="editingSection.content.bg_image || '/images/hero-bg.jpg'"
+                        alt="Hero Background Preview"
+                        class="w-full h-full object-cover"
+                        @error="(e) => e.target.src = '/images/hero-bg.jpg'"
+                      />
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-xs font-bold text-white truncate">
+                        {{ editingSection.content.bg_image?.split('/').pop() || 'hero-bg.jpg' }}
+                      </p>
+                      <p class="text-[11px] text-neutral-400 truncate mt-1 font-mono">
+                        {{ editingSection.content.bg_image || '/images/hero-bg.jpg' }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    @click="openMediaPicker"
+                    class="px-4 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white text-xs font-semibold transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm"
+                  >
+                    <ImageIcon class="w-4 h-4 text-[#FFD700]" />
+                    <span>Choose Photo</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Mode B: Folder Showcase Selected -->
+              <div v-else class="space-y-4">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-400 mb-2.5">Select Showcase Folder</label>
+                  <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <button
+                      v-for="f in folders"
+                      :key="f"
+                      type="button"
+                      @click="selectFolderForHero(f)"
+                      class="p-3.5 rounded-xl border text-left transition flex flex-col justify-between gap-1.5 group cursor-pointer"
+                      :class="[
+                        editingSection.content.bg_folder === f
+                          ? 'bg-white/[0.08] border-white/30 text-white shadow-sm'
+                          : 'bg-white/[0.02] border-white/[0.06] text-neutral-400 hover:bg-white/[0.05] hover:text-neutral-200'
+                      ]"
+                    >
+                      <div class="flex items-center justify-between">
+                        <FolderIcon class="w-4 h-4" :class="[editingSection.content.bg_folder === f ? 'text-[#FFD700]' : 'text-neutral-500']" />
+                        <div
+                          class="w-1.5 h-1.5 rounded-full transition"
+                          :class="[editingSection.content.bg_folder === f ? 'bg-[#FFD700]' : 'bg-transparent']"
+                        ></div>
+                      </div>
+                      <span class="text-xs font-bold truncate">{{ f }}</span>
+                      <span class="text-[11px] text-neutral-500">{{ folderCounts[f] || 0 }} photos</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Folder Preview Strip -->
+                <div v-if="editingSection.content.bg_folder" class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs text-neutral-300 font-medium flex items-center gap-2">
+                      <FolderIcon class="w-3.5 h-3.5 text-neutral-400" />
+                      <span>Dynamic Folder Slideshow</span>
+                    </span>
+                    <span class="text-[11px] text-[#FFD700] uppercase font-mono tracking-wider font-semibold">
+                      {{ folderCounts[editingSection.content.bg_folder] || 0 }} photos in rotation
+                    </span>
+                  </div>
+
+                  <div class="flex items-center gap-2.5 overflow-x-auto py-1 scrollbar-none">
+                    <div
+                      v-for="(photo, idx) in getFolderPreviewPhotos(editingSection.content.bg_folder, 6)"
+                      :key="photo.id || idx"
+                      class="w-16 h-16 rounded-xl overflow-hidden bg-neutral-800 border border-white/10 shrink-0 shadow-md"
+                    >
+                      <img :src="photo.image_url" :alt="photo.title" class="w-full h-full object-cover" />
+                    </div>
+                    <div
+                      v-if="(folderCounts[editingSection.content.bg_folder] || 0) === 0"
+                      class="text-xs text-neutral-500 italic py-2"
+                    >
+                      No photos in this folder yet.
+                    </div>
+                  </div>
+                  <p class="text-[11px] text-neutral-400 leading-normal">
+                    Hero section will smoothly rotate photos from this folder as its background with smooth crossfades.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1388,21 +1781,24 @@ function handleAddDesign(design) {
           </div>
 
           <!-- Navbar Specific Fields (4 Navbar Variants) -->
-          <div v-else-if="editingSection.section_type === 'navbar'" class="space-y-5">
+          <div v-else-if="editingSection.section_type === 'navbar'" class="space-y-6">
             <div>
-              <label class="block text-xs font-medium text-neutral-300 mb-2.5">Header Layout</label>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div class="flex items-center justify-between mb-3.5">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Header Layout Style</label>
+                <span class="text-[11px] text-neutral-500 font-mono">4 Designs</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <button
                   v-for="v in [
-                    { id: 'floating', name: 'Floating Glass Island', desc: 'Pill-shaped floating glass bar with CTA' },
-                    { id: 'fullwidth', name: 'Simple Translucent Split', desc: 'Center logo with transparent-to-translucent scroll' },
-                    { id: 'centered', name: 'Centered Luxury Monogram', desc: 'Centered logo with top gradient and dual dividers' },
-                    { id: 'dynamic', name: 'Dynamic Translucent Header', desc: 'Solid scroll transition with CTA button' }
+                    { id: 'floating', name: 'Floating Glass Island', desc: 'Pill-shaped floating glass bar with booking CTA' },
+                    { id: 'fullwidth', name: 'Simple Translucent Split', desc: 'Center brand with clean split navigation' },
+                    { id: 'centered', name: 'Centered Luxury Monogram', desc: 'Signature gold monogram with dual dividers' },
+                    { id: 'dynamic', name: 'Dynamic Translucent Header', desc: 'Edge-to-edge backdrop with solid scroll effect' }
                   ]"
                   :key="v.id"
                   type="button"
                   @click="editingSection.content.variant = v.id"
-                  class="p-3.5 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between gap-1 group cursor-pointer"
+                  class="p-4 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between gap-2.5 group cursor-pointer"
                   :class="[
                     (editingSection.content.variant || 'floating') === v.id
                       ? 'bg-white/[0.08] border-white/30 text-white shadow-sm'
@@ -1410,33 +1806,33 @@ function handleAddDesign(design) {
                   ]"
                 >
                   <div class="flex items-center justify-between">
-                    <span class="text-xs font-semibold" :class="[(editingSection.content.variant || 'floating') === v.id ? 'text-white' : 'text-neutral-300']">
+                    <span class="text-xs font-bold" :class="[(editingSection.content.variant || 'floating') === v.id ? 'text-white' : 'text-neutral-300']">
                       {{ v.name }}
                     </span>
                     <div
-                      class="w-2 h-2 rounded-full transition"
+                      class="w-2.5 h-2.5 rounded-full transition"
                       :class="[(editingSection.content.variant || 'floating') === v.id ? 'bg-[#FFD700]' : 'bg-transparent border border-white/20']"
                     ></div>
                   </div>
-                  <span class="text-[11px] text-neutral-500 leading-tight">{{ v.desc }}</span>
+                  <span class="text-[11px] text-neutral-400 leading-relaxed">{{ v.desc }}</span>
                 </button>
               </div>
             </div>
 
             <!-- CTA Button Field (When applicable: floating, dynamic) -->
-            <div v-if="['floating', 'dynamic'].includes(editingSection.content.variant || 'floating')" class="space-y-1.5 pt-1">
-              <label class="block text-xs font-medium text-neutral-300">Call-to-Action (CTA) Text</label>
+            <div v-if="['floating', 'dynamic'].includes(editingSection.content.variant || 'floating')" class="space-y-2 pt-2">
+              <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Call-to-Action (CTA) Text</label>
               <input
                 type="text"
                 v-model="editingSection.content.cta_text"
                 placeholder="Book Now"
-                class="w-full px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
               />
             </div>
 
             <!-- Included Core Navigation Links Note -->
-            <div class="p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between text-xs text-neutral-400">
-              <span class="text-[11px] text-neutral-500">Navigation Buttons</span>
+            <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between text-xs text-neutral-400">
+              <span class="text-[11px] text-neutral-500 font-medium">Auto-synced Links</span>
               <span class="text-[11px] font-mono text-neutral-300">Home • Portfolio • Pricing • Gallery • Contact</span>
             </div>
           </div>
@@ -1602,18 +1998,149 @@ function handleAddDesign(design) {
           </div>
         </div>
 
-        <div class="flex justify-end items-center gap-3 pt-4 border-t border-white/[0.08]">
+        <!-- Sticky Footer -->
+        <div class="px-6 py-4 border-t border-white/[0.08] bg-[#151515] flex items-center justify-between shrink-0">
           <button
             @click="editingSection = null"
-            class="px-5 py-2.5 rounded-xl border border-white/10 text-neutral-400 hover:text-white text-xs font-medium hover:bg-white/[0.05] transition"
+            class="px-5 py-2.5 rounded-xl border border-white/10 text-neutral-400 hover:text-white text-xs font-medium hover:bg-white/[0.05] transition cursor-pointer"
           >
             Cancel
           </button>
           <button
             @click="handleSaveEdit"
-            class="px-6 py-2.5 rounded-xl bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 transition shadow-md shadow-yellow-500/20"
+            class="px-6 py-2.5 rounded-xl bg-[#FFD700] text-[#121212] font-bold text-xs uppercase hover:bg-yellow-400 transition shadow-md shadow-yellow-500/20 cursor-pointer"
           >
             Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MEDIA SHOWCASE PICKER MODAL -->
+    <!-- ========================================== -->
+    <div
+      v-if="isMediaPickerOpen"
+      class="fixed inset-0 bg-black/85 backdrop-blur-md z-[80] flex items-center justify-center p-4"
+    >
+      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 md:p-8 max-w-3xl w-full max-h-[85vh] flex flex-col shadow-2xl space-y-5">
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b border-white/[0.08] pb-4">
+          <div>
+            <h3 class="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+              <ImageIcon class="w-5 h-5 text-[#FFD700]" />
+              <span>Select Media from Showcase</span>
+            </h3>
+            <p class="text-xs text-neutral-400 mt-0.5">Choose an image from your media library for the hero background.</p>
+          </div>
+          <button @click="isMediaPickerOpen = false" class="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer">
+            <X class="w-5 h-5" />
+          </button>
+        </div>
+
+        <!-- Search & Folder Tabs -->
+        <div class="space-y-3">
+          <!-- Search Bar -->
+          <div class="relative">
+            <Search class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-500" />
+            <input
+              type="text"
+              v-model="mediaPickerSearch"
+              placeholder="Search by title or category..."
+              class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+            />
+          </div>
+
+          <!-- Folder Category Chips -->
+          <div class="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              type="button"
+              @click="mediaPickerActiveFolder = 'All'"
+              class="px-3 py-1.5 rounded-full text-xs font-medium transition shrink-0 flex items-center gap-1.5 cursor-pointer"
+              :class="[
+                mediaPickerActiveFolder === 'All'
+                  ? 'bg-white/15 text-white border border-white/20'
+                  : 'bg-white/[0.02] text-neutral-400 hover:text-white border border-white/[0.05]'
+              ]"
+            >
+              <span>All Media</span>
+              <span class="text-[10px] opacity-70">({{ gallery.length }})</span>
+            </button>
+            <button
+              v-for="f in folders"
+              :key="f"
+              type="button"
+              @click="mediaPickerActiveFolder = f"
+              class="px-3 py-1.5 rounded-full text-xs font-medium transition shrink-0 flex items-center gap-1.5 cursor-pointer"
+              :class="[
+                mediaPickerActiveFolder === f
+                  ? 'bg-white/15 text-white border border-white/20'
+                  : 'bg-white/[0.02] text-neutral-400 hover:text-white border border-white/[0.05]'
+              ]"
+            >
+              <FolderIcon class="w-3 h-3 text-neutral-500" />
+              <span>{{ f }}</span>
+              <span class="text-[10px] opacity-70">({{ folderCounts[f] || 0 }})</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Media Grid (Scrollable) -->
+        <div class="flex-1 overflow-y-auto pr-1 min-h-[280px] max-h-[380px]">
+          <div v-if="pickerFilteredMedia.length === 0" class="flex flex-col items-center justify-center py-16 text-neutral-500 space-y-2">
+            <ImageIcon class="w-10 h-10 text-neutral-600" />
+            <p class="text-xs">No media found matching your criteria.</p>
+          </div>
+
+          <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <button
+              v-for="item in pickerFilteredMedia"
+              :key="item.id"
+              type="button"
+              @click="selectImageForHero(item.image_url)"
+              class="group relative rounded-2xl overflow-hidden border text-left transition aspect-[4/3] bg-neutral-900 focus:outline-none cursor-pointer"
+              :class="[
+                editingSection?.content?.bg_image === item.image_url
+                  ? 'border-white/40 ring-2 ring-[#FFD700]/50'
+                  : 'border-white/10 hover:border-white/30'
+              ]"
+            >
+              <img
+                :src="item.image_url"
+                :alt="item.title"
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity"></div>
+              
+              <!-- Category Badge -->
+              <span class="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-sm text-[9px] font-mono text-neutral-300 uppercase tracking-wider border border-white/10">
+                {{ item.category || 'General' }}
+              </span>
+
+              <!-- Selected Checkmark Dot -->
+              <div
+                v-if="editingSection?.content?.bg_image === item.image_url"
+                class="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#FFD700] text-black flex items-center justify-center shadow-lg"
+              >
+                <Check class="w-3 h-3 stroke-[3]" />
+              </div>
+
+              <!-- Title on Bottom -->
+              <div class="absolute bottom-2 left-2 right-2 truncate">
+                <p class="text-[11px] font-medium text-white truncate">{{ item.title || item.image_url.split('/').pop() }}</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end pt-3 border-t border-white/[0.08]">
+          <button
+            type="button"
+            @click="isMediaPickerOpen = false"
+            class="px-5 py-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-neutral-300 text-xs font-semibold transition cursor-pointer"
+          >
+            Close
           </button>
         </div>
       </div>

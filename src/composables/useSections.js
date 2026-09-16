@@ -29,7 +29,7 @@ export const DEFAULT_SECTIONS = [
       heading_accent2: 'Masterpiece.',
       subheading: 'Professional photography and videography services. Book your session today.',
       bg_image: '/images/hero-bg.jpg',
-      cta_text: 'Book a Session',
+      cta_text: 'BOOK A SESSION',
       cta_link: '#contact',
     },
   },
