@@ -128,7 +128,7 @@ onUnmounted(() => {
     <!-- Main Workspace (with bottom padding for taskbar) -->
     <main class="max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-32">
       <OverviewTab v-if="currentTab === 'overview'" @switch-tab="currentTab = $event" />
-      <PageBuilderTab v-else-if="currentTab === 'page-builder'" />
+      <PageBuilderTab v-else-if="currentTab === 'page-builder'" @switch-tab="currentTab = $event" />
       <MediaTab v-else-if="currentTab === 'media'" />
       <PackagesTab v-else-if="currentTab === 'packages'" />
       <InquiriesTab v-else-if="currentTab === 'inquiries'" />

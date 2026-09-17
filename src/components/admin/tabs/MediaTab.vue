@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { useGallery } from '../../../composables/useGallery';
 import { useSections } from '../../../composables/useSections';
 import { useModalState } from '../../../composables/useModalState';
@@ -163,6 +163,18 @@ watch(
     else if (!isOpen && wasOpen) closeModal();
   }
 );
+
+onUnmounted(() => {
+  if (
+    isCreateFolderModalOpen.value ||
+    isRenameFolderModalOpen.value ||
+    isDeleteFolderModalOpen.value ||
+    isMoveMediaModalOpen.value ||
+    viewingItem.value
+  ) {
+    closeModal();
+  }
+});
 
 // Filtered media by active folder
 const filteredGallery = computed(() => {

@@ -140,18 +140,28 @@ defineProps({
     </div>
 
     <!-- Pricing 2: Single All-Inclusive Spotlight -->
-    <div v-else-if="type === 'pricing-spotlight'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-3">
-      <div class="w-20 h-1.5 rounded-full bg-white/20"></div>
-      <div class="w-full h-20 rounded-xl bg-gradient-to-r from-amber-500/10 via-[#FFD700]/15 to-amber-500/10 border border-[#FFD700]/50 p-2 flex items-center justify-between">
-        <div class="space-y-1">
-          <div class="w-16 h-2 rounded bg-[#FFD700]"></div>
-          <div class="w-28 h-1 rounded bg-white/30"></div>
-          <div class="w-20 h-1 rounded bg-white/20"></div>
+    <div v-else-if="type === 'pricing-spotlight'" class="w-full h-full flex flex-col justify-between py-1.5 px-3">
+      <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
+      <div class="w-full rounded-xl bg-white/5 border border-[#FFD700]/30 p-2 flex gap-2 items-center">
+        <!-- Left mini plan cards -->
+        <div class="w-1/2 space-y-1">
+          <div class="w-full h-3 rounded bg-white/10 border border-white/10"></div>
+          <div class="w-full h-3.5 rounded bg-[#FFD700]/20 border border-[#FFD700]/60 flex items-center justify-between px-1">
+            <div class="w-2 h-2 rounded-full border border-[#FFD700] bg-[#FFD700]"></div>
+            <div class="w-4 h-1.5 rounded bg-[#FFD700]"></div>
+          </div>
+          <div class="w-full h-3 rounded bg-white/10 border border-white/10"></div>
         </div>
-        <div class="flex flex-col items-end gap-1">
-          <div class="w-12 h-3 rounded bg-[#FFD700]"></div>
-          <div class="w-10 h-2 rounded bg-white/20"></div>
+        <!-- Right mini includes box -->
+        <div class="w-1/2 h-full rounded bg-white/5 p-1 space-y-1 flex flex-col justify-center">
+          <div v-for="i in 3" :key="i" class="flex items-center justify-between">
+            <div class="w-8 h-1 rounded bg-white/20"></div>
+            <div class="w-1.5 h-1.5 rounded-full border border-[#FFD700]/70 bg-[#FFD700]/20"></div>
+          </div>
         </div>
+      </div>
+      <div class="flex justify-center items-center">
+        <div class="w-14 h-2 rounded-full bg-[#FFD700]"></div>
       </div>
     </div>
 

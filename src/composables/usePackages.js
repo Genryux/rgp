@@ -51,7 +51,7 @@ const DEFAULT_PACKAGES = [
       'Same Day Edit (SDE) Teaser',
       '12x12 Premium Leather Photo Album',
     ],
-    is_featured: true,
+    is_featured: false,
     is_active: true,
     hide_price: false,
     sort_order: 2,
@@ -95,7 +95,44 @@ const DEFAULT_PACKAGES = [
   },
 ];
 
+// Default master list of studio deliverables & inclusions
+const DEFAULT_MASTER_INCLUSIONS = [
+  '1 Professional Photographer',
+  '2 Professional Photographers',
+  '3 Professional Photographers',
+  '1 Lead Cinematographer',
+  '2 Cinematographers & Shooters',
+  '4 Hours Continuous Coverage',
+  '6-8 Hours Semi-Day Coverage',
+  'Full Day Coverage (Prep to Reception)',
+  'Unlimited Multi-Day Full Event Coverage',
+  '150 Enhanced Digital High-Res Photos',
+  '200+ Enhanced High-Res Photos',
+  '300+ Enhanced High-Res Photos',
+  'Unlimited High-Resolution Enhanced Photos',
+  '3-5 Minute 4K Cinematic Highlight Reel',
+  '4K Same-Day-Edit (SDE) Video Reel for Reception',
+  'Full 4K Extended Documentary Film (20-30 mins)',
+  'Licensed 4K Aerial Drone Coverage',
+  'Dual 5.1K Cinema Drones with Dual Operator Support',
+  'Pre-Wedding / Prenup Visual Session Included',
+  'Pre-Debut Creative Photoshoot Included',
+  '10x10 Handcrafted Leather Heirloom Album (40 Pages)',
+  '12x12 Master Album + 2 Matching Parent Heirloom Albums',
+  'Online Private Cloud Gallery (1 Year Access)',
+  'Lifetime Cloud Archive & Online Delivery',
+  '48-Hour Sneak Peek Highlight Delivery',
+  'Fast 14-Day Final Delivery Turnaround',
+  'USB Flash Drive with all RAW + JPEG files',
+  'Master SSD Box with RAW Uncompressed Media Archive',
+  'Live Video Projection Feed for Reception Program',
+  '1.5 Hours Studio Time',
+  'Up to 3 Wardrobe Changes',
+  '15 Fully Retouched Magazine-Quality Photos',
+];
+
 const PACKAGES_STORAGE_KEY = 'rgp_packages';
+const INCLUSIONS_STORAGE_KEY = 'rgp_master_inclusions';
 
 function getInitialPackages() {
   if (typeof window !== 'undefined') {
@@ -114,7 +151,49 @@ function getInitialPackages() {
   return DEFAULT_PACKAGES;
 }
 
+function getInitialMasterInclusions() {
+  const set = new Set();
+  const result = [];
+
+  const addUnique = (item) => {
+    if (!item) return;
+    const trimmed = typeof item === 'string' ? item.trim() : String(item).trim();
+    if (trimmed && !set.has(trimmed.toLowerCase())) {
+      set.add(trimmed.toLowerCase());
+      result.push(trimmed);
+    }
+  };
+
+  // 1. From localStorage if exists
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(INCLUSIONS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          parsed.forEach(addUnique);
+        }
+      }
+    } catch (e) {
+      console.error('[Packages] Error loading master inclusions from localStorage:', e);
+    }
+  }
+
+  // 2. From default master inclusions
+  DEFAULT_MASTER_INCLUSIONS.forEach(addUnique);
+
+  // 3. From initial packages features
+  DEFAULT_PACKAGES.forEach((pkg) => {
+    if (Array.isArray(pkg.features)) {
+      pkg.features.forEach(addUnique);
+    }
+  });
+
+  return result;
+}
+
 const packages = ref(getInitialPackages());
+const masterInclusions = ref(getInitialMasterInclusions());
 const isGlobalPriceMasked = ref(localStorage.getItem('rgp_mask_prices') === 'true');
 const loading = ref(false);
 
@@ -128,6 +207,16 @@ function persistPackages() {
   }
 }
 
+function persistMasterInclusions() {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(INCLUSIONS_STORAGE_KEY, JSON.stringify(masterInclusions.value));
+    } catch (e) {
+      console.error('[Packages] Error saving master inclusions to localStorage:', e);
+    }
+  }
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
     if (e.key === PACKAGES_STORAGE_KEY && e.newValue) {
@@ -135,6 +224,13 @@ if (typeof window !== 'undefined') {
         packages.value = JSON.parse(e.newValue);
       } catch (err) {
         console.error('[Packages] Error synchronizing packages across tabs:', err);
+      }
+    }
+    if (e.key === INCLUSIONS_STORAGE_KEY && e.newValue) {
+      try {
+        masterInclusions.value = JSON.parse(e.newValue);
+      } catch (err) {
+        console.error('[Packages] Error synchronizing master inclusions across tabs:', err);
       }
     }
   });
@@ -264,8 +360,85 @@ export function usePackages() {
     }
   }
 
+  function addMasterInclusion(item) {
+    if (!item) return null;
+    const trimmed = typeof item === 'string' ? item.trim() : String(item).trim();
+    if (!trimmed) return null;
+    const existing = masterInclusions.value.find(
+      (i) => i.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existing) return existing;
+    masterInclusions.value.push(trimmed);
+    persistMasterInclusions();
+    return trimmed;
+  }
+
+  function removeMasterInclusion(item) {
+    if (!item) return;
+    const trimmed = typeof item === 'string' ? item.trim() : String(item).trim();
+    masterInclusions.value = masterInclusions.value.filter(
+      (i) => i.toLowerCase() !== trimmed.toLowerCase()
+    );
+    persistMasterInclusions();
+
+    // Also remove from any packages that currently include this deliverable
+    packages.value.forEach((pkg) => {
+      if (Array.isArray(pkg.features)) {
+        pkg.features = pkg.features.filter(
+          (f) => f.toLowerCase() !== trimmed.toLowerCase()
+        );
+      }
+    });
+    persistPackages();
+  }
+
+  function updateMasterInclusion(oldItem, newItem) {
+    if (!oldItem || !newItem) return;
+    const oldTrimmed = typeof oldItem === 'string' ? oldItem.trim() : String(oldItem).trim();
+    const newTrimmed = typeof newItem === 'string' ? newItem.trim() : String(newItem).trim();
+    if (!newTrimmed) return;
+
+    const idx = masterInclusions.value.findIndex(
+      (i) => i.toLowerCase() === oldTrimmed.toLowerCase()
+    );
+    if (idx !== -1) {
+      masterInclusions.value[idx] = newTrimmed;
+      persistMasterInclusions();
+    }
+
+    // Also update across all packages that use this inclusion
+    packages.value.forEach((pkg) => {
+      if (Array.isArray(pkg.features)) {
+        const featIdx = pkg.features.findIndex(
+          (f) => f.toLowerCase() === oldTrimmed.toLowerCase()
+        );
+        if (featIdx !== -1) {
+          pkg.features[featIdx] = newTrimmed;
+        }
+      }
+    });
+    persistPackages();
+  }
+
+  function resetMasterInclusions() {
+    const set = new Set();
+    const result = [];
+    const addUnique = (item) => {
+      if (!item) return;
+      const trimmed = typeof item === 'string' ? item.trim() : String(item).trim();
+      if (trimmed && !set.has(trimmed.toLowerCase())) {
+        set.add(trimmed.toLowerCase());
+        result.push(trimmed);
+      }
+    };
+    DEFAULT_MASTER_INCLUSIONS.forEach(addUnique);
+    masterInclusions.value = result;
+    persistMasterInclusions();
+  }
+
   return {
     packages,
+    masterInclusions,
     isGlobalPriceMasked,
     loading,
     toggleGlobalPriceMask,
@@ -275,5 +448,10 @@ export function usePackages() {
     savePackage,
     deletePackage,
     togglePackageActive,
+    addMasterInclusion,
+    removeMasterInclusion,
+    updateMasterInclusion,
+    resetMasterInclusions,
   };
 }
+

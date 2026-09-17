@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onUnmounted } from 'vue';
 import { useSections } from '../../../composables/useSections';
 import { useGallery } from '../../../composables/useGallery';
+import { usePackages, formatMaskedPrice } from '../../../composables/usePackages';
 import { useModalState } from '../../../composables/useModalState';
 import SectionSkeletonPreview from '../SectionSkeletonPreview.vue';
 
@@ -42,6 +43,8 @@ import {
   Star,
   Film,
   Images,
+  Tags,
+  ArrowUpRight,
   PanelBottom,
   PanelTop,
   MessageSquare,
@@ -52,10 +55,24 @@ import {
   Image as ImageIcon,
   Folder as FolderIcon,
 } from '@lucide/vue';
+import { adminModalTokens } from '../../../lib/designTokens';
+
+const emit = defineEmits(['switch-tab']);
 
 const { allSections, saveSection, reorderSections, toggleSectionVisibility, deleteSection } = useSections();
 const { gallery, folders, folderCounts } = useGallery();
+const { packages, isGlobalPriceMasked } = usePackages();
 const { openModal, closeModal } = useModalState();
+
+const activePackagesList = computed(() => {
+  return (packages.value || []).filter((p) => p.is_active);
+});
+
+function goToPackagesTab() {
+  editingSection.value = null;
+  isDrawerOpen.value = false;
+  emit('switch-tab', 'packages');
+}
 
 const editingSection = ref(null);
 const isAddModalOpen = ref(false);
@@ -123,6 +140,12 @@ watch(
     else if (!isOpen && wasOpen) closeModal();
   }
 );
+
+onUnmounted(() => {
+  if (isAddModalOpen.value || editingSection.value || isDrawerOpen.value || isMediaPickerOpen.value) {
+    closeModal();
+  }
+});
 
 const activeCategoryKey = ref('navbar');
 const searchQuery = ref('');
@@ -429,10 +452,11 @@ const sectionCategoryCatalog = [
         skeletonType: 'pricing-spotlight',
         name: 'Single All-Inclusive Spotlight',
         tag: 'VIP Signature',
-        features: ['Hero spotlight for flagship all-inclusive package', 'Full-day photo, cinema, drone & SDE breakdown', 'Urgency booking CTA banner'],
+        features: ['Interactive multi-tier plan selector', 'Real-time feature inclusions list', 'Instant purchase CTA with 5% discount toggle'],
         defaultContent: {
-          title: 'SIGNATURE WEDDING CINEMA EXPERIENCE',
-          subtitle: 'Our most comprehensive, worry-free full day photo and cinema package for luxury weddings.',
+          title: 'Find the Perfect Plan for You!',
+          subtitle: 'Explore Our Wide Range of Plans, Compare Features, and Select the One That Perfectly Matches Your Needs and Budget',
+          button_text: 'Purchase Now',
           variant: 'pricing_spotlight',
         },
       },
@@ -1752,48 +1776,155 @@ function handleAddDesign(design) {
             </div>
           </div>
 
-          <!-- Pricing / Rates Specific Fields (4 Rates Variants) -->
-          <div v-else-if="editingSection.section_type === 'rates'" class="space-y-4">
+          <!-- Pricing / Rates Specific Fields & Visual Layout Switcher (4 Variants) -->
+          <div v-else-if="editingSection.section_type === 'rates'" class="space-y-8">
+            <!-- 1. Layout Variant Selection -->
             <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Pricing Visual Variant</label>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="flex items-center justify-between mb-3.5">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Pricing Visual Layout</label>
+                <span class="text-[11px] text-neutral-500 font-mono">4 Variants</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <button
                   v-for="v in [
-                    { id: 'pricing_tiered', label: '3-Tier Luxury Cards' },
-                    { id: 'pricing_spotlight', label: 'Single All-Inclusive Spotlight' },
-                    { id: 'pricing_addons', label: 'A La Carte Deliverables' },
-                    { id: 'pricing_comparison', label: 'Feature Matrix Table' }
+                    { id: 'pricing_tiered', name: '3-Tier Luxury Cards', desc: 'Standard 3-column package tiers with highlighted center card' },
+                    { id: 'pricing_spotlight', name: 'Single Spotlight Pricing', desc: '1:1 Interactive plan selector with real-time inclusions' },
+                    { id: 'pricing_addons', name: 'A La Carte Deliverables', desc: 'Itemized add-ons, drone ops & luxury photo albums' },
+                    { id: 'pricing_comparison', name: 'Feature Matrix Table', desc: 'Side-by-side comprehensive feature comparison matrix' }
                   ]"
                   :key="v.id"
                   type="button"
                   @click="editingSection.content.variant = v.id"
-                  class="p-2.5 rounded-xl border text-xs font-bold tracking-wide transition flex items-center justify-between"
+                  class="p-4 rounded-2xl border text-left transition-all duration-200 flex flex-col justify-between gap-2.5 group cursor-pointer"
                   :class="[
                     (editingSection.content.variant || 'pricing_tiered') === v.id
-                      ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
-                      : 'bg-black/40 border-white/10 text-neutral-400 hover:text-white'
+                      ? 'bg-white/[0.08] border-white/30 text-white shadow-sm'
+                      : 'bg-white/[0.02] border-white/[0.06] text-neutral-400 hover:bg-white/[0.05] hover:text-neutral-200'
                   ]"
                 >
-                  <span>{{ v.label }}</span>
-                  <Check v-if="(editingSection.content.variant || 'pricing_tiered') === v.id" class="w-3.5 h-3.5 text-[#FFD700]" />
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold" :class="[(editingSection.content.variant || 'pricing_tiered') === v.id ? 'text-white' : 'text-neutral-300']">
+                      {{ v.name }}
+                    </span>
+                    <div
+                      class="w-2.5 h-2.5 rounded-full transition"
+                      :class="[(editingSection.content.variant || 'pricing_tiered') === v.id ? 'bg-[#FFD700]' : 'bg-transparent border border-white/20']"
+                    ></div>
+                  </div>
+                  <span class="text-[11px] text-neutral-400 leading-relaxed">{{ v.desc }}</span>
                 </button>
               </div>
             </div>
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Title</label>
-              <input
-                type="text"
-                v-model="editingSection.content.title"
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              />
+
+            <!-- 2. Headline & Copywriting Fields -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-5">
+              <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Headlines &amp; Copywriting</label>
+                <span class="text-[11px] text-neutral-500 capitalize">{{ (editingSection.content.variant || 'pricing_tiered').replace('_', ' ') }}</span>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Section Headline</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="PACKAGES & RATES"
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                />
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Subheading / Description</label>
+                <textarea
+                  v-model="editingSection.content.subtitle"
+                  rows="3"
+                  placeholder="Tailored full-coverage packages crafted for weddings, celebrations, and studio portraits."
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition leading-relaxed"
+                ></textarea>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-300 mb-2">Primary CTA Button Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.button_text"
+                  placeholder="Inquire / Book Package"
+                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                />
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Subtitle</label>
-              <input
-                type="text"
-                v-model="editingSection.content.subtitle"
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              />
+
+            <!-- 3. Connected Active Studio Packages Card (with Manage Button & Notice) -->
+            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-4">
+              <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                <div>
+                  <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Active Studio Packages</label>
+                  <p class="text-[11px] text-neutral-500 mt-0.5">Live inventory synced from Rates &amp; Packages Manager</p>
+                </div>
+                <button
+                  type="button"
+                  @click="goToPackagesTab"
+                  class="px-3.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white text-xs font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                >
+                  <Tags class="w-3.5 h-3.5 text-[#FFD700]" />
+                  <span>Manage Packages</span>
+                </button>
+              </div>
+
+              <!-- Informational Notice Box inside the card -->
+              <div class="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2.5">
+                <p class="text-xs text-neutral-300 leading-relaxed font-nuosu">
+                  Configure packages and rates &amp; packages manager to customize pricing, deliverables, promo badges, and price masking.
+                </p>
+                <div class="flex items-center justify-between pt-2 border-t border-white/[0.06] text-[11px]">
+                  <span class="text-neutral-400 font-mono">
+                    Global Price Masking:
+                    <span :class="isGlobalPriceMasked ? 'text-amber-400 font-semibold' : 'text-neutral-500'">
+                      {{ isGlobalPriceMasked ? 'ENABLED (₱2?,???)' : 'DISABLED' }}
+                    </span>
+                  </span>
+                  <span class="text-[#FFD700] font-mono font-semibold">
+                    {{ activePackagesList.length }} Plans Active
+                  </span>
+                </div>
+              </div>
+
+              <!-- Package List Items -->
+              <div class="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                <div
+                  v-for="pkg in activePackagesList"
+                  :key="pkg.id"
+                  class="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-between gap-3 text-xs"
+                >
+                  <div class="flex items-center gap-3 min-w-0">
+                    <div
+                      class="w-2 h-2 rounded-full shrink-0"
+                      :class="pkg.is_featured ? 'bg-[#FFD700]' : 'bg-neutral-500'"
+                    ></div>
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-2">
+                        <span class="text-white font-bold truncate">{{ pkg.title }}</span>
+                        <span v-if="pkg.badge" class="px-2 py-0.5 rounded-full bg-[#FFD700]/20 text-[#FFD700] text-[10px] font-bold uppercase tracking-wider shrink-0">
+                          {{ pkg.badge }}
+                        </span>
+                      </div>
+                      <span class="text-[11px] text-neutral-500 font-mono">{{ pkg.category || 'General' }}</span>
+                    </div>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <span class="text-white font-bold font-mono text-sm">
+                      {{ pkg.hide_price || isGlobalPriceMasked ? '₱' + formatMaskedPrice(pkg.price) : '₱' + Number(pkg.promo_price || pkg.price).toLocaleString('en-PH') }}
+                    </span>
+                    <span v-if="pkg.promo_price && !pkg.hide_price && !isGlobalPriceMasked" class="text-[10px] text-neutral-500 line-through ml-1 font-mono block">
+                      ₱{{ Number(pkg.price).toLocaleString('en-PH') }}
+                    </span>
+                  </div>
+                </div>
+
+                <div v-if="activePackagesList.length === 0" class="text-xs text-neutral-500 italic py-3 text-center">
+                  No active packages found in studio inventory. Default spotlight plans will be used.
+                </div>
+              </div>
             </div>
           </div>
 

@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, watch, onUnmounted, nextTick } from 'vue';
 import { useInquiries } from '../../../composables/useInquiries';
 import { useEmailDrafts, EMAIL_TEMPLATES } from '../../../composables/useEmailDrafts';
+import { useModalState } from '../../../composables/useModalState';
 import {
   Calendar,
   Mail,
@@ -359,6 +360,22 @@ function dismissToast() {
 // Delete Confirmation Modal State
 const inquiryToDelete = ref(null);
 const showDeleteConfirmModal = ref(false);
+
+const { openModal, closeModal } = useModalState();
+
+watch(
+  () => Boolean(showDeleteConfirmModal.value || isComposerExpanded.value),
+  (isOpen, wasOpen) => {
+    if (isOpen && !wasOpen) openModal();
+    else if (!isOpen && wasOpen) closeModal();
+  }
+);
+
+onUnmounted(() => {
+  if (showDeleteConfirmModal.value || isComposerExpanded.value) {
+    closeModal();
+  }
+});
 
 function promptDeleteInquiry(inquiry) {
   if (!inquiry) return;
