@@ -166,12 +166,18 @@ defineProps({
     </div>
 
     <!-- Pricing 3: A La Carte Deliverables & Add-ons -->
-    <div v-else-if="type === 'pricing-addons'" class="w-full h-full flex flex-col justify-between py-1 px-3">
+    <div v-else-if="type === 'pricing-addons'" class="w-full h-full flex flex-col justify-between py-1 px-3 relative">
       <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
-      <div class="grid grid-cols-2 gap-1.5 w-full">
-        <div v-for="i in 4" :key="i" class="p-1 rounded-lg bg-white/5 border border-white/10 flex items-center justify-between">
-          <div class="w-14 h-1 rounded bg-white/30"></div>
-          <div class="w-6 h-1 rounded bg-[#FFD700]"></div>
+      <div class="grid grid-cols-3 gap-1.5 w-full">
+        <div v-for="i in 3" :key="i" class="p-1 rounded-lg bg-white/5 border border-white/10 flex flex-col justify-between relative" :class="[i === 1 ? 'border-[#FFD700]/60' : '']">
+          <div v-if="i === 1" class="absolute -top-1 -right-0.5 w-2.5 h-1 rounded-full bg-[#FFD700]"></div>
+          <div class="w-8 h-1 rounded bg-white/40 mb-0.5"></div>
+          <div class="w-5 h-1 rounded bg-[#FFD700] mb-0.5"></div>
+          <div class="w-full h-0.5 bg-white/10 my-0.5"></div>
+          <div class="space-y-0.5">
+            <div class="w-6 h-0.5 rounded bg-white/20"></div>
+            <div class="w-5 h-0.5 rounded bg-white/20"></div>
+          </div>
         </div>
       </div>
     </div>

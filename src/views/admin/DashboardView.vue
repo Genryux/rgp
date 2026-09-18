@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAuth } from '../../composables/useAuth';
 import { useInquiries } from '../../composables/useInquiries';
 import { usePackages } from '../../composables/usePackages';
@@ -32,11 +32,16 @@ const { fetchPackages } = usePackages();
 const { fetchGallery } = useGallery();
 const { fetchSections } = useSections();
 const { fetchSettings } = useSettings();
-const { isAnyModalOpen } = useModalState();
+const { isAnyModalOpen, resetModals } = useModalState();
 
 const currentTab = ref('overview');
 const isScrolledDown = ref(false);
 let lastScrollY = 0;
+
+watch(currentTab, () => {
+  // Clear any open modal locks and restore body scrolling & taskbar visibility when switching tabs
+  resetModals();
+});
 
 const unreadCount = computed(
   () => inquiries.value.filter((i) => i.status === 'New').length

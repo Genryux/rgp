@@ -22,7 +22,9 @@ const props = defineProps({
 const { settings } = useSettings();
 const { isAuthenticated } = useAuth();
 const isScrolled = ref(false);
+const isVisible = ref(true);
 const isMobileMenuOpen = ref(false);
+let lastScrollY = 0;
 
 const currentVariant = computed(() => {
   return props.content?.variant || props.variant || 'floating';
@@ -30,12 +32,34 @@ const currentVariant = computed(() => {
 
 function handleScroll() {
   if (props.isPreview) return;
-  isScrolled.value = window.scrollY > 50;
+  const currentScrollY = window.scrollY;
+  isScrolled.value = currentScrollY > 50;
+
+  // Always keep navbar visible near the top or when mobile menu is open
+  if (currentScrollY <= 80 || isMobileMenuOpen.value) {
+    isVisible.value = true;
+    lastScrollY = currentScrollY;
+    return;
+  }
+
+  const delta = currentScrollY - lastScrollY;
+  // Threshold to avoid micro jitter
+  if (Math.abs(delta) > 6) {
+    if (delta > 0 && currentScrollY > 100) {
+      // Scrolling down -> hide
+      isVisible.value = false;
+    } else if (delta < 0) {
+      // Scrolling up -> show
+      isVisible.value = true;
+    }
+    lastScrollY = currentScrollY;
+  }
 }
 
 onMounted(() => {
   if (!props.isPreview) {
-    window.addEventListener('scroll', handleScroll);
+    lastScrollY = window.scrollY;
+    window.addEventListener('scroll', handleScroll, { passive: true });
   }
 });
 
@@ -52,11 +76,14 @@ onUnmounted(() => {
   <!-- ========================================== -->
   <header
     v-if="currentVariant === 'floating'"
-    class="w-full transition-all duration-300 font-manrope select-none"
+    class="w-full transition-all duration-300 ease-in-out font-manrope select-none"
     :class="[
       isPreview
         ? 'relative top-0 left-0 bg-transparent py-4 px-4 sm:px-8 z-10'
-        : 'fixed top-0 left-0 py-4 px-4 sm:px-8 z-40'
+        : [
+            'fixed top-0 left-0 py-4 px-4 sm:px-8 z-40',
+            isVisible ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none'
+          ]
     ]"
   >
     <div class="max-w-6xl mx-auto flex items-center justify-between bg-black/70 backdrop-blur-xl border border-white/15 px-5 sm:px-7 py-2.5 rounded-full shadow-2xl">
@@ -112,13 +139,16 @@ onUnmounted(() => {
   <!-- ========================================== -->
   <header
     v-else-if="currentVariant === 'fullwidth'"
-    class="w-full font-manrope select-none transition-all duration-300"
+    class="w-full font-manrope select-none transition-all duration-300 ease-in-out"
     :class="[
       isPreview
         ? 'relative top-0 left-0 z-10 bg-black/60 backdrop-blur-xl border-b border-white/10 py-3.5 px-6'
-        : (isScrolled
-            ? 'fixed top-0 left-0 z-40 bg-black/75 backdrop-blur-xl border-b border-white/10 shadow-2xl py-3.5 px-6'
-            : 'fixed top-0 left-0 z-40 bg-transparent border-b border-transparent py-5 px-6')
+        : [
+            isVisible ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none',
+            isScrolled
+              ? 'fixed top-0 left-0 z-40 bg-black/75 backdrop-blur-xl border-b border-white/10 shadow-2xl py-3.5 px-6'
+              : 'fixed top-0 left-0 z-40 bg-transparent border-b border-transparent py-5 px-6'
+          ]
     ]"
   >
     <div class="max-w-6xl mx-auto flex items-center justify-between">
@@ -167,11 +197,14 @@ onUnmounted(() => {
   <!-- ========================================== -->
   <header
     v-else-if="currentVariant === 'centered'"
-    class="w-full py-6 px-4 font-manrope select-none bg-gradient-to-b from-black/90 to-transparent"
+    class="w-full py-6 px-4 font-manrope select-none bg-gradient-to-b from-black/90 to-transparent transition-all duration-300 ease-in-out"
     :class="[
       isPreview
         ? 'relative top-0 left-0 z-10'
-        : 'fixed top-0 left-0 z-40'
+        : [
+            'fixed top-0 left-0 z-40',
+            isVisible ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none'
+          ]
     ]"
   >
     <div class="max-w-5xl mx-auto flex flex-col items-center justify-center gap-3">
@@ -196,13 +229,16 @@ onUnmounted(() => {
   <!-- ========================================== -->
   <header
     v-else
-    class="w-full transition-all duration-300 font-manrope select-none"
+    class="w-full transition-all duration-300 ease-in-out font-manrope select-none"
     :class="[
       isPreview
         ? 'relative top-0 left-0 bg-[#141414]/90 border-b border-white/10 py-3.5 px-6 z-10'
-        : (isScrolled
-            ? 'fixed top-0 left-0 bg-[#141414]/95 backdrop-blur-md border-b border-white/10 shadow-lg py-3 px-6 z-40'
-            : 'fixed top-0 left-0 bg-transparent py-5 px-6 z-40')
+        : [
+            isVisible ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none',
+            isScrolled
+              ? 'fixed top-0 left-0 bg-[#141414]/95 backdrop-blur-md border-b border-white/10 shadow-lg py-3 px-6 z-40'
+              : 'fixed top-0 left-0 bg-transparent py-5 px-6 z-40'
+          ]
     ]"
   >
     <div class="max-w-6xl mx-auto flex items-center justify-between">

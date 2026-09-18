@@ -109,6 +109,15 @@ export const adminModalTokens = {
   priceTag: 'text-white font-bold font-mono text-sm',
   priceStrikethrough: 'text-[10px] text-neutral-500 line-through ml-1 font-mono block',
   badgeGold: 'px-2 py-0.5 rounded-full bg-[#FFD700]/20 text-[#FFD700] text-[10px] font-bold uppercase tracking-wider shrink-0',
+
+  // Public Section & Category Filters (Segmented Floating Track & Sliding Frosted Capsule)
+  filterTrack: 'relative inline-flex flex-wrap items-center justify-center p-1.5 rounded-full bg-neutral-900/90 border border-white/[0.08] backdrop-blur-xl shadow-2xl shadow-black/50 max-w-full',
+  filterSlidingCapsule: 'absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-b from-white/[0.14] to-white/[0.06] border border-white/25 shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]',
+  filterButton: 'relative z-10 px-6 py-2 rounded-full text-xs tracking-wider uppercase transition-colors duration-300 cursor-pointer select-none active:scale-95',
+  filterButtonActive: 'text-white font-semibold',
+  filterButtonInactive: 'text-neutral-400 hover:text-white font-medium',
+  filterPillActive: 'relative px-6 py-2 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 ease-out bg-gradient-to-b from-white/[0.14] to-white/[0.06] text-white border border-white/25 shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] cursor-pointer select-none active:scale-95',
+  filterPillInactive: 'relative px-6 py-2 rounded-full text-xs font-medium tracking-wider uppercase transition-all duration-300 ease-out text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04] border border-transparent cursor-pointer select-none active:scale-95',
 };
 
 export default adminModalTokens;

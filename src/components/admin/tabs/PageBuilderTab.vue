@@ -69,8 +69,13 @@ const activePackagesList = computed(() => {
 });
 
 function goToPackagesTab() {
+  if (editingSection.value || isAddModalOpen.value || isDrawerOpen.value || isMediaPickerOpen.value) {
+    closeModal();
+  }
   editingSection.value = null;
   isDrawerOpen.value = false;
+  isAddModalOpen.value = false;
+  isMediaPickerOpen.value = false;
   emit('switch-tab', 'packages');
 }
 
@@ -133,17 +138,24 @@ function getFolderPreviewPhotos(folderName, limit = 4) {
   return gallery.value.filter((i) => i.category === folderName).slice(0, limit);
 }
 
+let hasOpenedModal = false;
 watch(
   () => Boolean(isAddModalOpen.value || editingSection.value || isDrawerOpen.value || isMediaPickerOpen.value),
   (isOpen, wasOpen) => {
-    if (isOpen && !wasOpen) openModal();
-    else if (!isOpen && wasOpen) closeModal();
+    if (isOpen && !wasOpen) {
+      hasOpenedModal = true;
+      openModal();
+    } else if (!isOpen && wasOpen) {
+      hasOpenedModal = false;
+      closeModal();
+    }
   }
 );
 
 onUnmounted(() => {
-  if (isAddModalOpen.value || editingSection.value || isDrawerOpen.value || isMediaPickerOpen.value) {
+  if (hasOpenedModal || isAddModalOpen.value || editingSection.value || isDrawerOpen.value || isMediaPickerOpen.value) {
     closeModal();
+    hasOpenedModal = false;
   }
 });
 
@@ -469,9 +481,12 @@ const sectionCategoryCatalog = [
         tag: 'Customizable',
         features: ['Drone coverage, SDE reels & luxury albums checklist', 'Itemized pricing with gold badges', 'Direct add-to-inquiry trigger'],
         defaultContent: {
-          title: 'CUSTOMIZE YOUR CINEMA PACKAGE',
-          subtitle: 'Enhance your core photography and video package with luxury add-ons and bespoke deliverables.',
+          title: 'A LA CARTE DELIVERABLES',
+          subtitle: 'Personalize your core coverage with specialized drone operations, handcrafted heirlooms, and same-day edits.',
+          button_text: 'Inquire Add-on',
           variant: 'pricing_addons',
+          bg_type: 'solid_glow',
+          bg_image: '/images/hero-bg.jpg',
         },
       },
       {
@@ -1824,107 +1839,260 @@ function handleAddDesign(design) {
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-neutral-300 mb-2">Section Headline</label>
+                <label class="block text-xs font-medium text-neutral-300 mb-1.5">Section Headline</label>
                 <input
                   type="text"
                   v-model="editingSection.content.title"
                   placeholder="PACKAGES & RATES"
-                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                  class="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
                 />
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-neutral-300 mb-2">Subheading / Description</label>
+                <label class="block text-xs font-medium text-neutral-300 mb-1.5">Subheading / Description</label>
                 <textarea
                   v-model="editingSection.content.subtitle"
                   rows="3"
                   placeholder="Tailored full-coverage packages crafted for weddings, celebrations, and studio portraits."
-                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition leading-relaxed"
+                  class="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition leading-relaxed"
                 ></textarea>
               </div>
 
               <div>
-                <label class="block text-xs font-medium text-neutral-300 mb-2">Primary CTA Button Text</label>
+                <label class="block text-xs font-medium text-neutral-300 mb-1.5">Primary CTA Button Text</label>
                 <input
                   type="text"
                   v-model="editingSection.content.button_text"
                   placeholder="Inquire / Book Package"
-                  class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition"
+                  class="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
+                />
+              </div>
+
+              <!-- Only show Bottom Footnote input when variant is Feature Matrix Table (pricing_comparison) -->
+              <div v-if="editingSection.content.variant === 'pricing_comparison'">
+                <label class="block text-xs font-medium text-neutral-300 mb-1.5">Bottom Footnote / Matrix Disclaimer</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.footer_note"
+                  placeholder="Custom add-ons and bespoke upgrades available upon consultation."
+                  class="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
                 />
               </div>
             </div>
 
-            <!-- 3. Connected Active Studio Packages Card (with Manage Button & Notice) -->
-            <div class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-4">
+            <!-- 2.5 Choose background type (Solid with Glowing Gradient Accent vs Background Image) -->
+            <div
+              v-if="editingSection.content.variant === 'pricing_addons'"
+              class="p-6 rounded-2xl bg-white/[0.02] border border-white/[0.06] space-y-5"
+            >
               <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
                 <div>
-                  <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Active Studio Packages</label>
-                  <p class="text-[11px] text-neutral-500 mt-0.5">Live inventory synced from Rates &amp; Packages Manager</p>
+                  <label class="block text-xs font-semibold uppercase tracking-wider text-neutral-300">Choose background type</label>
+                  <p class="text-[11px] text-neutral-500 mt-0.5">Select background styling applied behind the cards</p>
                 </div>
+              </div>
+
+              <!-- Option Selector -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <button
                   type="button"
-                  @click="goToPackagesTab"
-                  class="px-3.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white text-xs font-semibold transition flex items-center gap-2 cursor-pointer shadow-sm"
+                  @click="editingSection.content.bg_type = 'solid_glow'"
+                  class="p-4 rounded-2xl border text-left transition-all duration-200 flex items-start justify-between cursor-pointer group"
+                  :class="[
+                    (editingSection.content.bg_type || 'solid_glow') === 'solid_glow'
+                      ? 'bg-white/[0.08] border-white/30 text-white shadow-sm'
+                      : 'bg-white/[0.02] border-white/[0.06] text-neutral-400 hover:bg-white/[0.05] hover:text-neutral-200'
+                  ]"
                 >
-                  <Tags class="w-3.5 h-3.5 text-[#FFD700]" />
-                  <span>Manage Packages</span>
+                  <div class="space-y-1.5">
+                    <div class="flex items-center gap-2">
+                      <div class="w-2.5 h-2.5 rounded-full bg-[#FFD700]"></div>
+                      <span class="text-xs font-bold" :class="[(editingSection.content.bg_type || 'solid_glow') === 'solid_glow' ? 'text-white' : 'text-neutral-300 group-hover:text-white']">
+                        Solid + Glowing Gradient Accent
+                      </span>
+                    </div>
+                    <p class="text-[11px] text-neutral-400 leading-relaxed">
+                      Deep luxury solid background with radiant golden glowing ambient gradients.
+                    </p>
+                  </div>
+                  <div
+                    class="w-2.5 h-2.5 rounded-full ml-3 shrink-0 mt-0.5"
+                    :class="[(editingSection.content.bg_type || 'solid_glow') === 'solid_glow' ? 'bg-[#FFD700]' : 'border border-white/20']"
+                  ></div>
+                </button>
+
+                <button
+                  type="button"
+                  @click="editingSection.content.bg_type = 'image'"
+                  class="p-4 rounded-2xl border text-left transition-all duration-200 flex items-start justify-between cursor-pointer group"
+                  :class="[
+                    editingSection.content.bg_type === 'image'
+                      ? 'bg-white/[0.08] border-white/30 text-white shadow-sm'
+                      : 'bg-white/[0.02] border-white/[0.06] text-neutral-400 hover:bg-white/[0.05] hover:text-neutral-200'
+                  ]"
+                >
+                  <div class="space-y-1.5">
+                    <div class="flex items-center gap-2">
+                      <ImageIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                      <span class="text-xs font-bold" :class="[editingSection.content.bg_type === 'image' ? 'text-white' : 'text-neutral-300 group-hover:text-white']">
+                        Background Image
+                      </span>
+                    </div>
+                    <p class="text-[11px] text-neutral-400 leading-relaxed">
+                      Cinematic backdrop photograph with dark overlay applied across the section.
+                    </p>
+                  </div>
+                  <div
+                    class="w-2.5 h-2.5 rounded-full ml-3 shrink-0 mt-0.5"
+                    :class="[editingSection.content.bg_type === 'image' ? 'bg-[#FFD700]' : 'border border-white/20']"
+                  ></div>
                 </button>
               </div>
 
-              <!-- Informational Notice Box inside the card -->
-              <div class="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2.5">
-                <p class="text-xs text-neutral-300 leading-relaxed font-nuosu">
-                  Configure packages and rates &amp; packages manager to customize pricing, deliverables, promo badges, and price masking.
-                </p>
-                <div class="flex items-center justify-between pt-2 border-t border-white/[0.06] text-[11px]">
-                  <span class="text-neutral-400 font-mono">
-                    Global Price Masking:
-                    <span :class="isGlobalPriceMasked ? 'text-amber-400 font-semibold' : 'text-neutral-500'">
-                      {{ isGlobalPriceMasked ? 'ENABLED (₱2?,???)' : 'DISABLED' }}
-                    </span>
-                  </span>
-                  <span class="text-[#FFD700] font-mono font-semibold">
-                    {{ activePackagesList.length }} Plans Active
-                  </span>
+              <!-- Media Selection (when bg_type === 'image') following Edit Hero Modal -->
+              <div v-if="editingSection.content.bg_type === 'image'" class="space-y-4 pt-1">
+                <!-- Segmented Mode Control -->
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-medium text-neutral-300">Media Source</span>
+                  <div class="inline-flex p-1 rounded-xl bg-white/[0.04] border border-white/10">
+                    <button
+                      type="button"
+                      @click="editingSection.content.bg_source = 'image'"
+                      class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 cursor-pointer"
+                      :class="[
+                        (editingSection.content.bg_source || 'image') === 'image'
+                          ? 'bg-white/10 text-white shadow-sm'
+                          : 'text-neutral-400 hover:text-white'
+                      ]"
+                    >
+                      <ImageIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                      <span>Single Photo</span>
+                    </button>
+                    <button
+                      type="button"
+                      @click="editingSection.content.bg_source = 'folder'; if (!editingSection.content.bg_folder && folders.length) editingSection.content.bg_folder = folders[0]"
+                      class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-2 cursor-pointer"
+                      :class="[
+                        editingSection.content.bg_source === 'folder'
+                          ? 'bg-white/10 text-white shadow-sm'
+                          : 'text-neutral-400 hover:text-white'
+                      ]"
+                    >
+                      <FolderIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                      <span>Showcase Folder</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
 
-              <!-- Package List Items -->
-              <div class="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-                <div
-                  v-for="pkg in activePackagesList"
-                  :key="pkg.id"
-                  class="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-between gap-3 text-xs"
-                >
-                  <div class="flex items-center gap-3 min-w-0">
-                    <div
-                      class="w-2 h-2 rounded-full shrink-0"
-                      :class="pkg.is_featured ? 'bg-[#FFD700]' : 'bg-neutral-500'"
-                    ></div>
-                    <div class="min-w-0">
-                      <div class="flex items-center gap-2">
-                        <span class="text-white font-bold truncate">{{ pkg.title }}</span>
-                        <span v-if="pkg.badge" class="px-2 py-0.5 rounded-full bg-[#FFD700]/20 text-[#FFD700] text-[10px] font-bold uppercase tracking-wider shrink-0">
-                          {{ pkg.badge }}
-                        </span>
+                <!-- Mode A: Single Photo Selected -->
+                <div v-if="(editingSection.content.bg_source || 'image') === 'image'" class="space-y-3">
+                  <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3.5 min-w-0">
+                      <div class="w-16 h-16 rounded-xl overflow-hidden bg-neutral-800 border border-white/10 shrink-0 relative">
+                        <img
+                          :src="editingSection.content.bg_image || '/images/hero-bg.jpg'"
+                          alt="Section Background Preview"
+                          class="w-full h-full object-cover"
+                          @error="(e) => e.target.src = '/images/hero-bg.jpg'"
+                        />
                       </div>
-                      <span class="text-[11px] text-neutral-500 font-mono">{{ pkg.category || 'General' }}</span>
+                      <div class="min-w-0">
+                        <p class="text-xs font-bold text-white truncate">
+                          {{ editingSection.content.bg_image?.split('/').pop() || 'hero-bg.jpg' }}
+                        </p>
+                        <p class="text-[11px] text-neutral-400 truncate mt-1 font-mono">
+                          {{ editingSection.content.bg_image || '/images/hero-bg.jpg' }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      @click="openMediaPicker('bg_image')"
+                      class="px-4 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white text-xs font-semibold transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm"
+                    >
+                      <ImageIcon class="w-4 h-4 text-[#FFD700]" />
+                      <span>Choose Photo</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Mode B: Folder Showcase Selected -->
+                <div v-else class="space-y-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-400 mb-2.5">Select Showcase Folder</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      <button
+                        v-for="f in folders"
+                        :key="f"
+                        type="button"
+                        @click="selectFolderForHero(f)"
+                        class="p-3.5 rounded-xl border text-left transition flex flex-col justify-between gap-1.5 group cursor-pointer"
+                        :class="[
+                          editingSection.content.bg_folder === f
+                            ? 'bg-white/[0.08] border-white/30 text-white shadow-sm'
+                            : 'bg-white/[0.02] border-white/[0.06] text-neutral-400 hover:bg-white/[0.05] hover:text-neutral-200'
+                        ]"
+                      >
+                        <div class="flex items-center justify-between">
+                          <FolderIcon class="w-4 h-4" :class="[editingSection.content.bg_folder === f ? 'text-[#FFD700]' : 'text-neutral-500']" />
+                          <div
+                            class="w-1.5 h-1.5 rounded-full transition"
+                            :class="[editingSection.content.bg_folder === f ? 'bg-[#FFD700]' : 'bg-transparent']"
+                          ></div>
+                        </div>
+                        <span class="text-xs font-bold truncate">{{ f }}</span>
+                        <span class="text-[11px] text-neutral-500">{{ folderCounts[f] || 0 }} photos</span>
+                      </button>
                     </div>
                   </div>
-                  <div class="text-right shrink-0">
-                    <span class="text-white font-bold font-mono text-sm">
-                      {{ pkg.hide_price || isGlobalPriceMasked ? '₱' + formatMaskedPrice(pkg.price) : '₱' + Number(pkg.promo_price || pkg.price).toLocaleString('en-PH') }}
-                    </span>
-                    <span v-if="pkg.promo_price && !pkg.hide_price && !isGlobalPriceMasked" class="text-[10px] text-neutral-500 line-through ml-1 font-mono block">
-                      ₱{{ Number(pkg.price).toLocaleString('en-PH') }}
-                    </span>
+
+                  <!-- Folder Preview Strip -->
+                  <div v-if="editingSection.content.bg_folder" class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">
+                    <div class="flex items-center justify-between">
+                      <span class="text-xs text-neutral-300 font-medium flex items-center gap-2">
+                        <FolderIcon class="w-3.5 h-3.5 text-neutral-400" />
+                        <span>Dynamic Folder Slideshow</span>
+                      </span>
+                      <span class="text-[11px] text-[#FFD700] uppercase font-mono tracking-wider font-semibold">
+                        {{ folderCounts[editingSection.content.bg_folder] || 0 }} photos in rotation
+                      </span>
+                    </div>
+
+                    <div class="flex items-center gap-2.5 overflow-x-auto py-1 scrollbar-none">
+                      <div
+                        v-for="(photo, idx) in getFolderPreviewPhotos(editingSection.content.bg_folder, 6)"
+                        :key="photo.id || idx"
+                        class="w-16 h-16 rounded-xl overflow-hidden bg-neutral-800 border border-white/10 shrink-0 shadow-md"
+                      >
+                        <img :src="photo.image_url" :alt="photo.title" class="w-full h-full object-cover" />
+                      </div>
+                      <div
+                        v-if="(folderCounts[editingSection.content.bg_folder] || 0) === 0"
+                        class="text-xs text-neutral-500 italic py-2"
+                      >
+                        No photos in this folder yet.
+                      </div>
+                    </div>
+                    <p class="text-[11px] text-neutral-400 leading-normal">
+                      Section will smoothly rotate photos from this folder in the background.
+                    </p>
                   </div>
                 </div>
-
-                <div v-if="activePackagesList.length === 0" class="text-xs text-neutral-500 italic py-3 text-center">
-                  No active packages found in studio inventory. Default spotlight plans will be used.
-                </div>
               </div>
+            </div>
+
+            <!-- 3. Subtle Configure Packages & Rates Trigger -->
+            <div class="pt-1 flex items-center justify-center">
+              <button
+                type="button"
+                @click="goToPackagesTab"
+                class="cursor-pointer px-4 py-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.08] hover:border-white/20 text-neutral-400 hover:text-white text-xs font-medium transition flex items-center gap-2.5 shadow-sm group"
+              >
+                <Tags class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white group-hover:scale-110 transition-transform" />
+                <span>Configure packages and rates in Packages Manager</span>
+                <ArrowUpRight class="w-3.5 h-3.5 text-neutral-500 group-hover:text-white transition" />
+              </button>
             </div>
           </div>
 
