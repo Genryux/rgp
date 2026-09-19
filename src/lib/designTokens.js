@@ -118,6 +118,10 @@ export const adminModalTokens = {
   filterButtonInactive: 'text-neutral-400 hover:text-white font-medium',
   filterPillActive: 'relative px-6 py-2 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 ease-out bg-gradient-to-b from-white/[0.14] to-white/[0.06] text-white border border-white/25 shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] cursor-pointer select-none active:scale-95',
   filterPillInactive: 'relative px-6 py-2 rounded-full text-xs font-medium tracking-wider uppercase transition-all duration-300 ease-out text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04] border border-transparent cursor-pointer select-none active:scale-95',
+
+  // Section Typography & Subtitle/Caption Patterns (aligned with interactive retouching slider "POST-PRODUCTION MASTERY")
+  eyebrowMastery: 'text-xs font-semibold uppercase tracking-widest text-[#FFD700] font-manrope',
+  subtitleCaptionMastery: 'text-xs font-semibold uppercase tracking-widest text-neutral-400 font-manrope',
 };
 
 export default adminModalTokens;

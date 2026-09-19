@@ -40,6 +40,7 @@ const sectionComponents = {
   navbar: Navbar,
   hero: HeroSection,
   carousel: CarouselSection,
+  filmstrip: CarouselSection,
   video: VideoSection,
   rates: RatesSection,
   about: AboutSection,
@@ -79,7 +80,7 @@ onMounted(() => {
         :key="sec.id"
         :is="sectionComponents[sec.section_type] || TextBlockSection"
         :content="sec.content"
-        :variant="sec.content?.variant"
+        :variant="sec.content?.variant || (sec.label?.toLowerCase().includes('filmstrip') ? 'filmstrip' : 'carousel')"
       />
     </main>
 

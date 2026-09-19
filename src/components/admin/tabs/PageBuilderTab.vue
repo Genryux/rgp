@@ -110,7 +110,7 @@ const pickerFilteredMedia = computed(() => {
 const mediaPickerTargetField = ref('bg_image');
 
 function openMediaPicker(targetField = 'bg_image') {
-  mediaPickerTargetField.value = targetField;
+  mediaPickerTargetField.value = typeof targetField === 'string' ? targetField : 'bg_image';
   mediaPickerSearch.value = '';
   mediaPickerActiveFolder.value = 'All';
   isMediaPickerOpen.value = true;
@@ -118,12 +118,33 @@ function openMediaPicker(targetField = 'bg_image') {
 
 function selectImageForHero(imageUrl) {
   if (editingSection.value && editingSection.value.content) {
-    if (mediaPickerTargetField.value === 'image_url') {
+    const target = typeof mediaPickerTargetField.value === 'string' ? mediaPickerTargetField.value : 'bg_image';
+    if (target === 'image_url') {
       editingSection.value.content.image_url = imageUrl;
-    } else if (mediaPickerTargetField.value === 'featured_bg_image') {
+    } else if (target === 'featured_bg_image') {
       editingSection.value.content.featured_bg_image = imageUrl;
-    } else if (mediaPickerTargetField.value.startsWith('testimonial_card_image_')) {
-      const idx = parseInt(mediaPickerTargetField.value.replace('testimonial_card_image_', ''), 10);
+    } else if (target === 'before_image') {
+      editingSection.value.content.before_image = imageUrl;
+    } else if (target === 'after_image') {
+      editingSection.value.content.after_image = imageUrl;
+    } else if (target === 'carousel_add_image') {
+      const items = getCarouselItems(editingSection.value.content);
+      if (items.length < 10) {
+        const defaultCategory = getCarouselCategories(editingSection.value.content)[0] || 'Weddings';
+        items.push({
+          id: 'curated_' + Date.now(),
+          image_url: imageUrl,
+          category: defaultCategory
+        });
+      }
+    } else if (target.startsWith('carousel_item_image_')) {
+      const idx = parseInt(target.replace('carousel_item_image_', ''), 10);
+      const items = getCarouselItems(editingSection.value.content);
+      if (items[idx]) {
+        items[idx].image_url = imageUrl;
+      }
+    } else if (target.startsWith('testimonial_card_image_')) {
+      const idx = parseInt(target.replace('testimonial_card_image_', ''), 10);
       const list = getTestimonialsList(editingSection.value.content);
       if (list[idx]) {
         list[idx].card_image = imageUrl;
@@ -135,6 +156,26 @@ function selectImageForHero(imageUrl) {
     }
   }
   isMediaPickerOpen.value = false;
+}
+
+function isCurrentPickerImage(imageUrl) {
+  if (!editingSection.value?.content || !imageUrl) return false;
+  const target = typeof mediaPickerTargetField.value === 'string' ? mediaPickerTargetField.value : 'bg_image';
+  if (target === 'image_url') return editingSection.value.content.image_url === imageUrl;
+  if (target === 'featured_bg_image') return editingSection.value.content.featured_bg_image === imageUrl;
+  if (target === 'before_image') return editingSection.value.content.before_image === imageUrl;
+  if (target === 'after_image') return editingSection.value.content.after_image === imageUrl;
+  if (target.startsWith('carousel_item_image_')) {
+    const idx = parseInt(target.replace('carousel_item_image_', ''), 10);
+    const items = getCarouselItems(editingSection.value.content);
+    return items[idx]?.image_url === imageUrl;
+  }
+  if (target.startsWith('testimonial_card_image_')) {
+    const idx = parseInt(target.replace('testimonial_card_image_', ''), 10);
+    const list = getTestimonialsList(editingSection.value.content);
+    return (list[idx]?.card_image === imageUrl || list[idx]?.image_url === imageUrl);
+  }
+  return editingSection.value.content.bg_image === imageUrl;
 }
 
 function selectFolderForHero(folderName) {
@@ -314,6 +355,58 @@ function removeFeaturedQuote(idx) {
   syncFeaturedLegacy();
 }
 
+// Curated Featured Works (Carousel) Helpers
+const newCarouselCategoryInput = ref('');
+
+function getCarouselItems(content) {
+  if (!content) return [];
+  if (!Array.isArray(content.items)) {
+    content.items = [];
+  }
+  return content.items;
+}
+
+function getCarouselCategories(content) {
+  if (!content) return [];
+  if (!Array.isArray(content.categories)) {
+    content.categories = ['Weddings', 'Portraits', 'Commercial'];
+  }
+  return content.categories;
+}
+
+function addCarouselCategory() {
+  if (!editingSection.value?.content) return;
+  const name = newCarouselCategoryInput.value.trim();
+  if (!name) return;
+  const categories = getCarouselCategories(editingSection.value.content);
+  if (!categories.some((c) => c.toLowerCase() === name.toLowerCase())) {
+    categories.push(name);
+  }
+  newCarouselCategoryInput.value = '';
+}
+
+function removeCarouselCategory(index) {
+  if (!editingSection.value?.content) return;
+  const categories = getCarouselCategories(editingSection.value.content);
+  categories.splice(index, 1);
+}
+
+function removeCarouselItem(index) {
+  if (!editingSection.value?.content) return;
+  const items = getCarouselItems(editingSection.value.content);
+  items.splice(index, 1);
+}
+
+function moveCarouselItem(index, direction) {
+  if (!editingSection.value?.content) return;
+  const items = getCarouselItems(editingSection.value.content);
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= items.length) return;
+  const temp = items[index];
+  items[index] = items[targetIndex];
+  items[targetIndex] = temp;
+}
+
 let hasOpenedModal = false;
 watch(
   () => Boolean(isAddModalOpen.value || editingSection.value || isDrawerOpen.value || isMediaPickerOpen.value),
@@ -341,6 +434,7 @@ const searchQuery = ref('');
 const sectionComponents = {
   hero: HeroSection,
   carousel: CarouselSection,
+  filmstrip: CarouselSection,
   video: VideoSection,
   rates: RatesSection,
   about: AboutSection,
@@ -810,6 +904,7 @@ const sectionCategoryCatalog = [
         tag: 'Portfolio Carousel',
         features: ['Infinite auto-scrolling card slider', 'Category switcher pills', 'Lightbox preview on click'],
         defaultContent: {
+          variant: 'carousel',
           title: 'Featured Works',
           subtitle: 'Explore our latest wedding, portrait, and commercial highlights',
         },
@@ -823,6 +918,7 @@ const sectionCategoryCatalog = [
         tag: 'Filmstrip Flow',
         features: ['Perforated cinematic filmstrip layout', 'Horizontal smooth track navigation', 'Perfect for documentary vignettes'],
         defaultContent: {
+          variant: 'filmstrip',
           title: 'CINEMATIC FILM REELS',
           subtitle: 'Snapshot frames and documentary highlights from recent events',
         },
@@ -1114,6 +1210,28 @@ function openEdit(section) {
       ];
     }
   }
+  if (editingSection.value && (editingSection.value.section_type === 'carousel' || editingSection.value.section_type === 'filmstrip')) {
+    if (!editingSection.value.content) editingSection.value.content = {};
+    if (editingSection.value.label?.toLowerCase().includes('filmstrip') && !editingSection.value.content.variant) {
+      editingSection.value.content.variant = 'filmstrip';
+    }
+    if (!editingSection.value.content.variant) {
+      editingSection.value.content.variant = 'carousel';
+    }
+    if (!Array.isArray(editingSection.value.content.categories) || editingSection.value.content.categories.length === 0) {
+      editingSection.value.content.categories = ['Weddings', 'Portraits', 'Commercial'];
+    }
+    if (!Array.isArray(editingSection.value.content.items) || editingSection.value.content.items.length === 0) {
+      editingSection.value.content.items = [
+        { id: 'curated_1', image_url: '/images/1.jpg', category: 'Weddings', title: 'Sunset Vows Sequence' },
+        { id: 'curated_2', image_url: '/images/2.jpg', category: 'Weddings', title: 'Cathedral Processional' },
+        { id: 'curated_3', image_url: '/images/3.jpg', category: 'Portraits', title: 'Editorial Bride Silhouette' },
+        { id: 'curated_4', image_url: '/images/4.jpg', category: 'Commercial', title: 'Fashion Campaign Motion' },
+        { id: 'curated_5', image_url: '/images/5.jpg', category: 'Portraits', title: 'Studio Vignette Master' },
+        { id: 'curated_6', image_url: '/images/6.jpg', category: 'Weddings', title: 'First Dance Euphoria' },
+      ];
+    }
+  }
 }
 
 function addProcessStep() {
@@ -1240,6 +1358,10 @@ function handleAddDesign(design) {
       : allSections.value.length + 1,
     content: JSON.parse(JSON.stringify(design.defaultContent)),
   };
+
+  if (design.variant && !newSec.content.variant) {
+    newSec.content.variant = design.variant;
+  }
 
   const list = [...allSections.value];
   if (insertAtIndex.value !== null) {
@@ -1465,7 +1587,7 @@ function handleAddDesign(design) {
             <component
               :is="sectionComponents[sec.section_type] || TextBlockSection"
               :content="sec.content"
-              :variant="sec.content?.variant"
+              :variant="sec.content?.variant || (sec.label?.toLowerCase().includes('filmstrip') ? 'filmstrip' : 'carousel')"
               :is-preview="true"
             />
           </div>
@@ -1543,6 +1665,16 @@ function handleAddDesign(design) {
           <div v-else-if="editingSection.section_type === 'testimonials'">
             <h3 class="text-lg font-bold text-white tracking-wide">Edit Testimonials & Social Proof</h3>
             <p class="text-xs text-neutral-400 mt-1">Customize visual variant, client reviews, featured quotes, and venue trust.</p>
+          </div>
+          <div v-else-if="editingSection.section_type === 'carousel' || editingSection.section_type === 'filmstrip'">
+            <template v-if="editingSection.content?.variant === 'filmstrip' || editingSection.label?.toLowerCase().includes('filmstrip')">
+              <h3 class="text-lg font-bold text-white tracking-wide">Edit Editorial Filmstrip & Milestone Reels</h3>
+              <p class="text-xs text-neutral-400 mt-1">Customize 35mm filmstrip frames (max 10), milestone captions, and documentary sequence.</p>
+            </template>
+            <template v-else>
+              <h3 class="text-lg font-bold text-white tracking-wide">Edit Curated Featured Works Slider</h3>
+              <p class="text-xs text-neutral-400 mt-1">Manage showcase photos (max 10), category filter pills, and header typography.</p>
+            </template>
           </div>
           <div v-else>
             <h3 class="text-lg font-bold text-white tracking-wide">Edit {{ editingSection.label }}</h3>
@@ -1919,7 +2051,7 @@ function handleAddDesign(design) {
 
                   <button
                     type="button"
-                    @click="openMediaPicker"
+                    @click="openMediaPicker('bg_image')"
                     class="px-4 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white text-xs font-semibold transition flex items-center gap-2 shrink-0 cursor-pointer shadow-sm"
                   >
                     <ImageIcon class="w-4 h-4 text-[#FFD700]" />
@@ -2964,61 +3096,740 @@ function handleAddDesign(design) {
             </div>
           </div>
 
-          <!-- Video Section Specific Fields -->
-          <div v-else-if="editingSection.section_type === 'video'" class="space-y-3">
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Title</label>
-              <input
-                type="text"
-                v-model="editingSection.content.title"
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              />
+          <!-- Video Section Specific Fields (4K Cinema Video Reel Player) -->
+          <div v-else-if="editingSection.section_type === 'video'" :class="adminModalTokens.sectionSpacing">
+            <!-- 1. Header & Copywriting -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Header & Copywriting</label>
+                  <p :class="adminModalTokens.cardSubtitle">Titles, subtitles, and captions for your cinema highlight reel</p>
+                </div>
+                <span class="text-[11px] text-[#FFD700] uppercase font-mono tracking-wider font-semibold">4K Cinema Reel</span>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Top Eyebrow / Badge Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.badge_text"
+                  placeholder="e.g. FEATURED REEL or POST-PRODUCTION MASTERY"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Section Title</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="CINEMATIC HIGHLIGHTS"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Top Subtitle (Under Heading)</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.subtitle"
+                  placeholder="Every emotion, speech, and glance preserved in 4K cinematic clarity."
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Bottom Subtitle / Caption (Under Video Player)</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.caption"
+                  placeholder="Wedding & Event Cinematic Highlight Reel"
+                  :class="adminModalTokens.input"
+                />
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">YouTube or Vimeo Video URL</label>
-              <input
-                type="url"
-                v-model="editingSection.content.video_url"
-                placeholder="https://www.youtube.com/watch?v=..."
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              />
-            </div>
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Subtitle / Caption</label>
-              <input
-                type="text"
-                v-model="editingSection.content.caption"
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              />
+
+            <!-- 2. Video Player Stream Embed -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Video Stream Source</label>
+                  <p :class="adminModalTokens.cardSubtitle">Direct YouTube or Vimeo video link</p>
+                </div>
+                <span class="text-[11px] text-neutral-500 font-mono">16:9 Embed</span>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">YouTube or Vimeo Video URL</label>
+                <input
+                  type="url"
+                  v-model="editingSection.content.video_url"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <!-- Format Support Helper Box -->
+              <div :class="adminModalTokens.noticeBox">
+                <div class="flex items-start gap-2.5">
+                  <Film class="w-4 h-4 text-[#FFD700] shrink-0 mt-0.5" />
+                  <div class="space-y-1">
+                    <p class="text-xs text-white font-medium">Supported Video URL Formats:</p>
+                    <p class="text-[11px] text-neutral-400 font-sans">
+                      Standard YouTube (<code class="text-[#FFD700] text-[10px]">youtube.com/watch?v=...</code>), short links (<code class="text-[#FFD700] text-[10px]">youtu.be/...</code>), and Vimeo (<code class="text-[#FFD700] text-[10px]">vimeo.com/...</code>). Renders with privacy-enhanced mode and clean player branding.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <!-- Before / After Slider Specific Fields -->
-          <div v-else-if="editingSection.section_type === 'before_after'" class="space-y-3">
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Section Title</label>
-              <input
-                type="text"
-                v-model="editingSection.content.title"
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              />
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Before / After Slider Specific Fields (Interactive Retouching Slider) -->
+          <div v-else-if="editingSection.section_type === 'before_after'" :class="adminModalTokens.sectionSpacing">
+            <!-- 1. Header & Copywriting Card -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Header & Copywriting</label>
+                  <p :class="adminModalTokens.cardSubtitle">Titles and instructions for the retouching comparison slider</p>
+                </div>
+                <span class="text-[11px] text-[#FFD700] uppercase font-mono tracking-wider font-semibold">Retouching Slider</span>
+              </div>
+
               <div>
-                <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Before (Raw) Image URL</label>
+                <label :class="adminModalTokens.inputLabel">Top Eyebrow / Badge Text</label>
                 <input
                   type="text"
-                  v-model="editingSection.content.before_image"
-                  class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+                  v-model="editingSection.content.badge_text"
+                  placeholder="POST-PRODUCTION MASTERY"
+                  :class="adminModalTokens.input"
                 />
               </div>
+
               <div>
-                <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">After (Graded) Image URL</label>
+                <label :class="adminModalTokens.inputLabel">Section Title</label>
                 <input
                   type="text"
-                  v-model="editingSection.content.after_image"
-                  class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
+                  v-model="editingSection.content.title"
+                  placeholder="BEFORE & AFTER RETOUCHING"
+                  :class="adminModalTokens.input"
                 />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Section Subtitle / Instructions</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.subtitle"
+                  placeholder="Drag the interactive slider to compare straight-out-of-camera RAW vs master edit."
+                  :class="adminModalTokens.input"
+                />
+              </div>
+            </div>
+
+            <!-- 2. Before & After Images Selection Card -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Comparison Image Pair</label>
+                  <p :class="adminModalTokens.cardSubtitle">Choose RAW (Before) and Master Graded (After) photos</p>
+                </div>
+                <span class="text-[11px] text-neutral-500 font-mono">Side-by-Side</span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- Left: Before (RAW) -->
+                <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-neutral-300 uppercase tracking-wider">Before (RAW)</span>
+                    <span class="text-[10px] font-mono text-neutral-400 bg-white/5 px-2 py-0.5 rounded">Left Side</span>
+                  </div>
+
+                  <div class="flex items-center gap-3">
+                    <div class="w-14 h-14 rounded-xl overflow-hidden bg-neutral-800 border border-white/10 shrink-0 relative">
+                      <img
+                        :src="editingSection.content.before_image || '/images/5.jpg'"
+                        alt="Before Preview"
+                        class="w-full h-full object-cover"
+                        @error="(e) => e.target.src = '/images/5.jpg'"
+                      />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-xs font-bold text-white truncate">
+                        {{ editingSection.content.before_image?.split('/').pop() || '5.jpg' }}
+                      </p>
+                      <p class="text-[11px] text-neutral-400 truncate mt-0.5 font-mono">
+                        {{ editingSection.content.before_image || '/images/5.jpg' }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2 pt-1">
+                    <input
+                      type="text"
+                      v-model="editingSection.content.before_image"
+                      placeholder="Image URL or choose photo..."
+                      :class="adminModalTokens.input"
+                      class="flex-1"
+                    />
+                    <button
+                      type="button"
+                      @click="openMediaPicker('before_image')"
+                      class="px-3 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white text-xs font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
+                    >
+                      <ImageIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                      <span>Choose</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <label :class="adminModalTokens.inputLabel">Badge Label</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.before_label"
+                      placeholder="Raw Capture"
+                      :class="adminModalTokens.input"
+                    />
+                  </div>
+                </div>
+
+                <!-- Right: After (Master Grade) -->
+                <div class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 space-y-3">
+                  <div class="flex items-center justify-between">
+                    <span class="text-xs font-semibold text-[#FFD700] uppercase tracking-wider">After (Master Grade)</span>
+                    <span class="text-[10px] font-mono text-[#FFD700]/70 bg-[#FFD700]/10 px-2 py-0.5 rounded">Right Side</span>
+                  </div>
+
+                  <div class="flex items-center gap-3">
+                    <div class="w-14 h-14 rounded-xl overflow-hidden bg-neutral-800 border border-white/10 shrink-0 relative">
+                      <img
+                        :src="editingSection.content.after_image || '/images/1.jpg'"
+                        alt="After Preview"
+                        class="w-full h-full object-cover"
+                        @error="(e) => e.target.src = '/images/1.jpg'"
+                      />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                      <p class="text-xs font-bold text-white truncate">
+                        {{ editingSection.content.after_image?.split('/').pop() || '1.jpg' }}
+                      </p>
+                      <p class="text-[11px] text-neutral-400 truncate mt-0.5 font-mono">
+                        {{ editingSection.content.after_image || '/images/1.jpg' }}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div class="flex items-center gap-2 pt-1">
+                    <input
+                      type="text"
+                      v-model="editingSection.content.after_image"
+                      placeholder="Image URL or choose photo..."
+                      :class="adminModalTokens.input"
+                      class="flex-1"
+                    />
+                    <button
+                      type="button"
+                      @click="openMediaPicker('after_image')"
+                      class="px-3 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/15 text-white text-xs font-semibold transition flex items-center gap-1.5 shrink-0 cursor-pointer shadow-sm"
+                    >
+                      <ImageIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                      <span>Choose</span>
+                    </button>
+                  </div>
+
+                  <div>
+                    <label :class="adminModalTokens.inputLabel">Badge Label</label>
+                    <input
+                      type="text"
+                      v-model="editingSection.content.after_label"
+                      placeholder="Master Grade"
+                      :class="adminModalTokens.input"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Interactive Slider Notice Box -->
+              <div :class="adminModalTokens.noticeBox">
+                <div class="flex items-start gap-2.5">
+                  <Sparkles class="w-4 h-4 text-[#FFD700] shrink-0 mt-0.5" />
+                  <div class="space-y-1">
+                    <p class="text-xs text-white font-medium">Interactive Comparison Tips:</p>
+                    <p class="text-[11px] text-neutral-400 font-sans">
+                      Ensure both RAW and Master Graded images have matching aspect ratios (e.g. 16:10 or 3:2) and aligned crop framing so clients can seamlessly drag the divider to inspect skin tones, lighting, and depth.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Editorial Filmstrip & Milestone Reels Specific Fields -->
+          <div
+            v-else-if="editingSection.section_type === 'filmstrip' || (editingSection.section_type === 'carousel' && (editingSection.content?.variant === 'filmstrip' || editingSection.label?.toLowerCase().includes('filmstrip')))"
+            :class="adminModalTokens.sectionSpacing"
+          >
+            <!-- 1. Header & Copywriting -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Header & Copywriting</label>
+                  <p :class="adminModalTokens.cardSubtitle">Titles and subtitles displayed above the 35mm filmstrip</p>
+                </div>
+                <span class="text-[11px] text-[#FFD700] uppercase font-mono tracking-wider font-semibold">35mm Filmstrip</span>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Badge / Eyebrow Text (Optional)</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.badge_text"
+                  placeholder="35MM DOCUMENTARY ARCHIVE"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Section Title</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="EDITORIAL FILMSTRIP & MILESTONE REELS"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Section Subtitle / Description</label>
+                <textarea
+                  v-model="editingSection.content.subtitle"
+                  rows="2"
+                  placeholder="Snapshot frames and documentary highlights from recent events"
+                  :class="adminModalTokens.textarea"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- 2. Filmstrip Milestone Frames (Max 10) -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">35mm Filmstrip Frames</label>
+                  <p :class="adminModalTokens.cardSubtitle">Select up to 10 milestone frames. Each frame features 35mm casing, FR stamp, and lightbox zoom.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span :class="adminModalTokens.cardCounterBadge">
+                    {{ getCarouselItems(editingSection.content).length }} / 10 Frames
+                  </span>
+                  <button
+                    type="button"
+                    @click="openMediaPicker('carousel_add_image')"
+                    :disabled="getCarouselItems(editingSection.content).length >= 10"
+                    :class="[
+                      adminModalTokens.btnSecondary,
+                      getCarouselItems(editingSection.content).length >= 10 ? 'opacity-40 cursor-not-allowed' : ''
+                    ]"
+                  >
+                    <Plus class="w-3.5 h-3.5 text-[#FFD700]" />
+                    <span>Add Frame</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Empty state -->
+              <div v-if="getCarouselItems(editingSection.content).length === 0" class="text-center py-10 text-neutral-500 space-y-2">
+                <Film class="w-8 h-8 mx-auto text-neutral-600" />
+                <p class="text-xs">No filmstrip frames added yet.</p>
+                <button
+                  type="button"
+                  @click="openMediaPicker('carousel_add_image')"
+                  :class="adminModalTokens.btnPrimary"
+                  class="!py-2 !px-4 text-xs inline-flex items-center gap-1.5"
+                >
+                  <Plus class="w-3.5 h-3.5" />
+                  <span>Choose from Media Library</span>
+                </button>
+              </div>
+
+              <!-- Frames List -->
+              <div v-else class="space-y-3">
+                <div
+                  v-for="(item, itemIdx) in getCarouselItems(editingSection.content)"
+                  :key="item.id || itemIdx"
+                  class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-white/20 transition space-y-3 group"
+                >
+                  <div class="flex items-center justify-between gap-3 pb-2 border-b border-white/[0.06]">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-lg bg-white/[0.05] border border-white/10 text-[11px] font-mono text-[#FFD700] flex items-center justify-center font-bold">
+                        {{ itemIdx + 1 < 10 ? '0' + (itemIdx + 1) : itemIdx + 1 }}
+                      </span>
+                      <span class="text-xs font-bold text-white">FR // {{ itemIdx + 1 < 10 ? '0' + (itemIdx + 1) : itemIdx + 1 }}</span>
+                    </div>
+
+                    <!-- Actions: Reorder & Delete -->
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        :disabled="itemIdx === 0"
+                        @click="moveCarouselItem(itemIdx, -1)"
+                        title="Move Left/Earlier"
+                        class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition cursor-pointer"
+                      >
+                        <ChevronUp class="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        :disabled="itemIdx === getCarouselItems(editingSection.content).length - 1"
+                        @click="moveCarouselItem(itemIdx, 1)"
+                        title="Move Right/Later"
+                        class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition cursor-pointer"
+                      >
+                        <ChevronDown class="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        @click="removeCarouselItem(itemIdx)"
+                        title="Delete Frame"
+                        class="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition cursor-pointer ml-1"
+                      >
+                        <Trash2 class="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Frame Details: Thumbnail + Sequence Title + Tag -->
+                  <div class="flex flex-col sm:flex-row items-start gap-4">
+                    <!-- Photo Thumbnail (3:2 classic film ratio) -->
+                    <div class="w-full sm:w-36 h-24 rounded-xl overflow-hidden bg-neutral-900 border border-white/10 shrink-0 relative group/thumb">
+                      <img
+                        :src="item.image_url"
+                        alt="Frame Preview"
+                        class="w-full h-full object-cover"
+                        @error="(e) => e.target.src = '/images/1.jpg'"
+                      />
+                      <div class="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                          type="button"
+                          @click="openMediaPicker(`carousel_item_image_${itemIdx}`)"
+                          class="px-2.5 py-1 rounded-lg bg-[#FFD700] text-black text-[11px] font-bold uppercase transition cursor-pointer"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Title and Tag inputs -->
+                    <div class="flex-1 min-w-0 w-full space-y-2">
+                      <div>
+                        <label :class="adminModalTokens.inputLabel">Milestone Title / Caption</label>
+                        <input
+                          type="text"
+                          v-model="item.title"
+                          placeholder="e.g. Sunset Ceremony Vows"
+                          :class="adminModalTokens.input"
+                        />
+                      </div>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                        <div>
+                          <label :class="adminModalTokens.inputLabel">Stamp / Category</label>
+                          <input
+                            type="text"
+                            v-model="item.category"
+                            placeholder="e.g. 35MM RAW or Weddings"
+                            :class="adminModalTokens.input"
+                          />
+                        </div>
+                        <div>
+                          <button
+                            type="button"
+                            @click="openMediaPicker(`carousel_item_image_${itemIdx}`)"
+                            :class="adminModalTokens.btnSecondary"
+                            class="w-full justify-center !py-2.5"
+                          >
+                            <ImageIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                            <span>Replace Photo</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Notice Box for Filmstrip -->
+            <div :class="adminModalTokens.noticeBox">
+              <div class="flex items-start gap-2.5">
+                <Film class="w-4 h-4 text-[#FFD700] shrink-0 mt-0.5" />
+                <div class="space-y-1">
+                  <p class="text-xs text-white font-medium">Editorial Filmstrip Tips:</p>
+                  <p class="text-[11px] text-neutral-400 font-sans leading-relaxed">
+                    The Editorial Filmstrip renders authentic Kodak 400 sprocket ribbons, vintage frame stamp numbers (FR // XX), and 24 FPS markers. Visitors can scroll smoothly along the documentary track with navigation arrows or touch gestures, and click any frame to expand it in high resolution.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Curated Featured Works Slider Specific Fields -->
+          <div v-else-if="editingSection.section_type === 'carousel'" :class="adminModalTokens.sectionSpacing">
+            <!-- 1. Header & Copywriting -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Header & Copywriting</label>
+                  <p :class="adminModalTokens.cardSubtitle">Titles and subtitles displayed above the showcase slider</p>
+                </div>
+                <span class="text-[11px] text-[#FFD700] uppercase font-mono tracking-wider font-semibold">Featured Works</span>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Top Eyebrow / Badge Text (Optional)</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.badge_text"
+                  placeholder="e.g. CURATED SHOWCASE"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Section Title</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="PORTFOLIO SHOWCASE"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Section Subtitle / Description</label>
+                <textarea
+                  v-model="editingSection.content.subtitle"
+                  rows="2"
+                  placeholder="A visual collection of timeless weddings, portraits, and milestones."
+                  :class="adminModalTokens.textarea"
+                ></textarea>
+              </div>
+            </div>
+
+            <!-- 2. Category Filter Buttons -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Category Filter Buttons</label>
+                  <p :class="adminModalTokens.cardSubtitle">Add custom categories to filter photos ('All' is included automatically)</p>
+                </div>
+                <span :class="adminModalTokens.cardCounterBadge">
+                  {{ getCarouselCategories(editingSection.content).length }} Categories
+                </span>
+              </div>
+
+              <!-- List of Active Categories (Pills) -->
+              <div class="flex flex-wrap items-center gap-2">
+                <!-- Static 'All' pill preview -->
+                <div class="px-3.5 py-1.5 rounded-full bg-white/10 text-white text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5 opacity-60 cursor-default">
+                  <span>All</span>
+                  <span class="text-[10px] text-neutral-400 font-mono">(System)</span>
+                </div>
+
+                <div
+                  v-for="(cat, cIdx) in getCarouselCategories(editingSection.content)"
+                  :key="cIdx"
+                  class="px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/15 text-white text-xs font-semibold uppercase tracking-wider flex items-center gap-2 group hover:border-[#FFD700]/40 transition"
+                >
+                  <span>{{ cat }}</span>
+                  <button
+                    type="button"
+                    @click="removeCarouselCategory(cIdx)"
+                    class="w-4 h-4 rounded-full text-neutral-400 hover:text-red-400 hover:bg-white/10 flex items-center justify-center transition cursor-pointer"
+                    title="Remove Category"
+                  >
+                    <X class="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              <!-- Add New Category Form -->
+              <div class="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
+                <input
+                  type="text"
+                  v-model="newCarouselCategoryInput"
+                  @keydown.enter.prevent="addCarouselCategory"
+                  placeholder="New category name (e.g. Editorial, Drone, Pre-Nup)..."
+                  :class="adminModalTokens.input"
+                  class="flex-1"
+                />
+                <button
+                  type="button"
+                  @click="addCarouselCategory"
+                  :disabled="!newCarouselCategoryInput.trim()"
+                  :class="[
+                    adminModalTokens.btnSecondary,
+                    !newCarouselCategoryInput.trim() ? 'opacity-40 cursor-not-allowed' : ''
+                  ]"
+                >
+                  <Plus class="w-3.5 h-3.5 text-[#FFD700]" />
+                  <span>Add Category</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 3. Curated Showcase Cards (Max 10) -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Curated Showcase Photos</label>
+                  <p :class="adminModalTokens.cardSubtitle">Select up to 10 photos from media library. Cards loop seamlessly and open image viewer.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span :class="adminModalTokens.cardCounterBadge">
+                    {{ getCarouselItems(editingSection.content).length }} / 10 Photos
+                  </span>
+                  <button
+                    type="button"
+                    @click="openMediaPicker('carousel_add_image')"
+                    :disabled="getCarouselItems(editingSection.content).length >= 10"
+                    :class="[
+                      adminModalTokens.btnSecondary,
+                      getCarouselItems(editingSection.content).length >= 10 ? 'opacity-40 cursor-not-allowed' : ''
+                    ]"
+                  >
+                    <Plus class="w-3.5 h-3.5 text-[#FFD700]" />
+                    <span>Add Photo</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Photos List -->
+              <div v-if="getCarouselItems(editingSection.content).length === 0" class="text-center py-10 text-neutral-500 space-y-2">
+                <ImageIcon class="w-8 h-8 mx-auto text-neutral-600" />
+                <p class="text-xs">No showcase photos added yet.</p>
+                <button
+                  type="button"
+                  @click="openMediaPicker('carousel_add_image')"
+                  :class="adminModalTokens.btnPrimary"
+                  class="!py-2 !px-4 text-xs inline-flex items-center gap-1.5"
+                >
+                  <Plus class="w-3.5 h-3.5" />
+                  <span>Choose from Media Library</span>
+                </button>
+              </div>
+
+              <div v-else class="space-y-3">
+                <div
+                  v-for="(item, itemIdx) in getCarouselItems(editingSection.content)"
+                  :key="item.id || itemIdx"
+                  class="p-4 rounded-2xl bg-white/[0.02] border border-white/10 hover:border-white/20 transition space-y-3 group"
+                >
+                  <div class="flex items-center justify-between gap-3 pb-2 border-b border-white/[0.06]">
+                    <div class="flex items-center gap-2">
+                      <span class="w-6 h-6 rounded-lg bg-white/[0.05] border border-white/10 text-[11px] font-mono text-[#FFD700] flex items-center justify-center font-bold">
+                        {{ itemIdx + 1 }}
+                      </span>
+                      <span class="text-xs font-bold text-white">Card #{{ itemIdx + 1 }}</span>
+                    </div>
+
+                    <!-- Actions: Reorder & Delete -->
+                    <div class="flex items-center gap-1">
+                      <button
+                        type="button"
+                        :disabled="itemIdx === 0"
+                        @click="moveCarouselItem(itemIdx, -1)"
+                        title="Move Up"
+                        class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition cursor-pointer"
+                      >
+                        <ChevronUp class="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        :disabled="itemIdx === getCarouselItems(editingSection.content).length - 1"
+                        @click="moveCarouselItem(itemIdx, 1)"
+                        title="Move Down"
+                        class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/[0.06] disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed transition cursor-pointer"
+                      >
+                        <ChevronDown class="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        @click="removeCarouselItem(itemIdx)"
+                        title="Delete Card"
+                        class="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition cursor-pointer ml-1"
+                      >
+                        <Trash2 class="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Card Content: Image Preview + Category -->
+                  <div class="flex flex-col sm:flex-row items-start gap-4">
+                    <!-- Photo Thumbnail -->
+                    <div class="w-full sm:w-36 h-24 rounded-xl overflow-hidden bg-neutral-900 border border-white/10 shrink-0 relative group/thumb">
+                      <img
+                        :src="item.image_url"
+                        alt="Showcase Preview"
+                        class="w-full h-full object-cover"
+                        @error="(e) => e.target.src = '/images/1.jpg'"
+                      />
+                      <div class="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                          type="button"
+                          @click="openMediaPicker(`carousel_item_image_${itemIdx}`)"
+                          class="px-2.5 py-1 rounded-lg bg-[#FFD700] text-black text-[11px] font-bold uppercase transition cursor-pointer"
+                        >
+                          Change
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Details: Category & Media Selection -->
+                    <div class="flex-1 min-w-0 w-full flex flex-col justify-center">
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                        <div>
+                          <label :class="adminModalTokens.inputLabel">Category Tag</label>
+                          <select
+                            v-model="item.category"
+                            :class="adminModalTokens.modalSelect"
+                          >
+                            <option
+                              v-for="cat in getCarouselCategories(editingSection.content)"
+                              :key="cat"
+                              :value="cat"
+                            >
+                              {{ cat }}
+                            </option>
+                          </select>
+                        </div>
+                        <div>
+                          <label :class="adminModalTokens.inputLabel">Replace Photo</label>
+                          <button
+                            type="button"
+                            @click="openMediaPicker(`carousel_item_image_${itemIdx}`)"
+                            :class="adminModalTokens.btnSecondary"
+                            class="w-full justify-center !py-2.5"
+                          >
+                            <ImageIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                            <span>Media Library</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Notice Box -->
+            <div :class="adminModalTokens.noticeBox">
+              <div class="flex items-start gap-2.5">
+                <Sparkles class="w-4 h-4 text-[#FFD700] shrink-0 mt-0.5" />
+                <div class="space-y-1">
+                  <p class="text-xs text-white font-medium">Curated Works Slider Tips:</p>
+                  <p class="text-[11px] text-neutral-400 font-sans">
+                    The showcase cards are expanded to panoramic format and support smooth infinite looping without gaps. Clicking on any card opens the fullscreen high-resolution image viewer with arrow navigation and keyboard support.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -3603,7 +4414,7 @@ function handleAddDesign(design) {
               <span>Select Media from Showcase</span>
             </h3>
             <p class="text-xs text-neutral-400 mt-0.5">
-              {{ mediaPickerTargetField === 'image_url' ? 'Choose an image from your media library for this section.' : 'Choose an image from your media library for the hero background.' }}
+              {{ mediaPickerTargetField === 'carousel_add_image' ? 'Add a curated showcase photo to your slider (max 10).' : (typeof mediaPickerTargetField === 'string' && mediaPickerTargetField.startsWith('carousel_item_image_') ? 'Replace photo for this curated showcase card.' : (mediaPickerTargetField === 'image_url' ? 'Choose an image from your media library for this section.' : 'Choose an image from your media library for the background.')) }}
             </p>
           </div>
           <button @click="isMediaPickerOpen = false" class="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer">
@@ -3673,7 +4484,7 @@ function handleAddDesign(design) {
               @click="selectImageForHero(item.image_url)"
               class="group relative rounded-2xl overflow-hidden border text-left transition aspect-[4/3] bg-neutral-900 focus:outline-none cursor-pointer"
               :class="[
-                (mediaPickerTargetField === 'image_url' ? editingSection?.content?.image_url : editingSection?.content?.bg_image) === item.image_url
+                isCurrentPickerImage(item.image_url)
                   ? 'border-white/40 ring-2 ring-[#FFD700]/50'
                   : 'border-white/10 hover:border-white/30'
               ]"
@@ -3692,7 +4503,7 @@ function handleAddDesign(design) {
 
               <!-- Selected Checkmark Dot -->
               <div
-                v-if="(mediaPickerTargetField === 'image_url' ? editingSection?.content?.image_url : editingSection?.content?.bg_image) === item.image_url"
+                v-if="isCurrentPickerImage(item.image_url)"
                 class="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#FFD700] text-black flex items-center justify-center shadow-lg"
               >
                 <Check class="w-3 h-3 stroke-[3]" />

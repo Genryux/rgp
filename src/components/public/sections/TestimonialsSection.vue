@@ -326,12 +326,12 @@ const cardRotations = [
       <div class="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-14">
         <div>
           <!-- Pill Badge -->
-          <span class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[#FFD700] text-xs font-semibold tracking-wider mb-4">
+          <span class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/20 text-[#FFD700] text-xs font-mono uppercase tracking-widest mb-4">
             {{ content.badge_text || 'Testimonial' }}
           </span>
 
           <!-- Heading with Underline Accent -->
-          <h2 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight">
+          <h2 class="text-3xl sm:text-5xl md:text-6xl font-bebas text-white tracking-wider leading-tight">
             <span>{{ titlePrefix }}</span>
             <span v-if="titleAccent" class="relative inline-block ml-2 text-white pb-1">
               {{ titleAccent }}
@@ -340,7 +340,7 @@ const cardRotations = [
           </h2>
 
           <!-- Subtitle -->
-          <p class="text-sm sm:text-base text-neutral-400 max-w-xl mt-3 font-normal leading-relaxed">
+          <p class="text-sm sm:text-base text-gray-400 font-nuosu max-w-xl mt-3 leading-relaxed">
             {{ content.subtitle || 'Check out what our awesome clients are saying about us!' }}
           </p>
         </div>
@@ -426,7 +426,7 @@ const cardRotations = [
                 class="absolute bottom-0 inset-x-0 z-20 p-4 bg-gradient-to-t from-black/85 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
               >
                 <p class="text-xs font-bold text-white truncate drop-shadow">{{ t.client_name }}</p>
-                <p v-if="t.event || t.location" class="text-[10px] text-neutral-300 truncate font-medium mt-0.5">{{ t.event || t.location }}</p>
+                <p v-if="t.event || t.location" class="text-[10px] text-neutral-300 truncate font-mono mt-0.5">{{ t.event || t.location }}</p>
               </div>
             </div>
           </div>
@@ -489,13 +489,13 @@ const cardRotations = [
   >
     <div class="max-w-6xl mx-auto px-4">
       <div class="text-center mb-14 space-y-2">
-        <span v-if="content.badge_text" class="px-3.5 py-1 rounded-full bg-[#FFD700]/10 text-[#FFD700] text-[11px] font-bold uppercase tracking-wider border border-[#FFD700]/20 inline-block mb-1">
+        <span v-if="content.badge_text" class="px-3.5 py-1 rounded-full bg-[#FFD700]/10 text-[#FFD700] text-xs font-mono uppercase tracking-widest border border-[#FFD700]/20 inline-block mb-1">
           {{ content.badge_text }}
         </span>
-        <h2 class="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+        <h2 class="text-3xl sm:text-5xl font-bebas text-white tracking-wider">
           {{ content.title || 'Stories From Our Couples' }}
         </h2>
-        <p class="text-xs sm:text-sm text-neutral-400 max-w-lg mx-auto">
+        <p class="text-xs sm:text-sm text-gray-400 font-nuosu max-w-lg mx-auto">
           {{ content.subtitle || 'Over 250+ 5-star verified reviews across weddings, debuts, and commercial visual productions.' }}
         </p>
       </div>
@@ -574,14 +574,14 @@ const cardRotations = [
       <div class="text-center space-y-3 mb-10 sm:mb-14">
         <span
           v-if="content.badge_text"
-          class="px-3.5 py-1 rounded-full bg-[#FFD700]/10 text-[#FFD700] text-[11px] font-bold uppercase tracking-wider border border-[#FFD700]/20 inline-block"
+          class="px-3.5 py-1 rounded-full bg-[#FFD700]/10 text-[#FFD700] text-xs font-mono uppercase tracking-widest border border-[#FFD700]/20 inline-block"
         >
           {{ content.badge_text }}
         </span>
-        <h2 class="text-2xl sm:text-4xl font-extrabold text-white tracking-tight">
+        <h2 class="text-3xl sm:text-5xl font-bebas text-white tracking-wider">
           {{ content.title || 'Words from Our Couples' }}
         </h2>
-        <p v-if="content.subtitle" class="text-sm sm:text-base text-neutral-400 max-w-xl mx-auto">
+        <p v-if="content.subtitle" class="text-sm sm:text-base text-gray-400 font-nuosu max-w-xl mx-auto">
           {{ content.subtitle }}
         </p>
       </div>
@@ -657,13 +657,13 @@ const cardRotations = [
     class="py-20 bg-[#121212] border-b border-white/5 font-manrope select-none overflow-hidden relative"
   >
     <div class="max-w-6xl mx-auto px-4 text-center mb-8 space-y-1">
-      <span class="text-[10px] font-mono text-[#FFD700] uppercase tracking-widest">
+      <span class="text-xs font-mono text-[#FFD700] uppercase tracking-widest">
         {{ content.badge_text || 'FEATURED LOCATIONS & COLLABORATORS' }}
       </span>
-      <h3 class="text-xl sm:text-2xl font-bold text-white tracking-tight">
+      <h3 class="text-xl sm:text-3xl font-bebas text-white tracking-wider">
         {{ content.title || 'TRUSTED & FEATURED AT PREMIER VENUES' }}
       </h3>
-      <p v-if="content.subtitle" class="text-xs text-neutral-400 max-w-lg mx-auto pt-1">
+      <p v-if="content.subtitle" class="text-xs text-gray-400 font-nuosu max-w-lg mx-auto pt-1">
         {{ content.subtitle }}
       </p>
     </div>

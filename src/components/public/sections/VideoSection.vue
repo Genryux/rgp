@@ -30,18 +30,26 @@ const embedUrl = computed(() => {
 </script>
 
 <template>
-  <section id="highlights" class="py-24 bg-[#111111] border-b border-white/5 relative overflow-hidden">
+  <section id="highlights" class="py-24 bg-[#111111] border-b border-white/5 relative overflow-hidden font-manrope">
     <span id="portfolio" class="absolute -top-24"></span>
-    <div class="max-w-5xl mx-auto px-4 text-center">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 text-center">
+      <!-- Top Eyebrow Badge (Following "POST-PRODUCTION MASTERY" pattern) -->
+      <span
+        v-if="content.badge_text"
+        class="text-xs font-semibold uppercase tracking-widest text-[#FFD700] font-manrope mb-2 inline-block"
+      >
+        {{ content.badge_text }}
+      </span>
+
       <h2 class="text-3xl md:text-5xl font-bebas tracking-wider text-[#f8f8f8] mb-3">
         {{ content.title || 'CINEMATIC HIGHLIGHTS' }}
       </h2>
-      <p class="text-gray-400 font-nuosu text-sm md:text-base max-w-xl mx-auto mb-12">
-        {{ content.subtitle || 'Every emotion, speech, and glance preserved in 4K cinematic clarity.' }}
+      <p v-if="content.subtitle" class="text-gray-400 font-nuosu text-sm md:text-base max-w-xl mx-auto mb-12">
+        {{ content.subtitle }}
       </p>
 
-      <!-- Video Player Frame -->
-      <div class="relative rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-black aspect-video max-w-4xl mx-auto group">
+      <!-- Video Player Frame (Slightly increased size: max-w-5xl vs previous max-w-4xl) -->
+      <div class="relative rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-black aspect-video max-w-5xl mx-auto group">
         <iframe
           v-if="embedUrl"
           :src="embedUrl"
@@ -61,7 +69,8 @@ const embedUrl = computed(() => {
         </div>
       </div>
 
-      <p v-if="content.caption" class="text-xs text-gray-500 font-mono mt-4 uppercase tracking-widest">
+      <!-- Subtitle / Caption text using same font as "POST-PRODUCTION MASTERY" -->
+      <p v-if="content.caption" class="text-xs font-semibold uppercase tracking-widest text-neutral-400 font-manrope mt-5">
         {{ content.caption }}
       </p>
     </div>
