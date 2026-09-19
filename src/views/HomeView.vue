@@ -51,7 +51,7 @@ const sectionComponents = {
   contact: ContactSection,
   process: ProcessSection,
   team: TeamSection,
-  venues: VenuesMarqueeSection,
+  venues: TestimonialsSection,
   gear: GearSection,
   instagram: InstagramFeedSection,
   location_map: LocationMapSection,

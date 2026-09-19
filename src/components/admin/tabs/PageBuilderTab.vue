@@ -54,6 +54,8 @@ import {
   LayoutGrid,
   Image as ImageIcon,
   Folder as FolderIcon,
+  Building2,
+  Quote,
 } from '@lucide/vue';
 import { adminModalTokens } from '../../../lib/designTokens';
 
@@ -118,6 +120,15 @@ function selectImageForHero(imageUrl) {
   if (editingSection.value && editingSection.value.content) {
     if (mediaPickerTargetField.value === 'image_url') {
       editingSection.value.content.image_url = imageUrl;
+    } else if (mediaPickerTargetField.value === 'featured_bg_image') {
+      editingSection.value.content.featured_bg_image = imageUrl;
+    } else if (mediaPickerTargetField.value.startsWith('testimonial_card_image_')) {
+      const idx = parseInt(mediaPickerTargetField.value.replace('testimonial_card_image_', ''), 10);
+      const list = getTestimonialsList(editingSection.value.content);
+      if (list[idx]) {
+        list[idx].card_image = imageUrl;
+        list[idx].image_url = imageUrl;
+      }
     } else {
       editingSection.value.content.bg_source = 'image';
       editingSection.value.content.bg_image = imageUrl;
@@ -136,6 +147,171 @@ function selectFolderForHero(folderName) {
 function getFolderPreviewPhotos(folderName, limit = 4) {
   if (!gallery.value) return [];
   return gallery.value.filter((i) => i.category === folderName).slice(0, limit);
+}
+
+// Testimonials & Venues default state & helpers
+const defaultTestimonialsList = [
+  {
+    client_name: 'Clarisse & Ethan',
+    event: 'Church Wedding at Tagaytay Highlands',
+    location: 'Tagaytay Highlands',
+    card_image: '/images/1.jpg',
+    quote: 'RGP Films captured the warmth and genuine joy of our wedding day so flawlessly. Looking back at the photos brings tears to our eyes!',
+    rating: 5,
+  },
+  {
+    client_name: 'Jessica & Marcus',
+    event: 'Grand Debut at Palacio de Memoria',
+    location: 'Palacio de Memoria',
+    card_image: '/images/2.jpg',
+    quote: 'The team was so fun and professional to work with! The same-day edit reel brought everyone to tears at our reception.',
+    rating: 5,
+  },
+  {
+    client_name: 'Patricia & Daniel',
+    event: 'Beach Wedding at Balesin Island Club',
+    location: 'Balesin Island Club',
+    card_image: '/images/3.jpg',
+    quote: 'Their attention to detail and ability to capture candid emotion without feeling intrusive was extraordinary.',
+    rating: 5,
+  },
+  {
+    client_name: 'Sophia & Miguel',
+    event: 'Vineyard Vows at Antonio’s Tagaytay',
+    location: 'Antonio’s Tagaytay',
+    card_image: '/images/4.jpg',
+    quote: 'From pre-nup preparations to the final sparkler send-off, every single moment was preserved in unforgettable, breathtaking elegance.',
+    rating: 5,
+  },
+];
+
+const defaultVenuesList = [
+  'Tagaytay Highlands',
+  'Palacio de Memoria',
+  'The Manila Hotel',
+  'Antonio’s Garden',
+  'Balesin Island Club',
+  'Shangri-La at The Fort',
+  'Pinto Art Museum',
+  'Club Ananda Tagaytay',
+];
+
+const newVenueInput = ref('');
+
+function getTestimonialsList(content) {
+  if (!content) return [];
+  if (!content.testimonials || !Array.isArray(content.testimonials)) {
+    content.testimonials = JSON.parse(JSON.stringify(defaultTestimonialsList));
+  }
+  return content.testimonials;
+}
+
+function getVenuesList(content) {
+  if (!content) return [];
+  if (!content.venues || !Array.isArray(content.venues)) {
+    content.venues = [...defaultVenuesList];
+  }
+  return content.venues;
+}
+
+function addVenue() {
+  if (!newVenueInput.value.trim() || !editingSection.value?.content) return;
+  const list = getVenuesList(editingSection.value.content);
+  list.push(newVenueInput.value.trim());
+  newVenueInput.value = '';
+}
+
+function removeVenue(idx) {
+  if (!editingSection.value?.content) return;
+  const list = getVenuesList(editingSection.value.content);
+  list.splice(idx, 1);
+}
+
+function addTestimonial() {
+  if (!editingSection.value?.content) return;
+  const list = getTestimonialsList(editingSection.value.content);
+  if (list.length >= 10) return;
+  list.push({
+    client_name: '',
+    event: '',
+    location: '',
+    card_image: `/images/${(list.length % 6) + 1}.jpg`,
+    quote: '',
+    rating: 5,
+  });
+}
+
+function removeTestimonial(idx) {
+  if (!editingSection.value?.content) return;
+  const list = getTestimonialsList(editingSection.value.content);
+  list.splice(idx, 1);
+}
+
+// Editorial Quotes (testimonials_featured) default state & helpers
+const defaultFeaturedQuotesList = [
+  {
+    quote: 'Working with RGP Films was the single best decision we made for our wedding. The team made us feel completely natural in front of the lens, and our 4K film feels like a genuine cinematic masterpiece.',
+    client_name: 'Clarisse & Ethan Morales',
+    event: 'Tagaytay Highlands Church Wedding',
+  },
+  {
+    quote: 'The level of artistry and emotional storytelling blew us away. Watching our wedding film was like reliving the most magical day of our lives all over again.',
+    client_name: 'Jessica & Marcus Tan',
+    event: 'Palacio de Memoria Grand Reception',
+  },
+  {
+    quote: 'Unobtrusive, supremely professional, and incredibly gifted. They captured glances and tears we didn’t even realize happened. Worth every single cent.',
+    client_name: 'Patricia & Daniel Gomez',
+    event: 'Balesin Island Club Destination Wedding',
+  },
+];
+
+function getFeaturedQuotesList(content) {
+  if (!content) return [];
+  if (!content.featured_quotes || !Array.isArray(content.featured_quotes) || content.featured_quotes.length === 0) {
+    if (content.featured_quote) {
+      content.featured_quotes = [
+        {
+          quote: content.featured_quote,
+          client_name: content.featured_client || '',
+          event: content.featured_event || '',
+        },
+      ];
+    } else {
+      content.featured_quotes = JSON.parse(JSON.stringify(defaultFeaturedQuotesList));
+    }
+  }
+  return content.featured_quotes;
+}
+
+function syncFeaturedLegacy() {
+  if (!editingSection.value?.content) return;
+  const list = editingSection.value.content.featured_quotes;
+  if (list && list.length > 0) {
+    editingSection.value.content.featured_quote = list[0].quote || '';
+    editingSection.value.content.featured_client = list[0].client_name || '';
+    editingSection.value.content.featured_event = list[0].event || '';
+  }
+}
+
+function addFeaturedQuote() {
+  if (!editingSection.value?.content) return;
+  const list = getFeaturedQuotesList(editingSection.value.content);
+  if (list.length >= 10) return;
+  list.push({
+    quote: '',
+    client_name: '',
+    event: '',
+  });
+  syncFeaturedLegacy();
+}
+
+function removeFeaturedQuote(idx) {
+  if (!editingSection.value?.content) return;
+  const list = getFeaturedQuotesList(editingSection.value.content);
+  if (list.length <= 1) return;
+  list.splice(idx, 1);
+  syncFeaturedLegacy();
 }
 
 let hasOpenedModal = false;
@@ -176,7 +352,7 @@ const sectionComponents = {
   contact: ContactSection,
   process: ProcessSection,
   team: TeamSection,
-  venues: VenuesMarqueeSection,
+  venues: TestimonialsSection,
   gear: GearSection,
   instagram: InstagramFeedSection,
   location_map: LocationMapSection,
@@ -521,9 +697,9 @@ const sectionCategoryCatalog = [
         type: 'testimonials',
         variant: 'testimonials_dual',
         skeletonType: 'testimonials-dual',
-        name: 'Dual Review Cards with 5-Star Badges',
-        tag: 'Social Proof',
-        features: ['Side-by-side couple review cards', 'Gold 5-star ratings & event milestone tags', 'Client quote spotlight'],
+        name: 'Image Review Cards',
+        tag: 'Screenshot Proof',
+        features: ['Full-bleed review screenshot cards', 'Interactive carousel slider with lightbox zoom', 'Upload client review screenshots (Google, FB, IG)'],
         defaultContent: {
           title: 'WHAT OUR CLIENTS SAY',
           subtitle: 'Honest reviews from couples and clients whose milestones we captured.',
@@ -560,15 +736,26 @@ const sectionCategoryCatalog = [
       },
       {
         id: 'trust_venues',
-        type: 'venues',
-        variant: 'venues',
+        type: 'testimonials',
+        variant: 'trust_venues',
         skeletonType: 'trust-venues',
         name: 'Partnered Venues & Luxury Hotels Marquee',
         tag: 'Venue Proof',
         features: ['Continuous animated marquee ticker', 'Prestigious hotel & wedding venue names', 'Builds luxury destination credibility'],
         defaultContent: {
           title: 'TRUSTED & FEATURED AT PREMIER VENUES',
-          venues: ['Tagaytay Highlands', 'Palacio de Memoria', 'The Manila Hotel', 'Antonio’s Garden', 'Balesin Island Club', 'Shangri-La at The Fort', 'Pinto Art Museum'],
+          badge_text: 'FEATURED LOCATIONS & COLLABORATORS',
+          variant: 'trust_venues',
+          venues: [
+            'Tagaytay Highlands',
+            'Palacio de Memoria',
+            'The Manila Hotel',
+            'Antonio’s Garden',
+            'Balesin Island Club',
+            'Shangri-La at The Fort',
+            'Pinto Art Museum',
+            'Club Ananda Tagaytay',
+          ],
         },
       },
     ],
@@ -897,6 +1084,14 @@ function moveDown(index) {
 
 function openEdit(section) {
   editingSection.value = JSON.parse(JSON.stringify(section));
+  if (editingSection.value && (editingSection.value.section_type === 'venues' || (editingSection.value.section_type === 'testimonials' && editingSection.value.content?.variant === 'trust_venues'))) {
+    editingSection.value.section_type = 'testimonials';
+    if (!editingSection.value.content) editingSection.value.content = {};
+    editingSection.value.content.variant = 'trust_venues';
+    if (!editingSection.value.content.venues || !Array.isArray(editingSection.value.content.venues) || editingSection.value.content.venues.length === 0) {
+      editingSection.value.content.venues = [...defaultVenuesList];
+    }
+  }
   if (editingSection.value && editingSection.value.section_type === 'process') {
     if (!editingSection.value.content) editingSection.value.content = {};
     if (!Array.isArray(editingSection.value.content.steps) || editingSection.value.content.steps.length === 0) {
@@ -988,6 +1183,9 @@ function removeGearItem(catIndex, itemIndex) {
 
 function handleSaveEdit() {
   if (editingSection.value) {
+    if (editingSection.value.section_type === 'testimonials' && editingSection.value.content?.variant === 'testimonials_featured') {
+      syncFeaturedLegacy();
+    }
     saveSection(editingSection.value);
     editingSection.value = null;
   }
@@ -1341,6 +1539,10 @@ function handleAddDesign(design) {
           <div v-else-if="editingSection.section_type === 'text_block'">
             <h3 class="text-lg font-bold text-white tracking-wide">Edit Studio Story & Philosophy</h3>
             <p class="text-xs text-neutral-400 mt-1">Customize your editorial story, brand philosophy, and manifesto statement.</p>
+          </div>
+          <div v-else-if="editingSection.section_type === 'testimonials'">
+            <h3 class="text-lg font-bold text-white tracking-wide">Edit Testimonials & Social Proof</h3>
+            <p class="text-xs text-neutral-400 mt-1">Customize visual variant, client reviews, featured quotes, and venue trust.</p>
           </div>
           <div v-else>
             <h3 class="text-lg font-bold text-white tracking-wide">Edit {{ editingSection.label }}</h3>
@@ -2097,47 +2299,523 @@ function handleAddDesign(design) {
           </div>
 
           <!-- Testimonials Specific Fields (4 Variants) -->
-          <div v-else-if="editingSection.section_type === 'testimonials'" class="space-y-4">
+          <div v-else-if="editingSection.section_type === 'testimonials' || editingSection.section_type === 'venues'" class="space-y-8">
+            <!-- 1. Layout Variant Selection -->
             <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Testimonial Visual Variant</label>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="flex items-center justify-between mb-3.5">
+                <label :class="adminModalTokens.inputLabelUppercase">Testimonial Visual Layout</label>
+                <span class="text-[11px] text-neutral-500 font-mono">4 Variants</span>
+              </div>
+              <div :class="adminModalTokens.variantGrid">
                 <button
                   v-for="v in [
-                    { id: 'testimonials_dual', label: 'Dual Review Cards' },
-                    { id: 'testimonials_grid', label: '3-Column Review Wall' },
-                    { id: 'testimonials_featured', label: 'Full-Width Editorial Quote' },
-                    { id: 'trust_venues', label: 'Venues Marquee' }
+                    { id: 'testimonials_dual', name: 'Image Review Cards', desc: 'Full-bleed uploaded screenshots of reviews with subtle tilt, carousel slider, and lightbox' },
+                    { id: 'testimonials_grid', name: '3-Column Review Wall', desc: 'Comprehensive masonry grid displaying multiple client experiences' },
+                    { id: 'testimonials_featured', name: 'Editorial Quote', desc: 'Full-width cinematic statement quote with atmospheric backdrop' },
+                    { id: 'trust_venues', name: 'Venues Marquee', desc: 'Infinite scrolling marquee of premier partnered hotels & venues' }
                   ]"
                   :key="v.id"
                   type="button"
-                  @click="editingSection.content.variant = v.id"
-                  class="p-2.5 rounded-xl border text-xs font-bold tracking-wide transition flex items-center justify-between"
+                  @click="editingSection.content.variant = v.id; editingSection.section_type = 'testimonials'"
                   :class="[
-                    (editingSection.content.variant || 'testimonials_dual') === v.id
-                      ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
-                      : 'bg-black/40 border-white/10 text-neutral-400 hover:text-white'
+                    adminModalTokens.variantCard,
+                    (editingSection.content.variant || (editingSection.section_type === 'venues' ? 'trust_venues' : 'testimonials_dual')) === v.id
+                      ? adminModalTokens.variantCardActive
+                      : adminModalTokens.variantCardInactive
                   ]"
                 >
-                  <span>{{ v.label }}</span>
-                  <Check v-if="(editingSection.content.variant || 'testimonials_dual') === v.id" class="w-3.5 h-3.5 text-[#FFD700]" />
+                  <div class="flex items-center justify-between">
+                    <span :class="(editingSection.content.variant || (editingSection.section_type === 'venues' ? 'trust_venues' : 'testimonials_dual')) === v.id ? adminModalTokens.variantNameActive : adminModalTokens.variantNameInactive">
+                      {{ v.name }}
+                    </span>
+                    <div
+                      :class="[
+                        (editingSection.content.variant || (editingSection.section_type === 'venues' ? 'trust_venues' : 'testimonials_dual')) === v.id
+                          ? adminModalTokens.variantDotActive
+                          : adminModalTokens.variantDotInactive
+                      ]"
+                    ></div>
+                  </div>
+                  <span :class="adminModalTokens.variantDescription">{{ v.desc }}</span>
                 </button>
               </div>
             </div>
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Title</label>
-              <input
-                type="text"
-                v-model="editingSection.content.title"
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              />
+
+            <!-- 2. Section Header & Copywriting -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <label :class="adminModalTokens.cardLabel">Header & Copywriting</label>
+                <span class="text-[11px] text-neutral-500 capitalize">{{ (editingSection.content.variant || (editingSection.section_type === 'venues' ? 'trust_venues' : 'testimonials_dual')).replace('_', ' ') }}</span>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Eyebrow / Badge Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.badge_text"
+                  :placeholder="editingSection.content.variant === 'trust_venues' || editingSection.section_type === 'venues' ? 'FEATURED LOCATIONS & COLLABORATORS' : 'Real Stories'"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div v-if="(editingSection.content.variant || 'testimonials_dual') === 'testimonials_dual'" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label :class="adminModalTokens.inputLabel">Title Prefix</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.title_prefix"
+                    placeholder="e.g. Real Stories."
+                    :class="adminModalTokens.input"
+                  />
+                </div>
+                <div>
+                  <label :class="adminModalTokens.inputLabel">Title Accent (Underlined)</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.title_accent"
+                    placeholder="e.g. Real People"
+                    :class="adminModalTokens.input"
+                  />
+                </div>
+              </div>
+              <div v-else>
+                <label :class="adminModalTokens.inputLabel">Section Title</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  :placeholder="editingSection.content.variant === 'trust_venues' || editingSection.section_type === 'venues' ? 'TRUSTED & FEATURED AT PREMIER VENUES' : (editingSection.content.variant === 'testimonials_featured' ? 'Words from Our Couples' : 'CLIENT LOVE & REVIEWS')"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Section Subtitle / Description (Optional)</label>
+                <textarea
+                  v-model="editingSection.content.subtitle"
+                  rows="2"
+                  :placeholder="editingSection.content.variant === 'trust_venues' || editingSection.section_type === 'venues' ? 'Optional subtitle or venue trust description' : (editingSection.content.variant === 'testimonials_featured' ? 'Optional subtitle or brief narrative introduction' : 'Read firsthand experiences from couples and clients whose milestones we had the honor to capture.')"
+                  :class="adminModalTokens.textarea"
+                ></textarea>
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Subtitle</label>
-              <input
-                type="text"
-                v-model="editingSection.content.subtitle"
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              />
+
+            <!-- 3. Featured Editorial Quotes Carousel (Only for testimonials_featured) -->
+            <div v-if="editingSection.content.variant === 'testimonials_featured'" :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Editorial Quotes Carousel</label>
+                  <p :class="adminModalTokens.cardSubtitle">
+                    Add up to 10 cinematic quote reviews for couples to cycle through with left/right arrows.
+                  </p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span :class="adminModalTokens.cardCounterBadge">
+                    {{ getFeaturedQuotesList(editingSection.content).length }}/10 Quotes
+                  </span>
+                  <button
+                    type="button"
+                    @click="addFeaturedQuote"
+                    :disabled="getFeaturedQuotesList(editingSection.content).length >= 10"
+                    :class="[
+                      adminModalTokens.btnSecondary,
+                      getFeaturedQuotesList(editingSection.content).length >= 10 ? 'opacity-40 cursor-not-allowed' : ''
+                    ]"
+                  >
+                    <Plus class="w-3.5 h-3.5 text-[#FFD700]" />
+                    <span>Add Quote</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- List of Editorial Quotes -->
+              <div class="space-y-4">
+                <div
+                  v-for="(fq, idx) in getFeaturedQuotesList(editingSection.content)"
+                  :key="idx"
+                  class="p-4 rounded-xl bg-white/[0.02] border border-white/[0.08] hover:border-white/20 transition space-y-3 relative group"
+                >
+                  <div class="flex items-center justify-between pb-2 border-b border-white/[0.04]">
+                    <div class="flex items-center gap-2">
+                      <span class="px-2 py-0.5 rounded-md bg-[#FFD700]/10 text-[#FFD700] text-[10px] font-mono font-bold">
+                        Quote #{{ idx + 1 }}
+                      </span>
+                      <span v-if="idx === 0" class="text-[10px] text-neutral-500 font-mono">
+                        (Initial Quote)
+                      </span>
+                    </div>
+                    <button
+                      v-if="getFeaturedQuotesList(editingSection.content).length > 1"
+                      type="button"
+                      @click="removeFeaturedQuote(idx)"
+                      class="p-1 text-neutral-500 hover:text-red-400 transition cursor-pointer"
+                      title="Remove Quote"
+                    >
+                      <Trash2 class="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div>
+                    <label :class="adminModalTokens.inputLabel">Cinematic Quote Statement</label>
+                    <textarea
+                      v-model="fq.quote"
+                      @input="syncFeaturedLegacy"
+                      rows="3"
+                      placeholder="Working with RGP Films was the single best decision we made for our wedding. The team made us feel completely natural in front of the lens..."
+                      :class="adminModalTokens.textarea"
+                    ></textarea>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label :class="adminModalTokens.inputLabel">Client Name(s)</label>
+                      <input
+                        type="text"
+                        v-model="fq.client_name"
+                        @input="syncFeaturedLegacy"
+                        placeholder="e.g. Clarisse & Ethan Morales"
+                        :class="adminModalTokens.input"
+                      />
+                    </div>
+                    <div>
+                      <label :class="adminModalTokens.inputLabel">Event / Venue Detail</label>
+                      <input
+                        type="text"
+                        v-model="fq.event"
+                        @input="syncFeaturedLegacy"
+                        placeholder="e.g. Tagaytay Highlands Church Wedding"
+                        :class="adminModalTokens.input"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Optional Backdrop Photo -->
+              <div class="pt-3 border-t border-white/[0.06] space-y-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <label :class="adminModalTokens.inputLabel">Backdrop Atmospheric Image</label>
+                    <p class="text-[10px] text-neutral-500">Dark ambient cinematic background image with subtle opacity</p>
+                  </div>
+                  <button
+                    type="button"
+                    @click="openMediaPicker('featured_bg_image')"
+                    :class="adminModalTokens.btnSecondary"
+                  >
+                    <ImageIcon class="w-3.5 h-3.5 text-neutral-400" />
+                    <span>Choose Photo</span>
+                  </button>
+                </div>
+                <div v-if="editingSection.content.featured_bg_image" class="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] border border-white/10">
+                  <img :src="editingSection.content.featured_bg_image" class="w-16 h-12 object-cover rounded-lg border border-white/10" />
+                  <div class="flex-1 min-w-0">
+                    <p class="text-xs text-white truncate font-medium">{{ editingSection.content.featured_bg_image }}</p>
+                    <p class="text-[10px] text-neutral-500">Overlay backdrop with 15% opacity and gradient vignette</p>
+                  </div>
+                  <button
+                    type="button"
+                    @click="editingSection.content.featured_bg_image = ''"
+                    class="p-2 text-neutral-500 hover:text-red-400 transition cursor-pointer"
+                    title="Remove Backdrop"
+                  >
+                    <Trash2 class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Partnered Venues Manager (Only for trust_venues) -->
+            <div v-else-if="editingSection.content.variant === 'trust_venues' || editingSection.section_type === 'venues'" :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Partnered Venues & Hotels</label>
+                  <p :class="adminModalTokens.cardSubtitle">Add or remove venues appearing in the continuous marquee</p>
+                </div>
+                <span :class="adminModalTokens.cardCounterBadge">
+                  {{ getVenuesList(editingSection.content).length }} Venues
+                </span>
+              </div>
+
+              <!-- Add New Venue Input -->
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  v-model="newVenueInput"
+                  @keyup.enter="addVenue"
+                  placeholder="Add venue or hotel name..."
+                  :class="adminModalTokens.input"
+                />
+                <button
+                  type="button"
+                  @click="addVenue"
+                  :class="adminModalTokens.btnSecondary"
+                >
+                  <Plus class="w-4 h-4" />
+                  <span>Add</span>
+                </button>
+              </div>
+
+              <!-- Venues Chips / Tag Cloud -->
+              <div class="flex flex-wrap gap-2 pt-1">
+                <div
+                  v-for="(venue, vIdx) in getVenuesList(editingSection.content)"
+                  :key="vIdx"
+                  class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 text-xs text-neutral-200 group"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700] shrink-0"></span>
+                  <span>{{ venue }}</span>
+                  <button
+                    type="button"
+                    @click="removeVenue(vIdx)"
+                    class="text-neutral-500 hover:text-red-400 transition ml-0.5 cursor-pointer"
+                  >
+                    <X class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 5. Testimonials Reviews List Manager (For dual cards & 3-col grid) -->
+            <div v-else :class="adminModalTokens.cardSpacious">
+              <!-- Header for Screenshot Cards (Dual Review Cards) -->
+              <div v-if="(editingSection.content.variant || 'testimonials_dual') === 'testimonials_dual'" :class="adminModalTokens.cardHeader">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <label :class="adminModalTokens.cardLabel">Image Review Cards</label>
+                    <span :class="adminModalTokens.cardCounterBadge">
+                      {{ getTestimonialsList(editingSection.content).length }}/10 Cards
+                    </span>
+                  </div>
+                  <p :class="adminModalTokens.cardSubtitle">
+                    Upload or select screenshots of client reviews (Google, Facebook, Instagram DMs, etc.). Maximum 10 cards.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  @click="addTestimonial"
+                  :disabled="getTestimonialsList(editingSection.content).length >= 10"
+                  :class="[
+                    adminModalTokens.btnSecondary,
+                    getTestimonialsList(editingSection.content).length >= 10 ? 'opacity-40 cursor-not-allowed hover:bg-white/[0.04]' : ''
+                  ]"
+                  :title="getTestimonialsList(editingSection.content).length >= 10 ? 'Maximum 10 cards limit reached' : 'Add Screenshot Card'"
+                >
+                  <Plus class="w-3.5 h-3.5" />
+                  <span>Add Screenshot Card</span>
+                </button>
+              </div>
+
+              <!-- Header for Standard Text Reviews (Grid Wall) -->
+              <div v-else :class="adminModalTokens.cardHeader">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <label :class="adminModalTokens.cardLabel">Client Reviews & Stories</label>
+                    <span :class="adminModalTokens.cardCounterBadge">
+                      {{ getTestimonialsList(editingSection.content).length }}/10 Cards
+                    </span>
+                  </div>
+                  <p :class="adminModalTokens.cardSubtitle">
+                    All reviews are displayed across the 3-column review wall. Maximum 10 reviews.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  @click="addTestimonial"
+                  :disabled="getTestimonialsList(editingSection.content).length >= 10"
+                  :class="[
+                    adminModalTokens.btnSecondary,
+                    getTestimonialsList(editingSection.content).length >= 10 ? 'opacity-40 cursor-not-allowed hover:bg-white/[0.04]' : ''
+                  ]"
+                  :title="getTestimonialsList(editingSection.content).length >= 10 ? 'Maximum 10 reviews limit reached' : 'Add Review'"
+                >
+                  <Plus class="w-3.5 h-3.5" />
+                  <span>Add Review</span>
+                </button>
+              </div>
+
+              <!-- DUAL REVIEW CARDS: FULL IMAGE SCREENSHOT CARDS LIST -->
+              <div v-if="(editingSection.content.variant || 'testimonials_dual') === 'testimonials_dual'" class="space-y-4">
+                <div
+                  v-for="(t, idx) in getTestimonialsList(editingSection.content)"
+                  :key="idx"
+                  class="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.08] space-y-3.5"
+                >
+                  <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                    <div class="flex items-center gap-2">
+                      <span class="w-5 h-5 rounded-full bg-[#FFD700]/15 text-[#FFD700] text-[10px] font-mono flex items-center justify-center font-bold">
+                        {{ idx + 1 }}
+                      </span>
+                      <span class="text-xs font-bold text-white">
+                        {{ t.client_name || `Review Screenshot #${idx + 1}` }}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      @click="removeTestimonial(idx)"
+                      class="p-1.5 text-neutral-500 hover:text-red-400 transition rounded-lg hover:bg-white/[0.04] cursor-pointer"
+                      title="Delete Screenshot Card"
+                    >
+                      <Trash2 class="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <!-- Screenshot Media Selector Area -->
+                  <div class="flex flex-col sm:flex-row gap-4 items-start">
+                    <!-- Screenshot Preview Box -->
+                    <div class="w-full sm:w-36 h-48 rounded-xl overflow-hidden bg-neutral-950 border border-white/10 shrink-0 shadow-inner flex items-center justify-center relative group">
+                      <img
+                        :src="t.card_image || t.image_url || `/images/${(idx % 6) + 1}.jpg`"
+                        :alt="t.client_name || `Screenshot ${idx + 1}`"
+                        class="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                        @error="(e) => e.target.src = `/images/${(idx % 6) + 1}.jpg`"
+                      />
+                      <span class="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded bg-black/70 backdrop-blur-sm text-[9px] font-mono text-neutral-300">
+                        Full Bleed
+                      </span>
+                    </div>
+
+                    <!-- Fields & Actions -->
+                    <div class="flex-1 min-w-0 w-full space-y-3">
+                      <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                          <label :class="adminModalTokens.inputLabel" class="!mb-0 flex items-center gap-1.5 font-semibold text-white">
+                            <ImageIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                            <span>Review Screenshot Image</span>
+                          </label>
+                          <button
+                            type="button"
+                            @click="openMediaPicker(`testimonial_card_image_${idx}`)"
+                            :class="adminModalTokens.btnSecondary"
+                            class="!py-1.5 !px-3 text-xs"
+                          >
+                            <ImageIcon class="w-3.5 h-3.5 text-[#FFD700]" />
+                            <span>Choose Photo</span>
+                          </button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                          <input
+                            type="text"
+                            v-model="t.card_image"
+                            :placeholder="`/images/${(idx % 6) + 1}.jpg or paste image URL...`"
+                            :class="adminModalTokens.input"
+                            class="!py-1.5 text-xs font-mono"
+                          />
+                          <button
+                            v-if="t.card_image"
+                            type="button"
+                            @click="t.card_image = ''"
+                            class="p-2 text-neutral-500 hover:text-red-400 transition shrink-0"
+                            title="Reset Image"
+                          >
+                            <Trash2 class="w-4 h-4" />
+                          </button>
+                        </div>
+                        <p class="text-[10px] text-neutral-500 mt-1">
+                          Images automatically fill the entire card edge-to-edge with unified sizing (cropped/zoomed).
+                        </p>
+                      </div>
+
+                      <!-- Optional Label/Caption -->
+                      <div>
+                        <label :class="adminModalTokens.inputLabel">Client / Review Source Note (Optional)</label>
+                        <input
+                          type="text"
+                          v-model="t.client_name"
+                          placeholder="e.g. Google Review - Clarisse & Ethan, Facebook Recommendation"
+                          :class="adminModalTokens.input"
+                          class="!py-1.5 text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- GRID WALL: STANDARD TEXT REVIEWS LIST -->
+              <div v-else class="space-y-3">
+                <div
+                  v-for="(t, idx) in getTestimonialsList(editingSection.content)"
+                  :key="idx"
+                  class="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.08] space-y-3"
+                >
+                  <div class="flex items-center justify-between pb-2 border-b border-white/[0.04]">
+                    <div class="flex items-center gap-2">
+                      <span class="w-5 h-5 rounded-full bg-white/[0.08] text-white text-[10px] font-mono flex items-center justify-center font-bold">
+                        {{ idx + 1 }}
+                      </span>
+                      <span class="text-xs font-semibold text-white">{{ t.client_name || 'Anonymous Couple' }}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <!-- Star rating selector -->
+                      <div class="flex items-center gap-0.5 mr-2">
+                        <button
+                          v-for="star in 5"
+                          :key="star"
+                          type="button"
+                          @click="t.rating = star"
+                          class="p-0.5 text-neutral-600 hover:text-[#FFD700] transition cursor-pointer"
+                        >
+                          <Star
+                            class="w-3.5 h-3.5"
+                            :class="[star <= (t.rating || 5) ? 'text-[#FFD700] fill-[#FFD700]' : 'text-neutral-600']"
+                          />
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        @click="removeTestimonial(idx)"
+                        class="p-1.5 text-neutral-500 hover:text-red-400 transition rounded-lg hover:bg-white/[0.04] cursor-pointer"
+                        title="Delete Review"
+                      >
+                        <Trash2 class="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label :class="adminModalTokens.inputLabel">Client Name(s)</label>
+                      <input
+                        type="text"
+                        v-model="t.client_name"
+                        placeholder="e.g. Clarisse & Ethan"
+                        :class="adminModalTokens.input"
+                      />
+                    </div>
+                    <div>
+                      <label :class="adminModalTokens.inputLabel">Event / Milestone</label>
+                      <input
+                        type="text"
+                        v-model="t.event"
+                        placeholder="e.g. Church Wedding Coverage"
+                        :class="adminModalTokens.input"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label :class="adminModalTokens.inputLabel">Location / Venue</label>
+                    <input
+                      type="text"
+                      v-model="t.location"
+                      placeholder="e.g. Tagaytay Highlands"
+                      :class="adminModalTokens.input"
+                    />
+                  </div>
+
+
+
+                  <div>
+                    <label :class="adminModalTokens.inputLabel">Client Review Quote</label>
+                    <textarea
+                      v-model="t.quote"
+                      rows="2"
+                      placeholder="Write the quote from the couple..."
+                      :class="adminModalTokens.textarea"
+                    ></textarea>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 

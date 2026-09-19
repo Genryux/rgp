@@ -79,13 +79,40 @@ const DEFAULT_FOLDERS = [
 const storedFolders = localStorage.getItem('rgp_media_folders');
 const folders = ref(storedFolders ? JSON.parse(storedFolders) : DEFAULT_FOLDERS);
 
-const gallery = ref(DEFAULT_GALLERY);
+const GALLERY_STORAGE_KEY = 'rgp_gallery';
+
+function getInitialGallery() {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(GALLERY_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error('[Gallery] Error loading from localStorage:', e);
+    }
+  }
+  return DEFAULT_GALLERY;
+}
+
+const gallery = ref(getInitialGallery());
 const loading = ref(false);
 
 const MAX_QUOTA_BYTES = 1000 * 1024 * 1024; // 1 GB in bytes (1,048,576,000 bytes)
 
 function persistFolders() {
   localStorage.setItem('rgp_media_folders', JSON.stringify(folders.value));
+}
+
+function persistGallery() {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify(gallery.value));
+    } catch (e) {
+      console.error('[Gallery] Error saving to localStorage:', e);
+    }
+  }
 }
 
 /**
@@ -204,7 +231,7 @@ export function useGallery() {
         .order('sort_order', { ascending: true });
 
       if (error) throw error;
-      if (data && data.length > 0) {
+      if (data) {
         gallery.value = data;
         // Merge any categories from items into folders
         data.forEach((item) => {
@@ -213,6 +240,7 @@ export function useGallery() {
           }
         });
         persistFolders();
+        persistGallery();
       }
     } catch (err) {
       console.error('[Gallery] Error fetching gallery:', err);
@@ -416,6 +444,7 @@ export function useGallery() {
       if (dbError) throw dbError;
       if (data) {
         gallery.value.unshift(data);
+        persistGallery();
         return { data, error: null };
       }
     } catch (err) {
@@ -425,14 +454,29 @@ export function useGallery() {
   }
 
   async function deleteMedia(id) {
-    gallery.value = gallery.value.filter((item) => item.id !== id);
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase.from('gallery').delete().eq('id', id);
+        const { data, error } = await supabase.from('gallery').delete().eq('id', id).select();
+        if (error) {
+          console.error('[Gallery] Delete failed in Supabase:', error);
+          alert('Delete failed: ' + (error.message || 'Access denied'));
+          return false;
+        }
+        if (!data || data.length === 0) {
+          console.warn('[Gallery] 0 rows deleted in Supabase. Check if you are signed in with an active admin session.');
+          alert('Delete blocked by Supabase security: Please sign in at /admin/login with your admin account.');
+          return false;
+        }
       } catch (err) {
         console.error('[Gallery] Delete failed:', err);
+        alert('Delete failed: ' + err.message);
+        return false;
       }
     }
+
+    gallery.value = gallery.value.filter((item) => item.id !== id);
+    persistGallery();
+    return true;
   }
 
   async function toggleFeatured(id) {

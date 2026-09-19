@@ -89,34 +89,21 @@ html {
   display: none;
 }
 
-/* Auto-scroll animation - Mobile */
+/* Auto-scroll animation for infinite marquees */
 @keyframes scroll {
   from {
     transform: translateX(0);
   }
-
   to {
-    transform: translateX(calc(-280px * 6 - 1rem * 6));
-  }
-}
-
-/* Auto-scroll animation - Desktop */
-@media (min-width: 768px) {
-  @keyframes scroll {
-    from {
-      transform: translateX(0);
-    }
-
-    to {
-      transform: translateX(calc(-350px * 6 - 1rem * 6));
-    }
+    transform: translateX(-50%);
   }
 }
 
 .animate-scroll {
-  animation: scroll 25s linear infinite;
+  animation: scroll 30s linear infinite;
   display: flex;
-  gap: 1rem;
+  width: max-content;
+  will-change: transform;
 }
 
 .animate-scroll:hover {

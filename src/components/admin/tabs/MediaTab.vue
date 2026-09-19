@@ -253,7 +253,10 @@ async function handleFiles(files) {
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     uploadProgress.value = `Optimizing & uploading ${i + 1} of ${files.length}: ${file.name}...`;
-    await uploadMediaFile(file, targetCategory);
+    const res = await uploadMediaFile(file, targetCategory);
+    if (res?.error) {
+      alert(`Upload failed for ${file.name}: ${res.error.message || 'Please sign in at /admin/login'}`);
+    }
   }
 
   uploading.value = false;

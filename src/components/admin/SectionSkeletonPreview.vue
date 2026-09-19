@@ -204,38 +204,88 @@ defineProps({
     <!-- ========================================== -->
     <!-- 4. TESTIMONIALS COMPONENT (4 Blocks) -->
     <!-- ========================================== -->
-    <!-- Testimonials 1: Dual Review Cards -->
-    <div v-else-if="type === 'testimonials-dual' || type === 'testimonials'" class="w-full h-full flex flex-col justify-between py-1 px-2">
-      <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
-      <div class="grid grid-cols-2 gap-2 w-full">
-        <div v-for="i in 2" :key="i" class="p-2 rounded-xl bg-white/5 border border-white/10 space-y-1">
-          <div class="w-12 h-1 rounded bg-[#FFD700]"></div>
-          <div class="w-full h-1 rounded bg-white/20"></div>
-          <div class="w-4/5 h-1 rounded bg-white/20"></div>
-          <div class="w-10 h-1 rounded bg-white/40 pt-1"></div>
+    <!-- Testimonials 1: Image Review Cards (Full-bleed screenshots with subtle tilt) -->
+    <div v-else-if="type === 'testimonials-dual' || type === 'testimonials'" class="w-full h-full flex flex-col justify-between py-1.5 px-2">
+      <div class="flex items-center justify-between w-full">
+        <div class="space-y-0.5">
+          <div class="w-8 h-1 rounded-full bg-[#FFD700]"></div>
+          <div class="w-16 h-1.5 rounded-full bg-white/30"></div>
         </div>
+        <div class="flex items-center gap-1">
+          <div class="w-3.5 h-3.5 rounded-full bg-white/10 border border-white/20"></div>
+          <div class="w-3.5 h-3.5 rounded-full bg-[#FFD700]"></div>
+        </div>
+      </div>
+      <div class="grid grid-cols-4 gap-1.5 w-full">
+        <div
+          v-for="i in 4"
+          :key="i"
+          class="rounded-lg bg-neutral-900 border overflow-hidden flex flex-col items-center justify-center p-1"
+          :class="[
+            i === 1 ? '-rotate-[2deg] border-rose-500/40' :
+            i === 2 ? 'rotate-[1deg] border-sky-500/40' :
+            i === 3 ? '-rotate-[1deg] border-[#FFD700]/40' :
+            'rotate-[2deg] border-emerald-500/40'
+          ]"
+        >
+          <div class="w-full h-11 rounded bg-white/10 border border-white/10 flex flex-col items-center justify-center gap-1 p-1">
+            <div class="w-4 h-4 rounded bg-white/20"></div>
+            <div class="w-full h-0.5 rounded bg-white/20"></div>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center justify-center gap-1">
+        <div class="w-3 h-0.5 rounded-full bg-[#FFD700]"></div>
+        <div class="w-1 h-0.5 rounded-full bg-white/20"></div>
+        <div class="w-1 h-0.5 rounded-full bg-white/20"></div>
       </div>
     </div>
 
     <!-- Testimonials 2: 3-Column Review Wall -->
     <div v-else-if="type === 'testimonials-grid'" class="w-full h-full flex flex-col justify-between py-1 px-2">
       <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
-      <div class="grid grid-cols-3 gap-1.5 w-full">
-        <div v-for="i in 3" :key="i" class="p-1.5 rounded-lg bg-white/5 border border-white/10 space-y-1 h-20">
+      <div class="grid grid-cols-3 gap-1.5 w-full items-start">
+        <div
+          v-for="i in 3"
+          :key="i"
+          class="p-1.5 rounded-lg bg-white/5 border border-white/10 space-y-1"
+          :class="[i === 1 ? 'h-14' : i === 2 ? 'h-22' : 'h-17']"
+        >
           <div class="w-8 h-1 rounded bg-[#FFD700]"></div>
           <div class="w-full h-0.5 rounded bg-white/20"></div>
-          <div class="w-3/4 h-0.5 rounded bg-white/20"></div>
+          <div v-if="i !== 1" class="w-3/4 h-0.5 rounded bg-white/20"></div>
           <div class="w-8 h-0.5 rounded bg-white/40"></div>
         </div>
       </div>
     </div>
 
-    <!-- Testimonials 3: Full-Width Editorial Quote -->
-    <div v-else-if="type === 'testimonials-featured' || type === 'testimonials-spotlight'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-4 text-center">
-      <div class="w-8 h-1 rounded-full bg-[#FFD700]"></div>
-      <div class="w-4/5 h-2 rounded-full bg-white/30"></div>
-      <div class="w-3/5 h-2 rounded-full bg-white/30"></div>
-      <div class="w-16 h-1 rounded-full bg-[#FFD700] mt-1"></div>
+    <!-- Testimonials 3: Full-Width Editorial Quote with Title and Arrow Navigation -->
+    <div v-else-if="type === 'testimonials-featured' || type === 'testimonials-spotlight'" class="w-full h-full flex flex-col justify-between py-2 px-3 text-center">
+      <!-- Header Title Skeleton Above -->
+      <div class="flex flex-col items-center gap-1">
+        <div class="w-10 h-1 rounded-full bg-[#FFD700]/70"></div>
+        <div class="w-24 h-1.5 rounded-full bg-white/40"></div>
+      </div>
+      <!-- Quote Block with Left/Right Arrows -->
+      <div class="flex items-center justify-between gap-1.5 w-full px-1">
+        <div class="w-4 h-4 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+          <div class="w-1 h-1 rounded-full bg-white/40"></div>
+        </div>
+        <div class="flex-1 flex flex-col items-center gap-1">
+          <div class="w-3/4 h-1.5 rounded-full bg-white/30"></div>
+          <div class="w-1/2 h-1.5 rounded-full bg-white/20"></div>
+          <div class="w-12 h-1 rounded-full bg-[#FFD700] mt-0.5"></div>
+        </div>
+        <div class="w-4 h-4 rounded-full bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+          <div class="w-1 h-1 rounded-full bg-white/40"></div>
+        </div>
+      </div>
+      <!-- Pagination Dots -->
+      <div class="flex justify-center gap-1">
+        <div class="w-3 h-0.5 rounded-full bg-[#FFD700]"></div>
+        <div class="w-1 h-0.5 rounded-full bg-white/20"></div>
+        <div class="w-1 h-0.5 rounded-full bg-white/20"></div>
+      </div>
     </div>
 
     <!-- Testimonials 4: Partner Venues Marquee -->
