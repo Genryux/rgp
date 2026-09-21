@@ -13,22 +13,51 @@ export function useAuth() {
   async function initAuth() {
     if (!isSupabaseConfigured || !supabase) {
       loading.value = false;
-      return;
+      return null;
     }
 
     try {
-      const { data } = await supabase.auth.getSession();
-      session.value = data.session;
-      user.value = data.session?.user || null;
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      session.value = currentSession;
+      user.value = currentSession?.user || null;
+
+      if (currentSession) {
+        const { data: { user: verifiedUser } } = await supabase.auth.getUser();
+        if (verifiedUser) {
+          user.value = verifiedUser;
+        }
+      }
 
       supabase.auth.onAuthStateChange((_event, newSession) => {
         session.value = newSession;
         user.value = newSession?.user || null;
       });
+      return user.value;
     } catch (err) {
       console.error('[Auth] Error fetching session:', err);
+      session.value = null;
+      user.value = null;
+      return null;
     } finally {
       loading.value = false;
+    }
+  }
+
+  async function checkAuth() {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const { data: { user: verifiedUser }, error } = await supabase.auth.getUser();
+      if (error || !verifiedUser) {
+        user.value = null;
+        session.value = null;
+        return null;
+      }
+      user.value = verifiedUser;
+      return verifiedUser;
+    } catch (err) {
+      user.value = null;
+      session.value = null;
+      return null;
     }
   }
 
@@ -68,6 +97,7 @@ export function useAuth() {
     session,
     loading,
     initAuth,
+    checkAuth,
     login,
     logout,
     isAuthenticated: () => Boolean(user.value),

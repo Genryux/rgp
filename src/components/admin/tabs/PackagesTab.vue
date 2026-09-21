@@ -70,9 +70,9 @@ function cancelDeleteInclusion() {
   inclusionToDelete.value = null;
 }
 
-function confirmDeleteInclusion() {
+async function confirmDeleteInclusion() {
   if (!inclusionToDelete.value) return;
-  removeMasterInclusion(inclusionToDelete.value);
+  await removeMasterInclusion(inclusionToDelete.value);
   inclusionToDelete.value = null;
 }
 
@@ -264,10 +264,10 @@ const filteredMasterInclusions = computed(() => {
   return list;
 });
 
-function handleAddInlineInclusion() {
+async function handleAddInlineInclusion() {
   const trimmed = inlineNewInclusion.value.trim();
   if (!trimmed) return;
-  const added = addMasterInclusion(trimmed);
+  const added = await addMasterInclusion(trimmed);
   if (added && editingPackage.value) {
     if (!isFeatureSelected(added)) {
       editingPackage.value.features.push(added);
@@ -283,10 +283,10 @@ const filteredManagerMasterList = computed(() => {
   return masterInclusions.value.filter((i) => i.toLowerCase().includes(q));
 });
 
-function handleAddMasterInclusion() {
+async function handleAddMasterInclusion() {
   const trimmed = newMasterInclusionInput.value.trim();
   if (!trimmed) return;
-  addMasterInclusion(trimmed);
+  await addMasterInclusion(trimmed);
   newMasterInclusionInput.value = '';
 }
 
@@ -294,9 +294,9 @@ function startEditMasterItem(item) {
   editingMasterItem.value = { oldVal: item, newVal: item };
 }
 
-function saveEditMasterItem() {
+async function saveEditMasterItem() {
   if (editingMasterItem.value.oldVal && editingMasterItem.value.newVal.trim()) {
-    updateMasterInclusion(editingMasterItem.value.oldVal, editingMasterItem.value.newVal.trim());
+    await updateMasterInclusion(editingMasterItem.value.oldVal, editingMasterItem.value.newVal.trim());
   }
   editingMasterItem.value = { oldVal: '', newVal: '' };
 }
@@ -310,7 +310,11 @@ async function handleSave() {
   if (editingPackage.value.hide_price) {
     editingPackage.value.promo_price = null;
   }
-  await savePackage(editingPackage.value);
+  const res = await savePackage(editingPackage.value);
+  if (res?.error) {
+    alert('Error saving package to Supabase: ' + (res.error.message || 'Please check your admin session.'));
+    return;
+  }
   editingPackage.value = null;
 }
 </script>

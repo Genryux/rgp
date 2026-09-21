@@ -82,19 +82,37 @@ export function useSettings() {
   }
 
   async function updateSettings(newSettings) {
-    settings.value = { ...settings.value, ...newSettings };
+    const merged = { ...settings.value, ...newSettings };
+    settings.value = merged;
     persistSettings();
 
     if (isSupabaseConfigured && supabase) {
       try {
+        const payload = {
+          id: 'global',
+          studio_name: merged.studio_name || '',
+          tagline: merged.tagline || '',
+          contact_email: merged.contact_email || '',
+          contact_phone: merged.contact_phone || '',
+          address: merged.address || '',
+          facebook_url: merged.facebook_url || null,
+          instagram_url: merged.instagram_url || null,
+          youtube_url: merged.youtube_url || null,
+          tiktok_url: merged.tiktok_url || null,
+          theme_accent_color: merged.theme_accent_color || '#FFD700',
+          meta_title: merged.meta_title || '',
+          meta_description: merged.meta_description || '',
+          updated_at: new Date().toISOString(),
+        };
+
         const { error } = await supabase
           .from('site_settings')
-          .upsert({ ...settings.value, id: 'global', updated_at: new Date().toISOString() });
+          .upsert(payload);
 
         if (error) throw error;
         return { success: true, error: null };
       } catch (err) {
-        console.error('[Settings] Error updating settings:', err);
+        console.error('[Settings] Error updating settings in Supabase:', err);
         return { success: false, error: err };
       }
     }

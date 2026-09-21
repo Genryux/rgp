@@ -43,7 +43,7 @@ const router = createRouter({
   },
 });
 
-// Navigation Guard for Admin Routes
+// Navigation Guard / Supabase Auth & Authorization Middleware
 router.beforeEach(async (to, from, next) => {
   // Update document title
   if (to.meta.title) {
@@ -52,20 +52,32 @@ router.beforeEach(async (to, from, next) => {
 
   if (to.meta.requiresAuth) {
     if (!isSupabaseConfigured || !supabase) {
-      // Allow local development preview if Supabase is not yet connected
-      return next();
+      console.warn('[Auth Middleware] Supabase is not configured. Redirecting to login.');
+      return next({ name: 'AdminLogin', query: { redirect: to.fullPath } });
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) {
+        console.warn('[Auth Middleware] Unauthenticated access attempt. Redirecting to login:', error?.message);
+        return next({ name: 'AdminLogin', query: { redirect: to.fullPath } });
+      }
+      // User is verified and authenticated by Supabase
+      return next();
+    } catch (err) {
+      console.error('[Auth Middleware] Exception during auth check:', err);
       return next({ name: 'AdminLogin', query: { redirect: to.fullPath } });
     }
   }
 
   if (to.name === 'AdminLogin' && isSupabaseConfigured && supabase) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      return next({ name: 'AdminDashboard' });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        return next({ name: 'AdminDashboard' });
+      }
+    } catch {
+      // Continue to login page if check fails
     }
   }
 

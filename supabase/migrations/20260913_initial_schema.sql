@@ -3,6 +3,18 @@
 -- Supports all 36 Page Builder Blocks across 9 Categories + CMS Modules
 -- ==============================================================================
 
+-- 0. PAGES TABLE (Dynamic Multi-Page CMS Routing)
+CREATE TABLE IF NOT EXISTS public.pages (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    title VARCHAR(150) NOT NULL,
+    slug VARCHAR(100) NOT NULL UNIQUE,
+    is_published BOOLEAN DEFAULT true,
+    meta_title TEXT,
+    meta_description TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- 1. SECTIONS TABLE (Dynamic Block-Based Page Builder)
 -- Supported block types: 'navbar', 'hero', 'about', 'process', 'gear', 'text_block',
 --                        'rates', 'testimonials', 'venues', 'video', 'before_after',
@@ -10,6 +22,8 @@
 --                        'location_map', 'faq', 'cta', 'team'
 CREATE TABLE IF NOT EXISTS public.sections (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    page_id TEXT REFERENCES public.pages(id) ON DELETE CASCADE,
+    page_slug VARCHAR(100) DEFAULT 'home',
     section_type VARCHAR(50) NOT NULL,
     label VARCHAR(150) NOT NULL,
     is_visible BOOLEAN DEFAULT true,
@@ -92,6 +106,17 @@ CREATE TABLE IF NOT EXISTS public.media_folders (
 -- ==============================================================================
 -- DEFAULT SEED DATA
 -- ==============================================================================
+
+-- Default Home Page
+INSERT INTO public.pages (id, title, slug, is_published, meta_title, meta_description)
+VALUES (
+    'page_home',
+    'Home',
+    'home',
+    true,
+    'RGP Films & Studio | Professional Photography & Videography Services',
+    'Professional photography and videography services. Turning moments into masterpieces.'
+) ON CONFLICT (id) DO NOTHING;
 
 -- Default Global Settings
 INSERT INTO public.site_settings (id, studio_name, tagline, contact_email, contact_phone, address, facebook_url)
@@ -258,6 +283,7 @@ ON CONFLICT (id) DO NOTHING;
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ==============================================================================
 
+ALTER TABLE public.pages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sections ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.gallery ENABLE ROW LEVEL SECURITY;
@@ -266,6 +292,10 @@ ALTER TABLE public.inquiries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 
 -- 1. PUBLIC VISITOR POLICIES (Read-only on published content, Insert on inquiries)
+CREATE POLICY "Public can view published pages" 
+    ON public.pages FOR SELECT 
+    USING (is_published = true);
+
 CREATE POLICY "Public can view visible sections" 
     ON public.sections FOR SELECT 
     USING (is_visible = true);
@@ -291,6 +321,10 @@ CREATE POLICY "Public can submit contact inquiries"
     WITH CHECK (true);
 
 -- 2. AUTHENTICATED ADMIN POLICIES (Full CRUD access for studio owner)
+CREATE POLICY "Admin full access on pages" 
+    ON public.pages FOR ALL 
+    USING (auth.role() = 'authenticated');
+
 CREATE POLICY "Admin full access on sections" 
     ON public.sections FOR ALL 
     USING (auth.role() = 'authenticated');

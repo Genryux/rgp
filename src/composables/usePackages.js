@@ -192,9 +192,11 @@ function getInitialMasterInclusions() {
   return result;
 }
 
+const CONFIG_ROW_ID = '__master_config__';
+
 const packages = ref(getInitialPackages());
 const masterInclusions = ref(getInitialMasterInclusions());
-const isGlobalPriceMasked = ref(localStorage.getItem('rgp_mask_prices') === 'true');
+const isGlobalPriceMasked = ref(typeof window !== 'undefined' ? localStorage.getItem('rgp_mask_prices') === 'true' : false);
 const loading = ref(false);
 
 function persistPackages() {
@@ -217,6 +219,40 @@ function persistMasterInclusions() {
   }
 }
 
+function persistPriceMask() {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem('rgp_mask_prices', String(isGlobalPriceMasked.value));
+    } catch (e) {
+      console.error('[Packages] Error saving price mask to localStorage:', e);
+    }
+  }
+}
+
+async function persistConfigToSupabase() {
+  persistMasterInclusions();
+  persistPriceMask();
+  if (!isSupabaseConfigured || !supabase) return;
+  try {
+    const { error } = await supabase.from('packages').upsert({
+      id: CONFIG_ROW_ID,
+      category: '__config__',
+      title: 'Global Package Settings',
+      price: 0,
+      features: masterInclusions.value,
+      hide_price: isGlobalPriceMasked.value,
+      is_active: false,
+      sort_order: 99999,
+      updated_at: new Date().toISOString(),
+    });
+    if (error) {
+      console.error('[Packages] Error persisting package config to Supabase:', error);
+    }
+  } catch (err) {
+    console.error('[Packages] Exception persisting package config to Supabase:', err);
+  }
+}
+
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
     if (e.key === PACKAGES_STORAGE_KEY && e.newValue) {
@@ -233,13 +269,17 @@ if (typeof window !== 'undefined') {
         console.error('[Packages] Error synchronizing master inclusions across tabs:', err);
       }
     }
+    if (e.key === 'rgp_mask_prices') {
+      isGlobalPriceMasked.value = e.newValue === 'true';
+    }
   });
 }
 
 export function usePackages() {
-  function toggleGlobalPriceMask() {
+  async function toggleGlobalPriceMask() {
     isGlobalPriceMasked.value = !isGlobalPriceMasked.value;
-    localStorage.setItem('rgp_mask_prices', String(isGlobalPriceMasked.value));
+    await persistConfigToSupabase();
+    return isGlobalPriceMasked.value;
   }
 
   async function fetchPackages() {
@@ -253,11 +293,23 @@ export function usePackages() {
 
       if (error) throw error;
       if (data && data.length > 0) {
-        packages.value = data;
+        // 1. Separate configuration record from user-facing packages
+        const configRow = data.find((p) => p.id === CONFIG_ROW_ID);
+        if (configRow) {
+          if (Array.isArray(configRow.features) && configRow.features.length > 0) {
+            masterInclusions.value = configRow.features;
+            persistMasterInclusions();
+          }
+          isGlobalPriceMasked.value = Boolean(configRow.hide_price);
+          persistPriceMask();
+        }
+
+        // 2. Set user-facing packages (excluding system config record)
+        packages.value = data.filter((p) => p.id !== CONFIG_ROW_ID);
         persistPackages();
       }
     } catch (err) {
-      console.error('[Packages] Error fetching packages:', err);
+      console.error('[Packages] Error fetching packages from Supabase:', err);
     } finally {
       loading.value = false;
     }
@@ -265,14 +317,27 @@ export function usePackages() {
 
   async function savePackage(pkg) {
     const isNew = !pkg.id || pkg.id.startsWith('pkg_temp_');
+    const cleanSortOrder = Math.round(Number(pkg.sort_order) || (packages.value.length + 1));
+    const cleanPrice = Number(pkg.price) || 0;
+    const cleanPromoPrice = pkg.promo_price ? Number(pkg.promo_price) : null;
+
     const targetPkg = {
-      ...pkg,
-      id: isNew ? undefined : pkg.id,
+      category: pkg.category || 'General',
+      title: pkg.title || 'Untitled Package',
+      price: cleanPrice,
+      promo_price: cleanPromoPrice,
+      badge: pkg.badge || null,
+      features: Array.isArray(pkg.features) ? pkg.features : [],
+      is_featured: Boolean(pkg.is_featured),
+      is_active: pkg.is_active !== undefined ? Boolean(pkg.is_active) : true,
+      hide_price: Boolean(pkg.hide_price),
+      sort_order: cleanSortOrder,
       updated_at: new Date().toISOString(),
     };
 
-    if (isNew) {
-      targetPkg.sort_order = packages.value.length + 1;
+    if (!isNew) {
+      targetPkg.id = pkg.id;
+    } else {
       targetPkg.created_at = new Date().toISOString();
     }
 
@@ -286,7 +351,7 @@ export function usePackages() {
 
         if (error) throw error;
         if (data) {
-          const idx = packages.value.findIndex((p) => p.id === pkg.id);
+          const idx = packages.value.findIndex((p) => p.id === pkg.id || p.id === data.id);
           if (idx !== -1) {
             packages.value[idx] = data;
           } else {
@@ -296,7 +361,7 @@ export function usePackages() {
           return { data, error: null };
         }
       } catch (err) {
-        console.error('[Packages] Error saving package:', err);
+        console.error('[Packages] Error saving package to Supabase:', err);
         return { data: null, error: err };
       }
     } else {
@@ -314,53 +379,82 @@ export function usePackages() {
   }
 
   async function deletePackage(id) {
+    const previousPackages = [...packages.value];
     packages.value = packages.value.filter((p) => p.id !== id);
     persistPackages();
+
     if (isSupabaseConfigured && supabase) {
       try {
         const { error } = await supabase.from('packages').delete().eq('id', id);
-        if (error) throw error;
+        if (error) {
+          packages.value = previousPackages;
+          persistPackages();
+          throw error;
+        }
+        return { success: true, error: null };
       } catch (err) {
-        console.error('[Packages] Error deleting package:', err);
+        console.error('[Packages] Error deleting package from Supabase:', err);
+        return { success: false, error: err };
       }
     }
+    return { success: true, error: null };
   }
 
   async function togglePackageActive(id) {
     const pkg = packages.value.find((p) => p.id === id);
-    if (!pkg) return;
+    if (!pkg) return { success: false, error: 'Package not found' };
+    const prev = pkg.is_active;
     pkg.is_active = !pkg.is_active;
+    persistPackages();
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('packages')
-          .update({ is_active: pkg.is_active })
+          .update({ is_active: pkg.is_active, updated_at: new Date().toISOString() })
           .eq('id', id);
+        if (error) {
+          pkg.is_active = prev;
+          persistPackages();
+          throw error;
+        }
+        return { success: true, error: null };
       } catch (err) {
         console.error('[Packages] Error updating active status:', err);
+        return { success: false, error: err };
       }
     }
+    return { success: true, error: null };
   }
 
   async function togglePackagePriceMask(id) {
     const pkg = packages.value.find((p) => p.id === id);
-    if (!pkg) return;
+    if (!pkg) return { success: false, error: 'Package not found' };
+    const prev = pkg.hide_price;
     pkg.hide_price = !pkg.hide_price;
+    persistPackages();
 
     if (isSupabaseConfigured && supabase) {
       try {
-        await supabase
+        const { error } = await supabase
           .from('packages')
-          .update({ hide_price: pkg.hide_price })
+          .update({ hide_price: pkg.hide_price, updated_at: new Date().toISOString() })
           .eq('id', id);
+        if (error) {
+          pkg.hide_price = prev;
+          persistPackages();
+          throw error;
+        }
+        return { success: true, error: null };
       } catch (err) {
         console.error('[Packages] Error updating hide_price status:', err);
+        return { success: false, error: err };
       }
     }
+    return { success: true, error: null };
   }
 
-  function addMasterInclusion(item) {
+  async function addMasterInclusion(item) {
     if (!item) return null;
     const trimmed = typeof item === 'string' ? item.trim() : String(item).trim();
     if (!trimmed) return null;
@@ -369,17 +463,16 @@ export function usePackages() {
     );
     if (existing) return existing;
     masterInclusions.value.push(trimmed);
-    persistMasterInclusions();
+    await persistConfigToSupabase();
     return trimmed;
   }
 
-  function removeMasterInclusion(item) {
+  async function removeMasterInclusion(item) {
     if (!item) return;
     const trimmed = typeof item === 'string' ? item.trim() : String(item).trim();
     masterInclusions.value = masterInclusions.value.filter(
       (i) => i.toLowerCase() !== trimmed.toLowerCase()
     );
-    persistMasterInclusions();
 
     // Also remove from any packages that currently include this deliverable
     packages.value.forEach((pkg) => {
@@ -389,10 +482,12 @@ export function usePackages() {
         );
       }
     });
+
     persistPackages();
+    await persistConfigToSupabase();
   }
 
-  function updateMasterInclusion(oldItem, newItem) {
+  async function updateMasterInclusion(oldItem, newItem) {
     if (!oldItem || !newItem) return;
     const oldTrimmed = typeof oldItem === 'string' ? oldItem.trim() : String(oldItem).trim();
     const newTrimmed = typeof newItem === 'string' ? newItem.trim() : String(newItem).trim();
@@ -403,7 +498,6 @@ export function usePackages() {
     );
     if (idx !== -1) {
       masterInclusions.value[idx] = newTrimmed;
-      persistMasterInclusions();
     }
 
     // Also update across all packages that use this inclusion
@@ -417,10 +511,12 @@ export function usePackages() {
         }
       }
     });
+
     persistPackages();
+    await persistConfigToSupabase();
   }
 
-  function resetMasterInclusions() {
+  async function resetMasterInclusions() {
     const set = new Set();
     const result = [];
     const addUnique = (item) => {
@@ -433,7 +529,7 @@ export function usePackages() {
     };
     DEFAULT_MASTER_INCLUSIONS.forEach(addUnique);
     masterInclusions.value = result;
-    persistMasterInclusions();
+    await persistConfigToSupabase();
   }
 
   return {

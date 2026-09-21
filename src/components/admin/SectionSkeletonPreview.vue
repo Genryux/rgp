@@ -325,7 +325,7 @@ defineProps({
     </div>
 
     <!-- Portfolio 3: Curated Featured Works Slider -->
-    <div v-else-if="type === 'portfolio-curated'" class="w-full h-full flex flex-col justify-between py-1">
+    <div v-else-if="type === 'portfolio-curated' || type === 'carousel'" class="w-full h-full flex flex-col justify-between py-1">
       <div class="flex justify-center gap-1">
         <div class="w-6 h-1.5 rounded-full bg-[#FFD700]"></div>
         <div class="w-6 h-1.5 rounded-full bg-white/10"></div>
@@ -356,7 +356,7 @@ defineProps({
     </div>
 
     <!-- ========================================== -->
-    <!-- 6. GALLERY COMPONENT (4 Blocks) -->
+    <!-- 6. GALLERY COMPONENT (2 Blocks) -->
     <!-- ========================================== -->
     <!-- Gallery 1: Masonry Photo Grid -->
     <div v-else-if="type === 'gallery-masonry' || type === 'gallery-grid' || type === 'gallery_grid'" class="w-full h-full flex flex-col justify-between py-1 px-1">
@@ -369,36 +369,7 @@ defineProps({
       </div>
     </div>
 
-    <!-- Gallery 2: Infinite 3-Card Carousel -->
-    <div v-else-if="type === 'gallery-carousel' || type === 'carousel'" class="w-full h-full flex flex-col justify-between py-1">
-      <div class="flex justify-center gap-1">
-        <div class="w-6 h-1.5 rounded-full bg-[#FFD700]"></div>
-        <div class="w-6 h-1.5 rounded-full bg-white/10"></div>
-        <div class="w-6 h-1.5 rounded-full bg-white/10"></div>
-      </div>
-      <div class="flex items-center justify-center gap-1.5 px-1">
-        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/10 opacity-40 scale-90"></div>
-        <div class="w-24 h-16 rounded-xl bg-white/10 border border-[#FFD700]/60 shadow-lg relative flex items-end p-1.5">
-          <div class="w-12 h-1.5 rounded-full bg-[#FFD700]/80"></div>
-        </div>
-        <div class="w-12 h-12 rounded-lg bg-white/5 border border-white/10 opacity-40 scale-90"></div>
-      </div>
-      <div class="flex justify-center gap-1">
-        <div class="w-3 h-1 rounded-full bg-[#FFD700]"></div>
-        <div class="w-1 h-1 rounded-full bg-white/20"></div>
-      </div>
-    </div>
-
-    <!-- Gallery 3: Instagram Social Snapshot Grid -->
-    <div v-else-if="type === 'gallery-instagram' || type === 'instagram'" class="w-full h-full flex flex-col justify-between py-1 px-1">
-      <div class="w-20 h-1.5 rounded-full bg-white/20 mx-auto"></div>
-      <div class="grid grid-cols-6 gap-1 w-full">
-        <div v-for="i in 6" :key="i" class="h-14 rounded-md bg-neutral-800 border border-white/10"></div>
-      </div>
-      <div class="w-16 h-1 rounded-full bg-[#FFD700] mx-auto"></div>
-    </div>
-
-    <!-- Gallery 4: Edge-to-Edge Mosaic Wall -->
+    <!-- Gallery 2: Edge-to-Edge Mosaic Wall -->
     <div v-else-if="type === 'gallery-mosaic'" class="w-full h-full flex flex-col justify-between py-1 px-1">
       <div class="w-16 h-1 rounded-full bg-white/20 mx-auto"></div>
       <div class="grid grid-cols-6 gap-1 w-full">

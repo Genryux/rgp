@@ -9,6 +9,7 @@ import {
   Search,
   Globe,
   Loader2,
+  AlertTriangle,
 } from '@lucide/vue';
 
 const { settings, updateSettings } = useSettings();
@@ -16,18 +17,27 @@ const { settings, updateSettings } = useSettings();
 const localSettings = ref({ ...settings.value });
 const saving = ref(false);
 const saveSuccess = ref(false);
+const saveError = ref('');
 
 async function handleSave() {
   saving.value = true;
   saveSuccess.value = false;
+  saveError.value = '';
 
-  await updateSettings(localSettings.value);
-
+  const res = await updateSettings(localSettings.value);
   saving.value = false;
-  saveSuccess.value = true;
-  setTimeout(() => {
-    saveSuccess.value = false;
-  }, 4000);
+
+  if (res?.error) {
+    saveError.value = res.error.message || 'Failed to update settings in Supabase cloud.';
+    setTimeout(() => {
+      saveError.value = '';
+    }, 5000);
+  } else {
+    saveSuccess.value = true;
+    setTimeout(() => {
+      saveSuccess.value = false;
+    }, 4000);
+  }
 }
 </script>
 
@@ -36,6 +46,15 @@ async function handleSave() {
     <div>
       <h2 class="text-2xl font-bold text-white tracking-wide">Studio Settings & Branding</h2>
       <p class="text-xs text-neutral-400 mt-0.5">Configure studio details, social accounts, and search engine metadata</p>
+    </div>
+
+    <!-- Error Toast -->
+    <div
+      v-if="saveError"
+      class="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center justify-center gap-2"
+    >
+      <AlertTriangle class="w-4 h-4 text-red-400" />
+      <span>{{ saveError }}</span>
     </div>
 
     <!-- Success Toast -->
