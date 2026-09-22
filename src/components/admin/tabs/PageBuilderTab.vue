@@ -58,6 +58,7 @@ import {
   Quote,
   Cloud,
   Loader2,
+  Info,
 } from '@lucide/vue';
 import { adminModalTokens } from '../../../lib/designTokens';
 
@@ -1018,14 +1019,14 @@ const sectionCategoryCatalog = [
   },
 
   // -----------------------------------------------------------------------
-  // 7. FOOTER COMPONENT (4 BLOCKS)
+  // 7. FOOTER COMPONENT (3 BLOCKS)
   // -----------------------------------------------------------------------
   {
     key: 'footer',
     name: 'Footer Component',
     icon: PanelBottom,
     badgeColor: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
-    description: '4-column studio hub, centered minimalist luxury, VIP newsletter lead capture, and split studio map.',
+    description: '4-column studio hub, centered minimalist luxury, and split studio map.',
     designs: [
       {
         id: 'footer_multi_column',
@@ -1038,6 +1039,8 @@ const sectionCategoryCatalog = [
         defaultContent: {
           variant: 'multi_column',
           tagline: 'Turning Moments into Masterpiece. Premium wedding cinematography, portraits, and commercial visual production.',
+          bottom_note: 'Crafted with passion for timeless cinema',
+          copyright_text: 'All rights reserved.',
         },
       },
       {
@@ -1050,20 +1053,8 @@ const sectionCategoryCatalog = [
         features: ['Centered gold brand typography', 'Inline sleek navigation links', 'Compact copyright footer'],
         defaultContent: {
           variant: 'minimal',
-          tagline: 'RGP FILMS & PHOTOGRAPHY STUDIO',
-        },
-      },
-      {
-        id: 'footer_newsletter',
-        type: 'footer',
-        variant: 'newsletter',
-        skeletonType: 'footer-newsletter',
-        name: 'VIP Newsletter & Booking CTA Footer',
-        tag: 'Lead Capture',
-        features: ['VIP email newsletter signup field', 'Seasonal booking notification hook', 'Studio contact channels & social links'],
-        defaultContent: {
-          variant: 'newsletter',
-          tagline: 'Join our private client journal for seasonal booking updates and photography tips.',
+          tagline: 'Documentary Wedding Cinema & Fine Art Stills',
+          copyright_text: 'All rights reserved.',
         },
       },
       {
@@ -1073,82 +1064,65 @@ const sectionCategoryCatalog = [
         skeletonType: 'footer-split-map',
         name: 'Split Studio Map & Hours Footer',
         tag: 'Local Studio',
-        features: ['Studio appointment hours & hotline', 'Embedded interactive location map pin', 'Destination coverage notice'],
+        features: ['Interactive Google Maps location embed', 'Studio appointment hours & direct hotline', 'Floating destination badge'],
         defaultContent: {
           variant: 'split_map',
-          tagline: 'Visit our creative studio by appointment.',
+          title: 'Visit Our Studio by Appointment',
+          subtitle: 'Consult with our directors and review luxury physical album sample sets over artisan coffee.',
+          studio_hours: 'Monday – Saturday: 9:00 AM – 7:00 PM',
+          map_query: 'Metro Manila, Philippines',
+          location_title: 'Metro Manila & Tagaytay Destination Hub',
+          location_subtitle: 'Available for worldwide destination bookings',
+          bottom_note: 'Crafted with passion for timeless cinema',
+          copyright_text: 'All rights reserved.',
         },
       },
     ],
   },
 
   // -----------------------------------------------------------------------
-  // 9. CONTACT US PAGE (4 BLOCKS)
+  // 9. CONTACT US PAGE (2 BLOCKS)
   // -----------------------------------------------------------------------
   {
     key: 'contact',
     name: 'Contact Us Page',
     icon: MessageSquare,
     badgeColor: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
-    description: 'Split booking inquiry form, physical studio location details, FAQ accordion objection buster, and full-width promo banner.',
+    description: 'Direct booking inquiry form and 2-column split booking & studio direct contact section.',
     designs: [
       {
         id: 'contact_split',
         type: 'contact',
         variant: 'split',
         skeletonType: 'contact-split',
-        name: 'Split Booking Form & Studio Details',
+        name: 'Direct Booking & Inquiry Form',
         tag: 'Lead Gen',
-        features: ['Direct inquiry lead capture form', 'Service type and event date selector', 'Studio hours & 24-hour response guarantee'],
+        features: ['Direct inquiry lead capture form', 'Service type and event date selector', 'Spam protection & 24-hour response guarantee'],
         defaultContent: {
+          badge_text: 'GET IN TOUCH',
           title: 'LET’S CREATE MAGIC TOGETHER',
           subtitle: 'Have an upcoming event or want a studio session? Send us your details below.',
+          button_text: 'SEND INQUIRY',
+          guarantee_note: 'We respect your privacy. All inquiries are answered within 24 hours.',
         },
       },
       {
         id: 'contact_location_map',
         type: 'location_map',
-        variant: 'location_map',
+        variant: 'split_booking',
         skeletonType: 'contact-location-map',
         name: 'Studio Location & Service Areas',
-        tag: 'Studio Info',
-        features: ['Physical studio address and appointment hours', 'Destination travel radius info', 'Contact numbers & email'],
+        tag: 'Split Booking',
+        features: ['Split 2-column layout: Direct Contact + Inquiry Form', 'Direct studio phone & email links', 'Highlighted Facebook Messenger direct connection', 'Real-time inquiry capture with instant feedback'],
         defaultContent: {
-          title: 'STUDIO LOCATION & SERVICE AREAS',
-          subtitle: 'Available for destination weddings across the Philippines and worldwide.',
-          hours: 'Mon – Sat: 9:00 AM – 7:00 PM (By Appointment)',
-        },
-      },
-      {
-        id: 'contact_faq',
-        type: 'faq',
-        variant: 'faq',
-        skeletonType: 'contact-faq',
-        name: 'FAQ Accordion Objection Buster',
-        tag: 'Objection Buster',
-        features: ['Interactive collapsible Q&A items', 'Answers booking deposits, turnaround times, and RAW files', 'Clean 2-column layout'],
-        defaultContent: {
-          title: 'FREQUENTLY ASKED QUESTIONS',
-          faqs: [
-            { q: 'How far in advance should we book?', a: 'We recommend booking 3 to 6 months in advance, especially for weekend wedding dates and peak wedding seasons.' },
-            { q: 'What is the turnaround time for photos?', a: 'You will receive a 48-hour sneak peek batch, with full enhanced 4K galleries delivered in 3 to 4 weeks.' },
-            { q: 'Do you travel for destination events?', a: 'Yes! We cover events throughout the Philippines and worldwide with flexible destination packages.' },
-          ],
-        },
-      },
-      {
-        id: 'contact_cta_banner',
-        type: 'cta',
-        variant: 'cta_banner',
-        skeletonType: 'contact-cta-banner',
-        name: 'Full-Width Gold Promo Banner',
-        tag: 'Urgency CTA',
-        features: ['High-impact promotional ribbon with gold styling', 'Season calendar urgency hook', 'Instant booking button'],
-        defaultContent: {
-          heading: 'READY TO TURN YOUR MOMENTS INTO A MASTERPIECE?',
-          subheading: 'Dates fill quickly for the upcoming season. Inquire now to secure your schedule.',
-          button_text: 'BOOK YOUR SESSION',
-          button_link: '#contact',
+          badge_text: 'STUDIO DIRECT CONTACT & BOOKING',
+          title: 'CONNECT WITH OUR PRODUCTION TEAM',
+          subtitle: 'Have an upcoming celebration or want a studio session? Inquire directly below.',
+          facebook_cta_text: 'Or Message Us on Facebook',
+          form_title: 'RESERVE YOUR DATE',
+          form_subtitle: 'Share your milestone details and we will verify availability within 24 hours.',
+          button_text: 'SEND BOOKING INQUIRY',
+          guarantee_note: 'We respect your privacy. All inquiries receive direct quotes & personal consultation.',
         },
       },
     ],
@@ -1769,6 +1743,14 @@ async function handleAddDesign(design) {
           <div v-else-if="editingSection.section_type === 'gallery_grid'">
             <h3 class="text-lg font-bold text-white tracking-wide">Edit Masonry Photo Collection Grid</h3>
             <p class="text-xs text-neutral-400 mt-1">Configure layout variant, curated photo collection (up to 20), and section typography.</p>
+          </div>
+          <div v-else-if="editingSection.section_type === 'contact'">
+            <h3 class="text-lg font-bold text-white tracking-wide">Edit Direct Booking &amp; Inquiry Form</h3>
+            <p class="text-xs text-neutral-400 mt-1">Customize inquiry lead capture copywriting, eyebrow badge, and response promise.</p>
+          </div>
+          <div v-else-if="editingSection.section_type === 'location_map'">
+            <h3 class="text-lg font-bold text-white tracking-wide">Edit Studio Location &amp; Split Booking Form</h3>
+            <p class="text-xs text-neutral-400 mt-1">Customize studio contact info, service areas, Facebook highlight CTA, and booking form.</p>
           </div>
           <div v-else>
             <h3 class="text-lg font-bold text-white tracking-wide">Edit {{ editingSection.label }}</h3>
@@ -3335,22 +3317,29 @@ async function handleAddDesign(design) {
             </div>
           </div>
 
-          <!-- Footer Specific Fields (4 Footer Variants) -->
-          <div v-else-if="editingSection.section_type === 'footer'" class="space-y-4">
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Footer Visual Variant</label>
-              <div class="grid grid-cols-2 gap-2">
+          <!-- Footer Specific Fields (3 Footer Variants) -->
+          <div v-else-if="editingSection.section_type === 'footer'" :class="adminModalTokens.sectionSpacing">
+            <!-- 1. Layout Style Selection -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Footer Visual Style</label>
+                  <p :class="adminModalTokens.cardSubtitle">Select the architectural layout for your site footer</p>
+                </div>
+                <span class="text-[11px] text-[#FFD700] uppercase font-mono tracking-wider font-semibold">3 Designs</span>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <button
                   v-for="v in [
                     { id: 'multi_column', label: '4-Column Studio Hub' },
-                    { id: 'minimal', label: 'Centered Minimalist Luxury' },
-                    { id: 'newsletter', label: 'VIP Newsletter Lead Capture' },
-                    { id: 'split_map', label: 'Split Studio Map & Hours' }
+                    { id: 'minimal', label: 'Centered Minimalist' },
+                    { id: 'split_map', label: 'Split Map & Hours' }
                   ]"
                   :key="v.id"
                   type="button"
                   @click="editingSection.content.variant = v.id"
-                  class="p-2.5 rounded-xl border text-xs font-bold tracking-wide transition flex items-center justify-between"
+                  class="p-3 rounded-xl border text-xs font-bold tracking-wide transition flex items-center justify-between"
                   :class="[
                     (editingSection.content.variant || 'multi_column') === v.id
                       ? 'bg-[#FFD700]/10 border-[#FFD700] text-[#FFD700]'
@@ -3362,13 +3351,143 @@ async function handleAddDesign(design) {
                 </button>
               </div>
             </div>
-            <div>
-              <label class="block text-xs font-semibold uppercase text-neutral-400 mb-1.5">Brand Tagline</label>
-              <textarea
-                v-model="editingSection.content.tagline"
-                rows="3"
-                class="w-full px-4 py-2.5 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-              ></textarea>
+
+            <!-- 2. Brand Copywriting & Bottom Bar -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Brand Messaging & Copyright</label>
+                  <p :class="adminModalTokens.cardSubtitle">Customize the studio tagline and bottom bar notes</p>
+                </div>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Studio Tagline</label>
+                <textarea
+                  v-model="editingSection.content.tagline"
+                  rows="2"
+                  placeholder="Turning Moments into Masterpiece. Premium wedding cinematography, portraits, and commercial visual production."
+                  :class="adminModalTokens.input"
+                ></textarea>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label :class="adminModalTokens.inputLabel">Copyright Notice Text</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.copyright_text"
+                    placeholder="All rights reserved."
+                    :class="adminModalTokens.input"
+                  />
+                </div>
+                <div>
+                  <label :class="adminModalTokens.inputLabel">Bottom Accent Slogan / Note</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.bottom_note"
+                    placeholder="Crafted with passion for timeless cinema"
+                    :class="adminModalTokens.input"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Split Studio Map & Hours (When split_map variant is active) -->
+            <div v-if="editingSection.content.variant === 'split_map'" :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <div>
+                  <label :class="adminModalTokens.cardLabel">Studio Appointment & Map Details</label>
+                  <p :class="adminModalTokens.cardSubtitle">Configure visit hours, direct lines, and location card text</p>
+                </div>
+                <span class="text-[11px] text-[#FFD700] uppercase font-mono tracking-wider font-semibold">Split Map</span>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Appointment Heading</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="Visit Our Studio by Appointment"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Consultation Subtext / Description</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.subtitle"
+                  placeholder="Consult with our directors and review luxury physical album sample sets over artisan coffee."
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Studio Operating Hours</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.studio_hours"
+                  placeholder="Monday – Saturday: 9:00 AM – 7:00 PM"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label :class="adminModalTokens.inputLabel">Google Map Pin Location / Search</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.map_query"
+                    placeholder="e.g. Tagaytay Highlands or Metro Manila"
+                    :class="adminModalTokens.input"
+                  />
+                  <p class="text-[10px] text-neutral-500 mt-1">Enter any city, landmark, venue, or address to embed live</p>
+                </div>
+                <div>
+                  <label :class="adminModalTokens.inputLabel">Custom Embed URL or &lt;iframe&gt; (Optional)</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.map_embed_url"
+                    placeholder="https://www.google.com/maps/embed?..."
+                    :class="adminModalTokens.input"
+                  />
+                  <p class="text-[10px] text-neutral-500 mt-1">Paste full Google Maps iframe or URL to override search</p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label :class="adminModalTokens.inputLabel">Floating Badge Heading</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.location_title"
+                    placeholder="Metro Manila & Tagaytay Destination Hub"
+                    :class="adminModalTokens.input"
+                  />
+                </div>
+                <div>
+                  <label :class="adminModalTokens.inputLabel">Floating Badge Subtext</label>
+                  <input
+                    type="text"
+                    v-model="editingSection.content.location_subtitle"
+                    placeholder="Available for worldwide destination bookings"
+                    :class="adminModalTokens.input"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. Global Settings Auto-Sync Info Notice -->
+            <div :class="adminModalTokens.noticeBox">
+              <div class="flex items-start gap-2.5">
+                <Cloud class="w-4 h-4 text-[#FFD700] shrink-0 mt-0.5" />
+                <div class="text-[11px] leading-relaxed text-neutral-300">
+                  <span class="font-bold text-white">Live Global Settings Integration:</span>
+                  Studio brand logo, social media profiles (Facebook, Instagram, YouTube), direct phone, email, and primary physical address automatically sync from your global
+                  <span class="text-[#FFD700] font-semibold">Settings tab</span>.
+                </div>
+              </div>
             </div>
           </div>
 
@@ -4607,6 +4726,171 @@ async function handleAddDesign(design) {
                   placeholder="We believe that every love story, celebration, and portrait is a piece of art waiting to be captured with authentic emotion and timeless color grading."
                   class="w-full px-4 py-3 rounded-xl bg-white/[0.03] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 transition leading-relaxed"
                 ></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contact Us: Direct Booking & Inquiry Form -->
+          <div v-else-if="editingSection.section_type === 'contact'" :class="adminModalTokens.sectionSpacing">
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <label :class="adminModalTokens.cardLabel">Header &amp; Inquiry Copywriting</label>
+                <span class="text-[11px] text-[#FFD700] font-mono uppercase tracking-wider font-semibold">Lead Capture</span>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Eyebrow Badge Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.badge_text"
+                  placeholder="GET IN TOUCH"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Section Title</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="LET’S CREATE MAGIC TOGETHER"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Subtitle / Introduction</label>
+                <textarea
+                  v-model="editingSection.content.subtitle"
+                  rows="3"
+                  placeholder="Have an upcoming event or want a studio session? Send us your details below."
+                  :class="adminModalTokens.textarea"
+                ></textarea>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Submit Button Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.button_text"
+                  placeholder="SEND INQUIRY"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Response Guarantee / Privacy Note</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.guarantee_note"
+                  placeholder="We respect your privacy. All inquiries are answered within 24 hours."
+                  :class="adminModalTokens.input"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Contact Us: Studio Location & Split Booking Form -->
+          <div v-else-if="editingSection.section_type === 'location_map'" :class="adminModalTokens.sectionSpacing">
+            <!-- 1. Left Column: Studio Information & Copywriting -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <label :class="adminModalTokens.cardLabel">Studio Information (Left Column)</label>
+                <span class="text-[11px] text-[#FFD700] font-mono uppercase tracking-wider font-semibold">Studio Info</span>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Eyebrow Badge Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.badge_text"
+                  placeholder="STUDIO HEADQUARTERS & BOOKING"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Section Title</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.title"
+                  placeholder="STUDIO LOCATION & SERVICE AREAS"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Subtitle / Introduction</label>
+                <textarea
+                  v-model="editingSection.content.subtitle"
+                  rows="3"
+                  placeholder="Available for destination weddings across the Philippines and worldwide."
+                  :class="adminModalTokens.textarea"
+                ></textarea>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Facebook Highlight CTA Button Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.facebook_cta_text"
+                  placeholder="Or Message Us on Facebook"
+                  :class="adminModalTokens.input"
+                />
+                <div class="flex items-start gap-2 mt-2 p-2.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-[11px] text-neutral-400 leading-relaxed">
+                  <Info class="w-3.5 h-3.5 text-[#FFD700] shrink-0 mt-0.5" />
+                  <span>
+                    The Facebook destination link is configured in the <strong class="text-white font-semibold">Settings</strong> tab (<span class="text-[#FFD700] font-mono">Facebook Page URL</span>) so it automatically syncs across the entire studio site.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 2. Right Column: Split Booking Form Copywriting -->
+            <div :class="adminModalTokens.cardSpacious">
+              <div :class="adminModalTokens.cardHeader">
+                <label :class="adminModalTokens.cardLabel">Booking Form (Right Column)</label>
+                <span class="text-[11px] text-[#FFD700] font-mono uppercase tracking-wider font-semibold">Inquiry Form</span>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Form Card Title</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.form_title"
+                  placeholder="RESERVE YOUR DATE"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Form Subtitle / Instructions</label>
+                <textarea
+                  v-model="editingSection.content.form_subtitle"
+                  rows="2"
+                  placeholder="Share your milestone details and we will verify availability within 24 hours."
+                  :class="adminModalTokens.textarea"
+                ></textarea>
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Submit Button Text</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.button_text"
+                  placeholder="SEND BOOKING INQUIRY"
+                  :class="adminModalTokens.input"
+                />
+              </div>
+
+              <div>
+                <label :class="adminModalTokens.inputLabel">Response Guarantee / Privacy Note</label>
+                <input
+                  type="text"
+                  v-model="editingSection.content.guarantee_note"
+                  placeholder="We respect your privacy. All inquiries receive direct quotes & personal consultation."
+                  :class="adminModalTokens.input"
+                />
               </div>
             </div>
           </div>

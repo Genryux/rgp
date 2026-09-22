@@ -379,7 +379,7 @@ defineProps({
     </div>
 
     <!-- ========================================== -->
-    <!-- 7. FOOTER COMPONENT (4 Blocks) -->
+    <!-- 7. FOOTER COMPONENT (3 Blocks) -->
     <!-- ========================================== -->
     <!-- Footer 1: Multi-Column Studio Hub -->
     <div v-else-if="type === 'footer-multi-column' || type === 'footer'" class="w-full h-full flex flex-col justify-between py-2 px-3 bg-[#0a0a0a]">
@@ -416,24 +416,7 @@ defineProps({
       <div class="w-24 h-1 rounded bg-white/10"></div>
     </div>
 
-    <!-- Footer 3: VIP Newsletter & Booking CTA -->
-    <div v-else-if="type === 'footer-newsletter'" class="w-full h-full flex flex-col justify-between py-2 px-3 bg-[#0a0a0a]">
-      <div class="flex items-center justify-between">
-        <div class="space-y-1">
-          <div class="w-20 h-2 rounded bg-[#FFD700]"></div>
-          <div class="w-28 h-1 rounded bg-white/20"></div>
-        </div>
-        <div class="w-20 h-4 rounded-md bg-white/10 border border-white/15 flex items-center px-1">
-          <div class="w-10 h-2 rounded bg-[#FFD700]"></div>
-        </div>
-      </div>
-      <div class="w-full border-t border-white/10 pt-1 flex justify-between">
-        <div class="w-14 h-1 rounded bg-white/20"></div>
-        <div class="w-10 h-1 rounded bg-white/20"></div>
-      </div>
-    </div>
-
-    <!-- Footer 4: Split Map & Studio Hours -->
+    <!-- Footer 3: Split Map & Studio Hours -->
     <div v-else-if="type === 'footer-split-map'" class="w-full h-full grid grid-cols-2 gap-2 items-center px-2 bg-[#0a0a0a]">
       <div class="space-y-1">
         <div class="w-14 h-2 rounded bg-[#FFD700]"></div>
@@ -506,52 +489,57 @@ defineProps({
     <!-- ========================================== -->
     <!-- 9. CONTACT US PAGE (4 Blocks) -->
     <!-- ========================================== -->
-    <!-- Contact 1: Split Booking Form -->
-    <div v-else-if="type === 'contact-split' || type === 'contact'" class="w-full h-full grid grid-cols-2 gap-2 items-center px-2">
-      <div class="space-y-1">
-        <div class="w-12 h-1 rounded bg-[#FFD700]"></div>
-        <div class="w-full h-2 rounded bg-white/20"></div>
-        <div class="w-3/4 h-1 rounded bg-white/10"></div>
-      </div>
-      <div class="p-1.5 rounded-lg bg-white/5 border border-white/10 space-y-1">
-        <div class="w-full h-2 rounded bg-white/10"></div>
-        <div class="w-full h-2 rounded bg-white/10"></div>
-        <div class="w-full h-2 rounded bg-[#FFD700]"></div>
-      </div>
-    </div>
-
-    <!-- Contact 2: Location Map Card -->
-    <div v-else-if="type === 'contact-location-map' || type === 'location-map' || type === 'location_map'" class="w-full h-full flex items-center justify-center gap-2 px-2">
-      <div class="w-20 h-20 rounded-lg bg-neutral-800 border border-white/10 flex items-center justify-center">
-        <div class="w-3 h-3 rounded-full bg-[#FFD700]"></div>
-      </div>
-      <div class="flex-1 space-y-1.5">
-        <div class="w-14 h-1 rounded bg-[#FFD700]"></div>
-        <div class="w-full h-1.5 rounded bg-white/30"></div>
-        <div class="w-3/4 h-1 rounded bg-white/10"></div>
-      </div>
-    </div>
-
-    <!-- Contact 3: FAQ Accordion -->
-    <div v-else-if="type === 'contact-faq' || type === 'faq'" class="w-full h-full flex flex-col justify-center items-center gap-1.5 px-3">
-      <div class="w-20 h-1.5 rounded-full bg-white/20"></div>
-      <div class="w-full space-y-1">
-        <div class="w-full h-5 rounded-lg bg-white/5 border border-white/10 flex items-center justify-between px-2">
-          <div class="w-28 h-1 rounded bg-white/30"></div>
-          <span class="text-[#FFD700] text-[8px]">+</span>
+    <!-- Contact 1: Direct Booking & Inquiry Form -->
+    <div v-else-if="type === 'contact-split' || type === 'contact'" class="w-full h-full flex flex-col justify-center items-center px-4 py-2">
+      <div class="w-12 h-1 rounded bg-[#FFD700] mb-1"></div>
+      <div class="w-24 h-1 rounded bg-white/20 mb-2"></div>
+      <div class="w-full max-w-[150px] p-2 rounded-lg bg-white/5 border border-white/10 space-y-1.5 shadow-sm">
+        <div class="grid grid-cols-2 gap-1">
+          <div class="h-1.5 rounded bg-white/10"></div>
+          <div class="h-1.5 rounded bg-white/10"></div>
         </div>
-        <div class="w-full h-8 rounded-lg bg-white/10 border border-[#FFD700]/40 p-1.5 space-y-1">
-          <div class="w-24 h-1 rounded bg-white/40"></div>
-          <div class="w-full h-0.5 rounded bg-white/15"></div>
+        <div class="grid grid-cols-3 gap-1">
+          <div class="h-1.5 rounded bg-white/10"></div>
+          <div class="h-1.5 rounded bg-white/10"></div>
+          <div class="h-1.5 rounded bg-white/10"></div>
         </div>
+        <div class="h-3 rounded bg-white/10"></div>
+        <div class="h-2 rounded-full bg-[#FFD700] w-full"></div>
       </div>
     </div>
 
-    <!-- Contact 4: CTA Banner -->
-    <div v-else-if="type === 'contact-cta-banner' || type === 'cta-banner' || type === 'cta'" class="w-full h-full flex flex-col justify-center items-center gap-2 px-3 bg-gradient-to-r from-amber-500/10 via-[#FFD700]/20 to-amber-500/10 rounded-lg">
-      <div class="w-3/4 h-2.5 rounded-full bg-[#FFD700]"></div>
-      <div class="w-1/2 h-1 rounded-full bg-white/20"></div>
-      <div class="w-20 h-3 rounded-full bg-[#FFD700] text-black text-[7px] font-bold flex items-center justify-center">BOOK NOW</div>
+    <!-- Contact 2: Studio Location & Split Booking Form -->
+    <div v-else-if="type === 'contact-location-map' || type === 'location-map' || type === 'location_map'" class="w-full h-full flex flex-col justify-center px-2.5 py-1.5">
+      <!-- Centered Section Header -->
+      <div class="flex flex-col items-center mb-1">
+        <div class="w-8 h-0.5 rounded bg-[#FFD700] mb-0.5"></div>
+        <div class="w-20 h-1 rounded bg-white/30"></div>
+      </div>
+
+      <!-- 2-Column Split Containers with Aligned Tops -->
+      <div class="grid grid-cols-12 gap-1.5 items-start">
+        <!-- Left side: Studio Info Card (5 cols) -->
+        <div class="col-span-5 p-1.5 rounded-lg bg-white/5 border border-white/10 space-y-1 shadow-sm">
+          <div class="w-8 h-1 rounded bg-white/40"></div>
+          <div class="space-y-0.5">
+            <div class="w-full h-0.5 rounded bg-white/20"></div>
+            <div class="w-3/4 h-0.5 rounded bg-white/20"></div>
+          </div>
+          <!-- Highlighted FB button skeleton -->
+          <div class="w-full h-2.5 rounded bg-[#1877F2]/30 border border-[#1877F2]/40 mt-1"></div>
+        </div>
+
+        <!-- Right side: Booking Form Card (7 cols) -->
+        <div class="col-span-7 p-1.5 rounded-lg bg-white/5 border border-white/10 space-y-1 shadow-sm">
+          <div class="w-12 h-1 rounded bg-white/40"></div>
+          <div class="grid grid-cols-2 gap-0.5">
+            <div class="h-1.5 rounded bg-white/10"></div>
+            <div class="h-1.5 rounded bg-white/10"></div>
+          </div>
+          <div class="h-1.5 rounded bg-white/10"></div>
+          <div class="h-2 rounded-full bg-[#FFD700] w-full mt-0.5"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Fallback Generic Skeleton -->
