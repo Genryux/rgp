@@ -59,14 +59,22 @@ const tabs = [
 
 function handleScroll() {
   const currentY = window.scrollY || window.pageYOffset;
-  if (currentY > lastScrollY && currentY > 60) {
-    // Scrolling down -> hide taskbar
-    isScrolledDown.value = true;
-  } else if (currentY < lastScrollY || currentY <= 20) {
-    // Scrolling up or at top -> reveal taskbar
+  if (currentY <= 20) {
     isScrolledDown.value = false;
+    lastScrollY = currentY;
+    return;
   }
-  lastScrollY = currentY;
+  const delta = currentY - lastScrollY;
+  if (Math.abs(delta) > 4) {
+    if (delta > 0 && currentY > 60) {
+      // Scrolling down -> hide navbar & taskbar
+      isScrolledDown.value = true;
+    } else if (delta < 0) {
+      // Scrolling up -> show navbar & taskbar
+      isScrolledDown.value = false;
+    }
+    lastScrollY = currentY;
+  }
 }
 
 const isTaskbarHidden = computed(() => {
@@ -89,8 +97,13 @@ onUnmounted(() => {
 
 <template>
   <div class="min-h-screen bg-[#0c0c0c] text-neutral-100 font-manrope selection:bg-[#FFD700] selection:text-black antialiased relative">
-    <!-- Top Minimalist Admin Header -->
-    <header class="bg-[#121212]/80 border-b border-white/[0.08] sticky top-0 z-40 px-4 md:px-8 py-3.5 backdrop-blur-xl">
+    <!-- Top Minimalist Admin Header (Hides on Scroll Down, Reveals on Scroll Up) -->
+    <header
+      class="bg-[#121212]/90 border-b border-white/[0.08] sticky top-0 z-40 px-4 md:px-8 py-3.5 backdrop-blur-xl transition-all duration-300 ease-in-out"
+      :class="[
+        isScrolledDown ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100 pointer-events-auto'
+      ]"
+    >
       <div class="max-w-7xl mx-auto flex justify-between items-center">
         <!-- Brand & Studio Title -->
         <div class="flex items-center gap-3.5">
@@ -98,8 +111,7 @@ onUnmounted(() => {
             <img src="/images/Logo1.png" alt="RGP Studio" class="h-9 transition duration-300 group-hover:scale-105" />
           </router-link>
           <div class="hidden sm:flex items-center gap-2">
-            <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700] animate-pulse"></span>
-            <span class="text-xs font-semibold tracking-wide text-neutral-300">Studio CMS</span>
+            <span class="text-sm md:text-base font-extrabold tracking-wide text-white">Admin Panel</span>
           </div>
         </div>
 
@@ -110,7 +122,7 @@ onUnmounted(() => {
             target="_blank"
             class="px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] hover:border-[#FFD700]/50 hover:bg-[#FFD700]/10 text-neutral-300 hover:text-[#FFD700] text-xs font-medium transition duration-200 flex items-center gap-1.5"
           >
-            <span>Live Portfolio</span>
+            <span>View homepage</span>
             <ExternalLink class="w-3.5 h-3.5" />
           </router-link>
 
@@ -122,7 +134,7 @@ onUnmounted(() => {
 
           <button
             @click="logout"
-            class="p-2 rounded-full bg-white/[0.04] border border-white/[0.08] text-neutral-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/30 transition duration-200"
+            class="cursor-pointer p-2 rounded-full bg-white/[0.04] border border-white/[0.08] text-neutral-400 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/30 transition duration-200"
             title="Sign Out"
           >
             <LogOut class="w-4 h-4" />
@@ -137,7 +149,7 @@ onUnmounted(() => {
       <PageBuilderTab v-else-if="currentTab === 'page-builder'" @switch-tab="currentTab = $event" />
       <MediaTab v-else-if="currentTab === 'media'" />
       <PackagesTab v-else-if="currentTab === 'packages'" />
-      <InquiriesTab v-else-if="currentTab === 'inquiries'" />
+      <InquiriesTab v-else-if="currentTab === 'inquiries'" @switch-tab="currentTab = $event" />
       <SettingsTab v-else-if="currentTab === 'settings'" />
     </main>
 

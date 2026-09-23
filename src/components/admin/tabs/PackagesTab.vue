@@ -20,10 +20,17 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  FolderPlus,
+  FolderKanban,
+  ListChecks,
+  Layers,
+  CheckCircle2,
+  Info,
 } from '@lucide/vue';
 
 const {
   packages,
+  packageCategories,
   masterInclusions,
   isGlobalPriceMasked,
   toggleGlobalPriceMask,
@@ -34,9 +41,62 @@ const {
   addMasterInclusion,
   removeMasterInclusion,
   updateMasterInclusion,
+  addCategory,
+  deleteCategory,
+  renameCategory,
 } = usePackages();
 
 const { openModal, closeModal } = useModalState();
+
+// Toast Notification Feedback State
+const toast = ref({
+  visible: false,
+  title: '',
+  subtitle: '',
+  type: 'success', // 'success' | 'danger' | 'info'
+});
+let toastTimer = null;
+
+function triggerToast(title, subtitle = '', type = 'success', duration = 3500) {
+  if (toastTimer) clearTimeout(toastTimer);
+  toast.value = {
+    visible: true,
+    title,
+    subtitle,
+    type,
+  };
+  toastTimer = setTimeout(() => {
+    toast.value.visible = false;
+  }, duration);
+}
+
+function dismissToast() {
+  if (toastTimer) clearTimeout(toastTimer);
+  toast.value.visible = false;
+}
+
+// Dropdown Actions Menu State
+const isActionDropdownOpen = ref(false);
+
+// Package Delete Confirmation State
+const packageToDelete = ref(null);
+
+function promptDeletePackage(pkg) {
+  packageToDelete.value = pkg;
+}
+
+function cancelDeletePackage() {
+  packageToDelete.value = null;
+}
+
+async function confirmDeletePackage() {
+  if (!packageToDelete.value) return;
+  const title = packageToDelete.value.title;
+  const category = packageToDelete.value.category;
+  await deletePackage(packageToDelete.value.id);
+  packageToDelete.value = null;
+  triggerToast('Package Removed', `"${title}" was deleted from ${category}`, 'info', 3500);
+}
 
 // Package Editor State
 const editingPackage = ref(null);
@@ -44,6 +104,78 @@ const inclusionSearch = ref('');
 const inclusionFilterMode = ref('all'); // 'all' | 'selected'
 const inlineNewInclusion = ref('');
 const showSelectedReorder = ref(false);
+
+// Add Category Modal State
+const showAddCategoryModal = ref(false);
+const newCategoryInput = ref('');
+const addCategoryError = ref('');
+
+// Manage Categories Modal State
+const showManageCategoriesModal = ref(false);
+const categoryBeingEdited = ref({ oldVal: '', newVal: '' });
+const categoryToDelete = ref(null);
+
+function openAddCategory() {
+  newCategoryInput.value = '';
+  addCategoryError.value = '';
+  showAddCategoryModal.value = true;
+}
+
+async function handleCreateCategory() {
+  addCategoryError.value = '';
+  const trimmed = newCategoryInput.value.trim();
+  if (!trimmed) {
+    addCategoryError.value = 'Category name cannot be empty.';
+    return;
+  }
+  const exists = packageCategories.value.some(
+    (c) => c.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (exists) {
+    addCategoryError.value = 'A category with this name already exists.';
+    return;
+  }
+  await addCategory(trimmed);
+  selectedAdminCategory.value = trimmed;
+  newCategoryInput.value = '';
+  showAddCategoryModal.value = false;
+  triggerToast('Category Created', `"${trimmed}" is now available for packages`, 'success', 3500);
+}
+
+function startEditCategory(cat) {
+  categoryBeingEdited.value = { oldVal: cat, newVal: cat };
+}
+
+async function saveEditCategory() {
+  const oldVal = categoryBeingEdited.value.oldVal;
+  const newVal = categoryBeingEdited.value.newVal.trim();
+  if (!newVal || oldVal.toLowerCase() === newVal.toLowerCase()) {
+    categoryBeingEdited.value = { oldVal: '', newVal: '' };
+    return;
+  }
+  await renameCategory(oldVal, newVal);
+  categoryBeingEdited.value = { oldVal: '', newVal: '' };
+  triggerToast('Category Renamed', `Renamed "${oldVal}" to "${newVal}"`, 'success', 3500);
+}
+
+function cancelEditCategory() {
+  categoryBeingEdited.value = { oldVal: '', newVal: '' };
+}
+
+function promptDeleteCategory(cat) {
+  categoryToDelete.value = cat;
+}
+
+async function confirmDeleteCategory() {
+  if (!categoryToDelete.value) return;
+  const deletedCat = categoryToDelete.value;
+  await deleteCategory(deletedCat);
+  if (selectedAdminCategory.value === deletedCat) {
+    selectedAdminCategory.value = 'All';
+  }
+  categoryToDelete.value = null;
+  triggerToast('Category Removed', `Category "${deletedCat}" was deleted`, 'info', 3500);
+}
 
 // Master List Manager Modal State
 const showMasterListModal = ref(false);
@@ -72,12 +204,14 @@ function cancelDeleteInclusion() {
 
 async function confirmDeleteInclusion() {
   if (!inclusionToDelete.value) return;
-  await removeMasterInclusion(inclusionToDelete.value);
+  const deletedItem = inclusionToDelete.value;
+  await removeMasterInclusion(deletedItem);
   inclusionToDelete.value = null;
+  triggerToast('Inclusion Removed', `"${deletedItem}" removed from master list`, 'info', 3500);
 }
 
 watch(
-  () => Boolean(editingPackage.value || showMasterListModal.value || inclusionToDelete.value),
+  () => Boolean(editingPackage.value || showMasterListModal.value || inclusionToDelete.value || showAddCategoryModal.value || showManageCategoriesModal.value || categoryToDelete.value || packageToDelete.value),
   (isOpen, wasOpen) => {
     if (isOpen && !wasOpen) openModal();
     else if (!isOpen && wasOpen) closeModal();
@@ -85,26 +219,18 @@ watch(
 );
 
 onUnmounted(() => {
-  if (editingPackage.value || showMasterListModal.value || inclusionToDelete.value) {
+  if (editingPackage.value || showMasterListModal.value || inclusionToDelete.value || showAddCategoryModal.value || showManageCategoriesModal.value || categoryToDelete.value || packageToDelete.value) {
     closeModal();
   }
 });
-
-const categories = [
-  'Weddings',
-  'Birthdays & Debuts',
-  'Portraits & Studio',
-  'Graduation',
-  'Commercial',
-  'Other',
-];
 
 const selectedAdminCategory = ref('All');
 
 // List of category filters including 'All'
 const activeCategoryFilters = computed(() => {
   const set = new Set();
-  packages.value.forEach((p) => {
+  (packageCategories.value || []).forEach((c) => set.add(c));
+  (packages.value || []).forEach((p) => {
     if (p.category) set.add(p.category);
   });
   return ['All', ...Array.from(set)];
@@ -127,25 +253,28 @@ const groupedPackages = computed(() => {
   });
 
   const result = [];
-  const knownCategories = [...categories];
+  const knownCategories = [...(packageCategories.value || [])];
 
-  Object.keys(groups).forEach((cat) => {
+  // Include known categories
+  knownCategories.forEach((cat) => {
     if (selectedAdminCategory.value === 'All' || selectedAdminCategory.value === cat) {
       result.push({
         category: cat,
-        items: groups[cat],
+        items: groups[cat] || [],
       });
     }
   });
 
-  // Sort groups based on standard category order
-  result.sort((a, b) => {
-    const idxA = knownCategories.indexOf(a.category);
-    const idxB = knownCategories.indexOf(b.category);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return a.category.localeCompare(b.category);
+  // Include any extra categories present in existing packages
+  Object.keys(groups).forEach((cat) => {
+    if (!knownCategories.includes(cat)) {
+      if (selectedAdminCategory.value === 'All' || selectedAdminCategory.value === cat) {
+        result.push({
+          category: cat,
+          items: groups[cat],
+        });
+      }
+    }
   });
 
   return result;
@@ -173,9 +302,12 @@ function openNewPackage(defaultCategory = 'Weddings') {
   inclusionFilterMode.value = 'all';
   inlineNewInclusion.value = '';
   showSelectedReorder.value = false;
-  const initialCategory = typeof defaultCategory === 'string' && categories.includes(defaultCategory)
+  const cats = packageCategories.value || [];
+  const initialCategory = typeof defaultCategory === 'string' && cats.includes(defaultCategory)
     ? defaultCategory
-    : (selectedAdminCategory.value !== 'All' ? selectedAdminCategory.value : 'Weddings');
+    : (selectedAdminCategory.value !== 'All' && cats.includes(selectedAdminCategory.value)
+        ? selectedAdminCategory.value
+        : (cats[0] || 'Weddings'));
   editingPackage.value = {
     id: `pkg_temp_${Date.now()}`,
     category: initialCategory,
@@ -274,6 +406,7 @@ async function handleAddInlineInclusion() {
     }
   }
   inlineNewInclusion.value = '';
+  triggerToast('Inclusion Added', `"${trimmed}" added to master list and selected`, 'success', 3500);
 }
 
 // Master List Manager logic
@@ -288,6 +421,7 @@ async function handleAddMasterInclusion() {
   if (!trimmed) return;
   await addMasterInclusion(trimmed);
   newMasterInclusionInput.value = '';
+  triggerToast('Inclusion Added', `"${trimmed}" added to master deliverables`, 'success', 3500);
 }
 
 function startEditMasterItem(item) {
@@ -295,8 +429,11 @@ function startEditMasterItem(item) {
 }
 
 async function saveEditMasterItem() {
-  if (editingMasterItem.value.oldVal && editingMasterItem.value.newVal.trim()) {
-    await updateMasterInclusion(editingMasterItem.value.oldVal, editingMasterItem.value.newVal.trim());
+  const oldVal = editingMasterItem.value.oldVal;
+  const newVal = editingMasterItem.value.newVal.trim();
+  if (oldVal && newVal && oldVal.toLowerCase() !== newVal.toLowerCase()) {
+    await updateMasterInclusion(oldVal, newVal);
+    triggerToast('Inclusion Updated', `Updated deliverable to "${newVal}"`, 'success', 3500);
   }
   editingMasterItem.value = { oldVal: '', newVal: '' };
 }
@@ -310,12 +447,21 @@ async function handleSave() {
   if (editingPackage.value.hide_price) {
     editingPackage.value.promo_price = null;
   }
+  const isNew = !editingPackage.value.id || editingPackage.value.id.startsWith('pkg_temp_');
+  const pkgTitle = editingPackage.value.title;
+  const pkgCategory = editingPackage.value.category;
+
   const res = await savePackage(editingPackage.value);
   if (res?.error) {
-    alert('Error saving package to Supabase: ' + (res.error.message || 'Please check your admin session.'));
+    triggerToast('Save Failed', res.error.message || 'Please check your admin session.', 'danger', 4500);
     return;
   }
   editingPackage.value = null;
+  if (isNew) {
+    triggerToast('Package Created', `"${pkgTitle}" created in ${pkgCategory}`, 'success', 3500);
+  } else {
+    triggerToast('Package Updated', `Saved changes to "${pkgTitle}"`, 'success', 3500);
+  }
 }
 </script>
 
@@ -330,25 +476,13 @@ async function handleSave() {
         </p>
       </div>
 
-      <!-- Top-right Action Buttons (Uniform Sizing) -->
+      <!-- Top-right Action Buttons (Unified Dropdown Plus Button & Price Mask Toggle) -->
       <div class="flex flex-wrap items-center gap-3">
-        <!-- Master Inclusions List Button -->
-        <button
-          @click="showMasterListModal = true"
-          class="cursor-pointer px-5 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-neutral-200 hover:text-white text-xs font-semibold transition flex items-center gap-2 shadow-sm"
-          title="Manage reusable package inclusions"
-        >
-          <span>Master Inclusions</span>
-          <span class="px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 text-[10px] font-mono font-semibold">
-            {{ masterInclusions.length }}
-          </span>
-        </button>
-
         <!-- Global Price Mask Toggle Button -->
         <button
           v-if="packages.length > 0"
           @click="toggleGlobalPriceMask"
-          class="cursor-pointer px-5 py-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 shadow-sm"
+          class="cursor-pointer px-4 sm:px-5 py-2.5 rounded-xl border text-xs font-semibold transition flex items-center gap-2 shadow-sm"
           :class="[
             isGlobalPriceMasked
               ? 'bg-white/20 border-white/30 text-white shadow-sm'
@@ -357,17 +491,107 @@ async function handleSave() {
           :title="isGlobalPriceMasked ? 'Public prices currently masked as 2?,???' : 'Public prices show full amount'"
         >
           <component :is="isGlobalPriceMasked ? EyeOff : Eye" class="w-4 h-4 text-neutral-300" />
-          <span>{{ isGlobalPriceMasked ? 'Mask All Prices Active' : 'Mask All Prices' }}</span>
+          <span class="hidden sm:inline">{{ isGlobalPriceMasked ? 'Mask All Prices Active' : 'Mask All Prices' }}</span>
         </button>
 
-        <!-- Add Package Button -->
-        <button
-          @click="openNewPackage"
-          class="cursor-pointer px-5 py-2.5 rounded-xl bg-[#FFD700] text-[#141414] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg shadow-yellow-500/20 flex items-center gap-2"
-        >
-          <Plus class="w-4 h-4" />
-          <span>Add Package</span>
-        </button>
+        <!-- Unified Actions Dropdown Plus Button -->
+        <div class="relative">
+          <button
+            type="button"
+            @click="isActionDropdownOpen = !isActionDropdownOpen"
+            class="cursor-pointer px-5 py-2.5 rounded-xl bg-[#FFD700] text-[#141414] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg shadow-yellow-500/20 flex items-center gap-2"
+          >
+            <Plus class="w-4 h-4" />
+            <span>Actions</span>
+            <ChevronDown class="w-3.5 h-3.5 transition-transform duration-200" :class="{ 'rotate-180': isActionDropdownOpen }" />
+          </button>
+
+          <!-- Dropdown Backdrop to close on click outside -->
+          <div v-if="isActionDropdownOpen" @click="isActionDropdownOpen = false" class="fixed inset-0 z-40"></div>
+
+          <!-- Dropdown Action Menu -->
+          <Transition
+            enter-active-class="transition duration-150 ease-out"
+            enter-from-class="opacity-0 scale-95 -translate-y-1"
+            enter-to-class="opacity-100 scale-100 translate-y-0"
+            leave-active-class="transition duration-100 ease-in"
+            leave-from-class="opacity-100 scale-100 translate-y-0"
+            leave-to-class="opacity-0 scale-95 -translate-y-1"
+          >
+            <div
+              v-if="isActionDropdownOpen"
+              class="absolute right-0 mt-2 w-72 rounded-2xl bg-[#141414]/98 backdrop-blur-2xl border border-white/[0.14] shadow-2xl p-1.5 z-50 space-y-1 ring-1 ring-black/80 font-manrope select-none"
+            >
+              <!-- 1. Add Package -->
+              <button
+                type="button"
+                @click="openNewPackage(); isActionDropdownOpen = false"
+                class="w-full text-left p-3 rounded-xl hover:bg-white/[0.08] transition flex items-center gap-3 group cursor-pointer"
+              >
+                <div class="w-9 h-9 rounded-xl bg-[#FFD700]/15 border border-[#FFD700]/30 text-[#FFD700] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Tag class="w-4 h-4" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h4 class="text-xs font-bold text-white group-hover:text-[#FFD700] transition">Add New Package</h4>
+                  <p class="text-[11px] text-neutral-400">Create a pricing tier or rate plan</p>
+                </div>
+              </button>
+
+              <!-- 2. Add Category -->
+              <button
+                type="button"
+                @click="openAddCategory(); isActionDropdownOpen = false"
+                class="w-full text-left p-3 rounded-xl hover:bg-white/[0.08] transition flex items-center gap-3 group cursor-pointer"
+              >
+                <div class="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 text-neutral-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <FolderPlus class="w-4 h-4" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h4 class="text-xs font-bold text-white group-hover:text-white transition">Add New Category</h4>
+                  <p class="text-[11px] text-neutral-400">Create a custom event or service</p>
+                </div>
+              </button>
+
+              <div class="h-px bg-white/[0.08] my-1 mx-2"></div>
+
+              <!-- 3. Manage Categories -->
+              <button
+                type="button"
+                @click="showManageCategoriesModal = true; isActionDropdownOpen = false"
+                class="w-full text-left p-3 rounded-xl hover:bg-white/[0.08] transition flex items-center gap-3 group cursor-pointer"
+              >
+                <div class="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 text-neutral-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <FolderKanban class="w-4 h-4" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-white">Manage Categories</h4>
+                    <span class="px-1.5 py-0.5 rounded-md bg-white/10 text-[10px] font-mono text-neutral-300">{{ packageCategories.length }}</span>
+                  </div>
+                  <p class="text-[11px] text-neutral-400">Rename or delete event types</p>
+                </div>
+              </button>
+
+              <!-- 4. Master Inclusions Library -->
+              <button
+                type="button"
+                @click="showMasterListModal = true; isActionDropdownOpen = false"
+                class="w-full text-left p-3 rounded-xl hover:bg-white/[0.08] transition flex items-center gap-3 group cursor-pointer"
+              >
+                <div class="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 text-neutral-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <ListChecks class="w-4 h-4" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-white">Master Inclusions</h4>
+                    <span class="px-1.5 py-0.5 rounded-full bg-white/10 text-[10px] font-mono text-neutral-300">{{ masterInclusions.length }}</span>
+                  </div>
+                  <p class="text-[11px] text-neutral-400">Standard studio deliverables</p>
+                </div>
+              </button>
+            </div>
+          </Transition>
+        </div>
       </div>
     </div>
 
@@ -448,10 +672,30 @@ async function handleSave() {
         <!-- Cards Grid for this Category (Collapsible & Content-Aware Height) -->
         <div
           v-if="isCategoryExpanded(group.category)"
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start transition-all duration-300"
+          class="transition-all duration-300"
         >
+          <!-- Empty Category Placeholder -->
           <div
-            v-for="pkg in group.items"
+            v-if="group.items.length === 0"
+            class="p-8 rounded-3xl bg-[#141414]/50 border border-dashed border-white/10 flex flex-col items-center justify-center text-center gap-3"
+          >
+            <p class="text-xs text-neutral-400">No packages created in <span class="text-white font-semibold">{{ group.category }}</span> yet.</p>
+            <button
+              @click="openNewPackage(group.category)"
+              class="cursor-pointer px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-semibold border border-white/10 transition flex items-center gap-1.5 shadow-sm"
+            >
+              <Plus class="w-3.5 h-3.5 text-[#FFD700]" />
+              <span>Create First {{ group.category }} Package</span>
+            </button>
+          </div>
+
+          <!-- Cards Grid -->
+          <div
+            v-else
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start"
+          >
+            <div
+              v-for="pkg in group.items"
             :key="pkg.id"
             class="rounded-3xl p-6 bg-[#141414] border flex flex-col justify-between relative group transition shadow-xl h-fit self-start"
             :class="[
@@ -541,7 +785,7 @@ async function handleSave() {
               </button>
 
               <button
-                @click="deletePackage(pkg.id)"
+                @click="promptDeletePackage(pkg)"
                 class="cursor-pointer text-neutral-400 hover:text-red-400 p-1.5 text-xs transition rounded-xl hover:bg-red-500/10"
                 title="Delete Package"
               >
@@ -551,6 +795,7 @@ async function handleSave() {
           </div>
         </div>
       </div>
+    </div>
     </div>
 
     <!-- Empty State UI when no packages exist -->
@@ -610,12 +855,22 @@ async function handleSave() {
           <!-- Basic Info -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label class="block text-xs font-medium text-neutral-300 mb-1.5">Category</label>
+              <div class="flex items-center justify-between mb-1.5">
+                <label class="block text-xs font-medium text-neutral-300">Category</label>
+                <button
+                  type="button"
+                  @click="openAddCategory"
+                  class="text-[11px] text-[#FFD700] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus class="w-3 h-3" />
+                  <span>New</span>
+                </button>
+              </div>
               <select
                 v-model="editingPackage.category"
-                class="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
+                class="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition cursor-pointer"
               >
-                <option v-for="cat in categories" :key="cat" :value="cat" class="bg-[#1a1a1a] text-white">{{ cat }}</option>
+                <option v-for="cat in packageCategories" :key="cat" :value="cat" class="bg-[#1a1a1a] text-white">{{ cat }}</option>
               </select>
             </div>
 
@@ -1162,5 +1417,337 @@ async function handleSave() {
         </div>
       </div>
     </div>
+
+    <!-- ======================================================== -->
+    <!-- ADD CATEGORY MODAL -->
+    <!-- ======================================================== -->
+    <div
+      v-if="showAddCategoryModal"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+    >
+      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl max-w-md w-full p-6 md:p-8 space-y-6 shadow-2xl">
+        <!-- Header -->
+        <div class="flex justify-between items-start">
+          <div class="space-y-1">
+            <h3 class="text-xl font-bold text-white tracking-wide">Add New Category</h3>
+            <p class="text-xs text-neutral-400">Create a dynamic service/event category for your packages</p>
+          </div>
+          <button
+            type="button"
+            @click="showAddCategoryModal = false"
+            class="w-9 h-9 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-neutral-300 hover:text-white transition cursor-pointer flex items-center justify-center shadow-sm"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Input Field -->
+        <div class="space-y-2">
+          <label class="block text-xs font-medium text-neutral-300">Category Name <span class="text-[#FFD700]">*</span></label>
+          <input
+            type="text"
+            v-model="newCategoryInput"
+            @keyup.enter="handleCreateCategory"
+            placeholder="e.g., Corporate & Headshots, Maternity..."
+            class="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
+            autofocus
+          />
+          <p v-if="addCategoryError" class="text-xs text-red-400 mt-1 flex items-center gap-1">
+            <AlertTriangle class="w-3.5 h-3.5 shrink-0" />
+            <span>{{ addCategoryError }}</span>
+          </p>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="flex justify-end items-center gap-3 pt-2">
+          <button
+            type="button"
+            @click="showAddCategoryModal = false"
+            class="cursor-pointer px-5 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.10] text-neutral-300 hover:text-white text-xs font-semibold transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="handleCreateCategory"
+            class="cursor-pointer px-5 py-2.5 rounded-xl bg-[#FFD700] hover:bg-yellow-400 text-[#141414] font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-yellow-500/20 flex items-center gap-1.5"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span>Create Category</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MANAGE CATEGORIES MODAL -->
+    <!-- ======================================================== -->
+    <div
+      v-if="showManageCategoriesModal"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+    >
+      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl max-w-xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b border-white/[0.08] p-6 md:px-8 py-5 shrink-0">
+          <div>
+            <h3 class="text-xl font-bold text-white tracking-wide">Manage Categories</h3>
+            <p class="text-xs text-neutral-400 mt-0.5">Rename or remove service categories. Changes persist to cloud instantly.</p>
+          </div>
+          <button
+            @click="showManageCategoriesModal = false"
+            class="w-9 h-9 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-neutral-300 hover:text-white transition cursor-pointer flex items-center justify-center shadow-sm"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Body Content -->
+        <div class="flex-1 overflow-y-auto p-6 md:px-8 py-6 space-y-4">
+          <!-- Add Category Shortcut Form inside modal -->
+          <div>
+            <label class="block text-xs font-medium text-neutral-300 mb-1.5">Add New Category</label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                v-model="newCategoryInput"
+                @keyup.enter="handleCreateCategory"
+                placeholder="Type new category name..."
+                class="flex-1 px-4 py-2 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
+              />
+              <button
+                type="button"
+                @click="handleCreateCategory"
+                class="px-4 py-2 rounded-xl bg-[#FFD700] hover:bg-yellow-400 text-[#141414] font-bold text-xs uppercase tracking-wider transition cursor-pointer flex items-center gap-1.5 shadow-sm shrink-0"
+              >
+                <Plus class="w-3.5 h-3.5" />
+                <span>Add</span>
+              </button>
+            </div>
+            <p v-if="addCategoryError" class="text-xs text-red-400 mt-1 flex items-center gap-1">
+              <AlertTriangle class="w-3.5 h-3.5 shrink-0" />
+              <span>{{ addCategoryError }}</span>
+            </p>
+          </div>
+
+          <!-- Existing Categories List -->
+          <div class="space-y-2 pt-2">
+            <label class="block text-xs font-medium text-neutral-400 uppercase tracking-wider">Existing Categories ({{ packageCategories.length }})</label>
+            <div class="space-y-1.5">
+              <div
+                v-for="cat in packageCategories"
+                :key="cat"
+                class="p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:border-white/15 flex items-center justify-between gap-3 transition"
+              >
+                <!-- Inline Edit Form -->
+                <div v-if="categoryBeingEdited.oldVal === cat" class="flex-1 flex items-center gap-2">
+                  <input
+                    type="text"
+                    v-model="categoryBeingEdited.newVal"
+                    @keyup.enter="saveEditCategory"
+                    @keyup.esc="cancelEditCategory"
+                    class="flex-1 px-3 py-1.5 rounded-lg bg-white/[0.08] border border-white/20 text-white text-xs focus:outline-none focus:border-[#FFD700]"
+                    autofocus
+                  />
+                  <button
+                    type="button"
+                    @click="saveEditCategory"
+                    class="p-1.5 rounded-lg bg-[#FFD700] text-[#141414] hover:bg-yellow-400 transition cursor-pointer"
+                    title="Save rename"
+                  >
+                    <Check class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    @click="cancelEditCategory"
+                    class="p-1.5 rounded-lg bg-white/10 text-neutral-300 hover:text-white transition cursor-pointer"
+                    title="Cancel"
+                  >
+                    <X class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <!-- Display Row -->
+                <div v-else class="flex items-center gap-2.5 flex-1 min-w-0">
+                  <span class="text-sm font-semibold text-white truncate">{{ cat }}</span>
+                  <span class="px-2 py-0.5 rounded-full bg-white/[0.06] text-[10px] text-neutral-400 font-mono">
+                    {{ getCategoryPackageCount(cat) }} {{ getCategoryPackageCount(cat) === 1 ? 'pkg' : 'pkgs' }}
+                  </span>
+                </div>
+
+                <!-- Actions -->
+                <div v-if="categoryBeingEdited.oldVal !== cat" class="flex items-center gap-1">
+                  <button
+                    type="button"
+                    @click="startEditCategory(cat)"
+                    class="p-1.5 rounded-lg hover:bg-white/10 text-neutral-400 hover:text-white transition cursor-pointer"
+                    title="Rename category"
+                  >
+                    <Edit3 class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    @click="promptDeleteCategory(cat)"
+                    class="p-1.5 rounded-lg hover:bg-red-500/10 text-neutral-400 hover:text-red-400 transition cursor-pointer"
+                    title="Delete category"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end items-center p-6 md:px-8 py-4 border-t border-white/[0.08] bg-[#141414] shrink-0">
+          <button
+            type="button"
+            @click="showManageCategoriesModal = false"
+            class="cursor-pointer px-6 py-2.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-white text-xs font-semibold border border-white/10 transition"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- DELETE CATEGORY CONFIRMATION MODAL -->
+    <!-- ======================================================== -->
+    <div
+      v-if="categoryToDelete"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+    >
+      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+        <div class="flex items-start gap-4">
+          <div class="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+            <AlertTriangle class="w-5 h-5" />
+          </div>
+
+          <div class="space-y-1 flex-1 min-w-0">
+            <h3 class="text-base font-bold text-white tracking-wide">Delete Category?</h3>
+            <p class="text-xs text-neutral-300 leading-relaxed">
+              Are you sure you want to delete category <strong class="text-white font-semibold">"{{ categoryToDelete }}"</strong>?
+            </p>
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-xs text-neutral-300 leading-relaxed space-y-1">
+          <p class="font-semibold text-neutral-200">Safe Reassignment:</p>
+          <p class="text-[11px] text-neutral-400">
+            Any packages currently assigned to this category ({{ getCategoryPackageCount(categoryToDelete) }} packages) will be safely reassigned to <strong>"Other"</strong> so no package data is lost.
+          </p>
+        </div>
+
+        <div class="flex justify-end items-center gap-2.5 pt-2">
+          <button
+            type="button"
+            @click="categoryToDelete = null"
+            class="cursor-pointer px-5 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.10] text-neutral-300 hover:text-white text-xs font-semibold transition text-center"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="confirmDeleteCategory"
+            class="cursor-pointer px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-red-500/20 text-center flex items-center justify-center gap-1.5"
+          >
+            <Trash2 class="w-3.5 h-3.5" />
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- DELETE PACKAGE CONFIRMATION MODAL -->
+    <!-- ======================================================== -->
+    <div
+      v-if="packageToDelete"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+    >
+      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+        <div class="flex items-start gap-4">
+          <div class="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+            <Trash2 class="w-5 h-5" />
+          </div>
+
+          <div class="space-y-1 flex-1 min-w-0">
+            <h3 class="text-base font-bold text-white tracking-wide">Delete Package?</h3>
+            <p class="text-xs text-neutral-300 leading-relaxed">
+              Are you sure you want to permanently delete <strong class="text-white font-semibold">"{{ packageToDelete.title }}"</strong> from <strong class="text-white font-semibold">{{ packageToDelete.category }}</strong>?
+            </p>
+          </div>
+        </div>
+
+        <div class="flex justify-end items-center gap-2.5 pt-2">
+          <button
+            type="button"
+            @click="cancelDeletePackage"
+            class="cursor-pointer px-5 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.10] text-neutral-300 hover:text-white text-xs font-semibold transition text-center"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="confirmDeletePackage"
+            class="cursor-pointer px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-red-500/20 text-center flex items-center justify-center gap-1.5"
+          >
+            <Trash2 class="w-3.5 h-3.5" />
+            <span>Delete Package</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- VISUAL TOAST FEEDBACK NOTIFICATION                        -->
+    <!-- ========================================================= -->
+    <Teleport to="body">
+      <transition
+        enter-active-class="transition duration-300 ease-out"
+        enter-from-class="opacity-0 translate-y-6 scale-95"
+        enter-to-class="opacity-100 translate-y-0 scale-100"
+        leave-active-class="transition duration-200 ease-in"
+        leave-from-class="opacity-100 translate-y-0 scale-100"
+        leave-to-class="opacity-0 translate-y-6 scale-95"
+      >
+        <div
+          v-if="toast.visible"
+          class="fixed bottom-6 left-6 z-[10001] max-w-md w-[calc(100vw-3rem)] sm:w-auto bg-[#1a1a1a]/95 backdrop-blur-md border border-white/15 text-white px-4 py-3 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.8)] flex items-center justify-between gap-3.5 font-manrope select-none"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div
+              class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+              :class="[
+                toast.type === 'success'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : toast.type === 'danger'
+                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                  : 'bg-white/10 text-neutral-300 border border-white/15'
+              ]"
+            >
+              <CheckCircle2 v-if="toast.type === 'success'" class="w-4 h-4" />
+              <AlertTriangle v-else-if="toast.type === 'danger'" class="w-4 h-4" />
+              <Info v-else class="w-4 h-4" />
+            </div>
+
+            <div class="min-w-0">
+              <p class="text-xs font-bold text-white truncate">{{ toast.title }}</p>
+              <p v-if="toast.subtitle" class="text-[11px] text-neutral-400 truncate mt-0.5">{{ toast.subtitle }}</p>
+            </div>
+          </div>
+
+          <button
+            @click="dismissToast"
+            type="button"
+            class="cursor-pointer p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition shrink-0 ml-2"
+            title="Dismiss"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>

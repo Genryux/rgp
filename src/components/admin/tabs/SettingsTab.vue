@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { useSettings } from '../../../composables/useSettings';
 import { useGmailAuth } from '../../../composables/useGmailAuth';
 import {
@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Building,
   Share2,
-  Search,
   Globe,
   Loader2,
   AlertTriangle,
@@ -36,6 +35,16 @@ const saving = ref(false);
 const saveSuccess = ref(false);
 const saveError = ref('');
 const connectionSuccessNotice = ref(false);
+
+watch(
+  settings,
+  (newVal) => {
+    if (newVal) {
+      localSettings.value = { ...newVal };
+    }
+  },
+  { deep: true, immediate: true }
+);
 
 onMounted(async () => {
   const isNewConnection = await handleOAuthCallback();
@@ -83,7 +92,7 @@ async function handleSave() {
   <div class="space-y-8 max-w-4xl font-manrope">
     <div>
       <h2 class="text-2xl font-bold text-white tracking-wide">Studio Settings & Branding</h2>
-      <p class="text-xs text-neutral-400 mt-0.5">Configure studio details, social accounts, and search engine metadata</p>
+      <p class="text-xs text-neutral-400 mt-0.5">Configure studio details, social accounts, and official mailbox integration</p>
     </div>
 
     <!-- Error Toast -->
@@ -324,32 +333,6 @@ async function handleSave() {
               class="w-full px-4 py-3 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
             />
           </div>
-        </div>
-      </div>
-
-      <!-- SEO Metadata -->
-      <div class="bg-[#141414] border border-white/[0.08] rounded-3xl p-6 md:p-8 space-y-6 shadow-xl">
-        <div class="flex items-center gap-2.5 border-b border-white/[0.06] pb-3 text-white">
-          <Search class="w-4 h-4 text-neutral-400" />
-          <h3 class="text-base font-bold tracking-wide">Search Engine Optimization (SEO)</h3>
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold uppercase text-neutral-400 mb-2">Page Title</label>
-          <input
-            type="text"
-            v-model="localSettings.meta_title"
-            class="w-full px-4 py-3 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-          />
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold uppercase text-neutral-400 mb-2">Meta Description</label>
-          <textarea
-            v-model="localSettings.meta_description"
-            rows="3"
-            class="w-full px-4 py-3 rounded-xl bg-black/50 border border-white/[0.08] text-white text-sm focus:outline-none focus:border-[#FFD700]"
-          ></textarea>
         </div>
       </div>
 

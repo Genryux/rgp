@@ -192,8 +192,17 @@ function getInitialMasterInclusions() {
   return result;
 }
 
+// Default package categories list (persisted in Supabase config record, not stored in localStorage)
+export const DEFAULT_PACKAGE_CATEGORIES = [
+  'Weddings',
+  'Birthdays & Debuts',
+  'Portraits & Studio',
+  'Other',
+];
+
 const CONFIG_ROW_ID = '__master_config__';
 
+const packageCategories = ref([...DEFAULT_PACKAGE_CATEGORIES]);
 const packages = ref(getInitialPackages());
 const masterInclusions = ref(getInitialMasterInclusions());
 const isGlobalPriceMasked = ref(typeof window !== 'undefined' ? localStorage.getItem('rgp_mask_prices') === 'true' : false);
@@ -239,7 +248,11 @@ async function persistConfigToSupabase() {
       category: '__config__',
       title: 'Global Package Settings',
       price: 0,
-      features: masterInclusions.value,
+      features: {
+        inclusions: masterInclusions.value,
+        categories: packageCategories.value,
+      },
+      badge: 'CONFIG', // Fits safely within PostgreSQL VARCHAR(50) limit
       hide_price: isGlobalPriceMasked.value,
       is_active: false,
       sort_order: 99999,
@@ -296,17 +309,46 @@ export function usePackages() {
         // 1. Separate configuration record from user-facing packages
         const configRow = data.find((p) => p.id === CONFIG_ROW_ID);
         if (configRow) {
-          if (Array.isArray(configRow.features) && configRow.features.length > 0) {
-            masterInclusions.value = configRow.features;
+          if (configRow.features) {
+            if (Array.isArray(configRow.features) && configRow.features.length > 0) {
+              masterInclusions.value = configRow.features;
+            } else if (typeof configRow.features === 'object' && configRow.features !== null) {
+              if (Array.isArray(configRow.features.inclusions) && configRow.features.inclusions.length > 0) {
+                masterInclusions.value = configRow.features.inclusions;
+              }
+              if (Array.isArray(configRow.features.categories) && configRow.features.categories.length > 0) {
+                packageCategories.value = configRow.features.categories;
+              }
+            }
             persistMasterInclusions();
+          }
+          if (configRow.badge && configRow.badge !== 'CONFIG') {
+            try {
+              const parsed = JSON.parse(configRow.badge);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                packageCategories.value = parsed;
+              } else if (parsed && Array.isArray(parsed.categories) && parsed.categories.length > 0) {
+                packageCategories.value = parsed.categories;
+              }
+            } catch (e) {
+              // Ignore
+            }
           }
           isGlobalPriceMasked.value = Boolean(configRow.hide_price);
           persistPriceMask();
         }
 
         // 2. Set user-facing packages (excluding system config record)
-        packages.value = data.filter((p) => p.id !== CONFIG_ROW_ID);
+        const userPackages = data.filter((p) => p.id !== CONFIG_ROW_ID);
+        packages.value = userPackages;
         persistPackages();
+
+        // 3. Merge any categories from active packages not already in packageCategories
+        userPackages.forEach((pkg) => {
+          if (pkg.category && !packageCategories.value.includes(pkg.category)) {
+            packageCategories.value.push(pkg.category);
+          }
+        });
       }
     } catch (err) {
       console.error('[Packages] Error fetching packages from Supabase:', err);
@@ -532,8 +574,68 @@ export function usePackages() {
     await persistConfigToSupabase();
   }
 
+  async function addCategory(name) {
+    if (!name) return null;
+    const trimmed = typeof name === 'string' ? name.trim() : String(name).trim();
+    if (!trimmed) return null;
+    const existing = packageCategories.value.find(
+      (c) => c.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existing) return existing;
+    packageCategories.value.push(trimmed);
+    await persistConfigToSupabase();
+    return trimmed;
+  }
+
+  async function deleteCategory(name) {
+    if (!name) return;
+    const trimmed = typeof name === 'string' ? name.trim() : String(name).trim();
+    packageCategories.value = packageCategories.value.filter(
+      (c) => c.toLowerCase() !== trimmed.toLowerCase()
+    );
+
+    // Reassign affected packages to 'Other'
+    const affected = packages.value.filter((p) => p.category?.toLowerCase() === trimmed.toLowerCase());
+    for (const pkg of affected) {
+      pkg.category = 'Other';
+      await savePackage(pkg);
+    }
+
+    if (!packageCategories.value.includes('Other') && affected.length > 0) {
+      packageCategories.value.push('Other');
+    }
+
+    await persistConfigToSupabase();
+  }
+
+  async function renameCategory(oldName, newName) {
+    if (!oldName || !newName) return;
+    const oldTrimmed = typeof oldName === 'string' ? oldName.trim() : String(oldName).trim();
+    const newTrimmed = typeof newName === 'string' ? newName.trim() : String(newName).trim();
+    if (!newTrimmed || oldTrimmed.toLowerCase() === newTrimmed.toLowerCase()) return;
+
+    const idx = packageCategories.value.findIndex(
+      (c) => c.toLowerCase() === oldTrimmed.toLowerCase()
+    );
+    if (idx !== -1) {
+      packageCategories.value[idx] = newTrimmed;
+    } else {
+      packageCategories.value.push(newTrimmed);
+    }
+
+    // Update all packages with old category name
+    const affected = packages.value.filter((p) => p.category?.toLowerCase() === oldTrimmed.toLowerCase());
+    for (const pkg of affected) {
+      pkg.category = newTrimmed;
+      await savePackage(pkg);
+    }
+
+    await persistConfigToSupabase();
+  }
+
   return {
     packages,
+    packageCategories,
     masterInclusions,
     isGlobalPriceMasked,
     loading,
@@ -548,6 +650,9 @@ export function usePackages() {
     removeMasterInclusion,
     updateMasterInclusion,
     resetMasterInclusions,
+    addCategory,
+    deleteCategory,
+    renameCategory,
   };
 }
 

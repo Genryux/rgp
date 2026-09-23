@@ -12,6 +12,7 @@ import {
   FolderInput,
   Loader2,
   HardDrive,
+  Database,
   CheckCircle2,
   Info,
   Edit3,
@@ -38,6 +39,10 @@ const {
   usedPercentage,
   remainingMB,
   estimatedPhotosRemaining,
+  totalDbStorageMB,
+  maxDbQuotaMB,
+  dbUsedPercentage,
+  dbRemainingMB,
   createFolder,
   updateFolder,
   deleteFolder,
@@ -130,11 +135,79 @@ const uploading = ref(false);
 const uploadProgress = ref('');
 const fileInputRef = ref(null);
 
+// Toast Notification Feedback State
+const toast = ref({
+  visible: false,
+  title: '',
+  subtitle: '',
+  type: 'success', // 'success' | 'danger' | 'info'
+});
+let toastTimer = null;
+
+function triggerToast(title, subtitle = '', type = 'success', duration = 3500) {
+  if (toastTimer) clearTimeout(toastTimer);
+  toast.value = {
+    visible: true,
+    title,
+    subtitle,
+    type,
+  };
+  toastTimer = setTimeout(() => {
+    toast.value.visible = false;
+  }, duration);
+}
+
+function dismissToast() {
+  if (toastTimer) clearTimeout(toastTimer);
+  toast.value.visible = false;
+}
+
 // Modal states
 const isCreateFolderModalOpen = ref(false);
 const isRenameFolderModalOpen = ref(false);
 const isDeleteFolderModalOpen = ref(false);
 const isMoveMediaModalOpen = ref(false);
+
+// Delete Media Modal State (Single & Bulk)
+const mediaToDelete = ref(null);
+const isBulkDeleteModalOpen = ref(false);
+
+function promptDeleteMedia(item) {
+  mediaToDelete.value = item;
+}
+
+function cancelDeleteMedia() {
+  mediaToDelete.value = null;
+}
+
+async function confirmDeleteMedia() {
+  if (!mediaToDelete.value) return;
+  const item = mediaToDelete.value;
+  const fileName = getImageFileName(item);
+  await deleteMedia(item.id);
+  if (viewingItem.value && viewingItem.value.id === item.id) {
+    closeImageViewer();
+  }
+  mediaToDelete.value = null;
+  triggerToast('Photo Deleted', `"${fileName}" was removed from ${item.category || 'gallery'}`, 'info', 3500);
+}
+
+function openDeleteBulkMedia() {
+  if (selectedMediaIds.value.length === 0) return;
+  isBulkDeleteModalOpen.value = true;
+}
+
+async function confirmBulkDeleteMedia() {
+  const count = selectedMediaIds.value.length;
+  if (count === 0) return;
+  for (const id of selectedMediaIds.value) {
+    await deleteMedia(id);
+  }
+  selectedMediaIds.value = [];
+  isBatchMode.value = false;
+  isBulkDeleteModalOpen.value = false;
+  triggerToast('Photos Deleted', `Permanently deleted ${count} selected photos`, 'info', 3500);
+}
 
 // Fullscreen Image Viewer Modal State
 const viewingItem = ref(null);
@@ -156,6 +229,8 @@ watch(
     isRenameFolderModalOpen.value ||
     isDeleteFolderModalOpen.value ||
     isMoveMediaModalOpen.value ||
+    mediaToDelete.value ||
+    isBulkDeleteModalOpen.value ||
     viewingItem.value
   ),
   (isOpen, wasOpen) => {
@@ -170,6 +245,8 @@ onUnmounted(() => {
     isRenameFolderModalOpen.value ||
     isDeleteFolderModalOpen.value ||
     isMoveMediaModalOpen.value ||
+    mediaToDelete.value ||
+    isBulkDeleteModalOpen.value ||
     viewingItem.value
   ) {
     closeModal();
@@ -250,18 +327,31 @@ async function handleFiles(files) {
   uploading.value = true;
 
   const targetCategory = manualUploadFolder.value || folders.value[0] || 'General';
+  let successCount = 0;
+  let lastError = null;
+
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     uploadProgress.value = `Optimizing & uploading ${i + 1} of ${files.length}: ${file.name}...`;
     const res = await uploadMediaFile(file, targetCategory);
     if (res?.error) {
-      alert(`Upload failed for ${file.name}: ${res.error.message || 'Please sign in at /admin/login'}`);
+      lastError = res.error;
+    } else {
+      successCount++;
     }
   }
 
   uploading.value = false;
   uploadProgress.value = '';
   if (fileInputRef.value) fileInputRef.value.value = '';
+
+  if (lastError && successCount === 0) {
+    triggerToast('Upload Failed', lastError.message || 'Please check admin authentication.', 'danger', 4500);
+  } else if (lastError) {
+    triggerToast('Upload Partial', `Uploaded ${successCount} of ${files.length} photos with errors`, 'danger', 4500);
+  } else {
+    triggerToast('Upload Complete', `Successfully uploaded ${successCount} photo${successCount > 1 ? 's' : ''} to ${targetCategory}`, 'success', 4000);
+  }
 }
 
 function onFileInputChange(e) {
@@ -282,12 +372,14 @@ function openCreateFolder() {
 }
 
 function handleCreateFolder() {
-  if (!newFolderName.value.trim()) return;
-  const success = createFolder(newFolderName.value.trim());
+  const trimmed = newFolderName.value.trim();
+  if (!trimmed) return;
+  const success = createFolder(trimmed);
   if (success) {
-    activeFolder.value = newFolderName.value.trim();
+    activeFolder.value = trimmed;
     isCreateFolderModalOpen.value = false;
     newFolderName.value = '';
+    triggerToast('Folder Created', `Album folder "${trimmed}" created`, 'success', 3500);
   }
 }
 
@@ -299,14 +391,20 @@ function openRenameFolder(folderName, e) {
 }
 
 async function handleRenameFolder() {
-  if (!newFolderName.value.trim()) return;
-  await updateFolder(folderBeingRenamed.value, newFolderName.value.trim());
-  if (activeFolder.value === folderBeingRenamed.value) {
-    activeFolder.value = newFolderName.value.trim();
+  const oldName = folderBeingRenamed.value;
+  const trimmed = newFolderName.value.trim();
+  if (!trimmed || trimmed === oldName) {
+    isRenameFolderModalOpen.value = false;
+    return;
+  }
+  await updateFolder(oldName, trimmed);
+  if (activeFolder.value === oldName) {
+    activeFolder.value = trimmed;
   }
   isRenameFolderModalOpen.value = false;
   folderBeingRenamed.value = '';
   newFolderName.value = '';
+  triggerToast('Folder Renamed', `Renamed "${oldName}" to "${trimmed}"`, 'success', 3500);
 }
 
 function openDeleteFolder(folderName, e) {
@@ -317,12 +415,14 @@ function openDeleteFolder(folderName, e) {
 
 async function handleDeleteFolder() {
   if (!folderBeingDeleted.value) return;
-  await deleteFolder(folderBeingDeleted.value, 'General');
-  if (activeFolder.value === folderBeingDeleted.value) {
+  const deletedFolder = folderBeingDeleted.value;
+  await deleteFolder(deletedFolder, 'General');
+  if (activeFolder.value === deletedFolder) {
     activeFolder.value = 'All';
   }
   isDeleteFolderModalOpen.value = false;
   folderBeingDeleted.value = '';
+  triggerToast('Folder Deleted', `Folder "${deletedFolder}" removed. Photos moved to General.`, 'info', 3500);
 }
 
 // ==========================================
@@ -343,18 +443,23 @@ function openMoveBulkMedia() {
 
 async function handleConfirmMove() {
   if (!selectedDestinationFolder.value) return;
+  const destFolder = selectedDestinationFolder.value;
 
   if (targetMediaToMove.value) {
     // Single move
-    await moveMediaToFolder(targetMediaToMove.value.id, selectedDestinationFolder.value);
+    const fileName = getImageFileName(targetMediaToMove.value);
+    await moveMediaToFolder(targetMediaToMove.value.id, destFolder);
     if (viewingItem.value && viewingItem.value.id === targetMediaToMove.value.id) {
-      viewingItem.value.category = selectedDestinationFolder.value;
+      viewingItem.value.category = destFolder;
     }
+    triggerToast('Photo Moved', `"${fileName}" moved to "${destFolder}"`, 'success', 3500);
   } else if (selectedMediaIds.value.length > 0) {
     // Bulk move
-    await bulkMoveMedia(selectedMediaIds.value, selectedDestinationFolder.value);
+    const count = selectedMediaIds.value.length;
+    await bulkMoveMedia(selectedMediaIds.value, destFolder);
     selectedMediaIds.value = [];
     isBatchMode.value = false;
+    triggerToast('Photos Moved', `Moved ${count} photos to "${destFolder}"`, 'success', 3500);
   }
 
   isMoveMediaModalOpen.value = false;
@@ -386,102 +491,163 @@ function deselectAll() {
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
       <div>
         <h2 class="text-2xl font-bold text-white tracking-wide">Media & Showcase Manager</h2>
-        <p class="text-xs text-neutral-400 mt-0.5">Upload, organize folders, and monitor your 1 GB cloud storage consumption</p>
+        <p class="text-xs text-neutral-400 mt-0.5">Upload, organize folders, and monitor your cloud media & database consumption</p>
       </div>
     </div>
 
     <!-- ========================================================================= -->
-    <!-- TOP SECTION: STORAGE QUOTA (LEFT) + DRAG & DROP UPLOAD (RIGHT) -->
+    <!-- TOP SECTION: STORAGE & DATABASE QUOTA (LEFT) + DRAG & DROP UPLOAD (RIGHT) -->
     <!-- ========================================================================= -->
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
       
-      <!-- LEFT: COMPACT CLOUD STORAGE CONSUMPTION CARD -->
+      <!-- LEFT: CLOUD MEDIA & DATABASE CONSUMPTION CARD -->
       <div class="lg:col-span-6 rounded-3xl bg-[#141414] border border-white/[0.08] p-5 shadow-xl flex flex-col justify-between space-y-4 relative overflow-hidden">
         <!-- Ambient glow -->
         <div
-          class="absolute -top-12 -right-12 w-32 h-32 rounded-full blur-2xl pointer-events-none transition-all duration-700"
+          class="absolute -top-12 -right-12 w-36 h-36 rounded-full blur-2xl pointer-events-none transition-all duration-700"
           :class="[
-            usedPercentage > 90
+            usedPercentage > 90 || dbUsedPercentage > 90
               ? 'bg-red-500/20'
-              : usedPercentage > 70
+              : usedPercentage > 70 || dbUsedPercentage > 70
                 ? 'bg-yellow-500/15'
                 : 'bg-white/[0.03]'
           ]"
         ></div>
 
-        <!-- Top Header & Usage Metrics -->
-        <div class="flex items-center justify-between gap-3 relative z-10">
-          <div class="flex items-center gap-2.5">
-            <div
-              class="p-2.5 rounded-2xl border transition duration-300"
-              :class="[
-                usedPercentage > 90
-                  ? 'bg-red-500/15 border-red-500/30 text-red-400'
-                  : 'bg-white/[0.06] border-white/10 text-neutral-300'
-              ]"
-            >
-              <HardDrive class="w-4 h-4" />
-            </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <h3 class="text-sm font-bold text-white tracking-wide">Storage Quota</h3>
-                <span class="px-2 py-0.5 rounded-full bg-white/[0.06] text-[10px] font-mono text-neutral-300">
-                  1 GB Free Tier
-                </span>
+        <!-- 1. Media Files Storage Quota (1 GB Free Tier) -->
+        <div class="space-y-2 relative z-10">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div
+                class="p-2 rounded-xl border transition duration-300 shrink-0"
+                :class="[
+                  usedPercentage > 90
+                    ? 'bg-red-500/15 border-red-500/30 text-red-400'
+                    : 'bg-white/[0.06] border-white/10 text-neutral-300'
+                ]"
+              >
+                <HardDrive class="w-3.5 h-3.5" />
               </div>
-              <p class="text-[11px] text-neutral-400">{{ gallery.length }} photos uploaded</p>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <h3 class="text-xs font-bold text-white tracking-wide">Media Storage</h3>
+                  <span class="px-2 py-0.5 rounded-full bg-white/[0.06] text-[10px] font-mono text-neutral-300 border border-white/[0.06]">
+                    1 GB Free Tier
+                  </span>
+                </div>
+                <p class="text-[10px] text-neutral-400 truncate">{{ gallery.length }} photos uploaded</p>
+              </div>
+            </div>
+
+            <!-- Numbers & Percentage Tag -->
+            <div class="flex items-baseline gap-1 text-right shrink-0">
+              <span class="text-sm font-extrabold text-white">{{ totalStorageMB }} MB</span>
+              <span class="text-[10px] text-neutral-400 font-medium">/ {{ maxQuotaMB }} MB</span>
+              <span
+                class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono"
+                :class="[
+                  usedPercentage > 90
+                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    : usedPercentage > 70
+                      ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                      : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                ]"
+              >
+                {{ usedPercentage }}%
+              </span>
             </div>
           </div>
 
-          <!-- Numbers & Percentage Tag -->
-          <div class="flex items-baseline gap-1 text-right">
-            <span class="text-xl font-extrabold text-white">{{ totalStorageMB }} MB</span>
-            <span class="text-[11px] text-neutral-400 font-medium">/ {{ maxQuotaMB }} MB</span>
-            <span
-              class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono"
-              :class="[
-                usedPercentage > 90
-                  ? 'bg-red-500/20 text-red-300 border border-red-500/30'
-                  : usedPercentage > 70
-                    ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                    : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-              ]"
-            >
-              {{ usedPercentage }}%
-            </span>
+          <!-- Progress Bar Gauge -->
+          <div class="space-y-1">
+            <div class="w-full h-2 rounded-full bg-black/60 border border-white/[0.08] overflow-hidden p-0.5">
+              <div
+                class="h-full rounded-full transition-all duration-700 ease-out"
+                :style="{ width: `${usedPercentage}%` }"
+                :class="[
+                  usedPercentage > 90
+                    ? 'bg-gradient-to-r from-red-600 to-red-400'
+                    : usedPercentage > 70
+                      ? 'bg-gradient-to-r from-yellow-600 to-yellow-400'
+                      : 'bg-gradient-to-r from-yellow-600 via-[#FFD700] to-yellow-300'
+                ]"
+              ></div>
+            </div>
+            <div class="flex justify-between items-center text-[10px] text-neutral-400 px-0.5">
+              <span>0 MB</span>
+              <span class="text-neutral-300 font-medium">~{{ remainingMB }} MB Remaining (Room for ~{{ estimatedPhotosRemaining.toLocaleString() }} WebP photos)</span>
+              <span>1,000 MB</span>
+            </div>
           </div>
         </div>
 
-        <!-- Progress Bar Gauge -->
-        <div class="space-y-1.5 relative z-10">
-          <div class="w-full h-2.5 rounded-full bg-black/60 border border-white/[0.08] overflow-hidden p-0.5">
-            <div
-              class="h-full rounded-full transition-all duration-700 ease-out"
-              :style="{ width: `${usedPercentage}%` }"
-              :class="[
-                usedPercentage > 90
-                  ? 'bg-gradient-to-r from-red-600 to-red-400'
-                  : usedPercentage > 70
-                    ? 'bg-gradient-to-r from-yellow-600 to-yellow-400'
-                    : 'bg-gradient-to-r from-yellow-600 via-[#FFD700] to-yellow-300'
-              ]"
-            ></div>
+        <div class="h-px bg-white/[0.06] w-full relative z-10"></div>
+
+        <!-- 2. Supabase PostgreSQL Database Storage Quota (500 MB Free Tier) -->
+        <div class="space-y-2 relative z-10">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div
+                class="p-2 rounded-xl border transition duration-300 shrink-0"
+                :class="[
+                  dbUsedPercentage > 90
+                    ? 'bg-red-500/15 border-red-500/30 text-red-400'
+                    : 'bg-white/[0.06] border-white/10 text-neutral-300'
+                ]"
+              >
+                <Database class="w-3.5 h-3.5" />
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <h3 class="text-xs font-bold text-white tracking-wide">Database Storage</h3>
+                  <span class="px-2 py-0.5 rounded-full bg-white/[0.06] text-[10px] font-mono text-neutral-300 border border-white/[0.06]">
+                    500 MB Free Tier
+                  </span>
+                </div>
+                <p class="text-[10px] text-neutral-400 truncate">PostgreSQL tables, sections, packages & inquiries</p>
+              </div>
+            </div>
+
+            <!-- Numbers & Percentage Tag -->
+            <div class="flex items-baseline gap-1 text-right shrink-0">
+              <span class="text-sm font-extrabold text-white">{{ totalDbStorageMB }} MB</span>
+              <span class="text-[10px] text-neutral-400 font-medium">/ {{ maxDbQuotaMB }} MB</span>
+              <span
+                class="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono"
+                :class="[
+                  dbUsedPercentage > 90
+                    ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                    : dbUsedPercentage > 70
+                      ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                      : 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                ]"
+              >
+                {{ dbUsedPercentage }}%
+              </span>
+            </div>
           </div>
 
-          <div class="flex justify-between items-center text-[10px] text-neutral-400 px-0.5">
-            <span>0 MB</span>
-            <span class="text-neutral-300 font-semibold">~{{ remainingMB }} MB Remaining</span>
-            <span>1,000 MB</span>
+          <!-- Progress Bar Gauge -->
+          <div class="space-y-1">
+            <div class="w-full h-2 rounded-full bg-black/60 border border-white/[0.08] overflow-hidden p-0.5">
+              <div
+                class="h-full rounded-full transition-all duration-700 ease-out"
+                :style="{ width: `${dbUsedPercentage}%` }"
+                :class="[
+                  dbUsedPercentage > 90
+                    ? 'bg-gradient-to-r from-red-600 to-red-400'
+                    : dbUsedPercentage > 70
+                      ? 'bg-gradient-to-r from-yellow-600 to-yellow-400'
+                      : 'bg-gradient-to-r from-cyan-500 via-sky-400 to-blue-400'
+                ]"
+              ></div>
+            </div>
+            <div class="flex justify-between items-center text-[10px] text-neutral-400 px-0.5">
+              <span>0 MB</span>
+              <span class="text-neutral-300 font-medium">~{{ dbRemainingMB }} MB Remaining</span>
+              <span>500 MB</span>
+            </div>
           </div>
-        </div>
-
-        <!-- Micro stats strip -->
-        <div class="pt-2 border-t border-white/[0.05] flex items-center justify-between text-[11px] text-neutral-400 relative z-10">
-          <span class="flex items-center gap-1.5 text-emerald-400">
-            <CheckCircle2 class="w-3.5 h-3.5 flex-shrink-0" />
-            <span>Room for ~{{ estimatedPhotosRemaining.toLocaleString() }} more WebP photos</span>
-          </span>
-          <span class="text-neutral-500 font-mono text-[10px]">~350 KB/photo</span>
         </div>
       </div>
 
@@ -576,10 +742,17 @@ function deselectAll() {
       <div class="flex items-center gap-2">
         <button
           @click="openMoveBulkMedia"
-          class="px-4 py-2 rounded-xl bg-[#FFD700] text-black text-xs font-bold hover:bg-yellow-400 transition flex items-center gap-2 shadow-md shadow-yellow-500/20"
+          class="cursor-pointer px-4 py-2 rounded-xl bg-[#FFD700] text-black text-xs font-bold hover:bg-yellow-400 transition flex items-center gap-2 shadow-md shadow-yellow-500/20"
         >
           <FolderInput class="w-4 h-4" />
           <span>Move {{ selectedMediaIds.length }} Photos to Folder</span>
+        </button>
+        <button
+          @click="openDeleteBulkMedia"
+          class="cursor-pointer px-4 py-2 rounded-xl bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white text-xs font-bold transition flex items-center gap-2 shadow-md"
+        >
+          <Trash2 class="w-4 h-4" />
+          <span>Delete ({{ selectedMediaIds.length }})</span>
         </button>
       </div>
     </div>
@@ -829,7 +1002,7 @@ function deselectAll() {
 
                 <!-- Delete Button -->
                 <button
-                  @click.stop="deleteMedia(item.id)"
+                  @click.stop="promptDeleteMedia(item)"
                   class="cursor-pointer p-1.5 rounded-lg text-neutral-500 hover:text-red-400 hover:bg-red-500/10 transition"
                   title="Delete Photo"
                 >
@@ -954,30 +1127,44 @@ function deselectAll() {
     <Teleport to="body">
       <div
         v-if="isDeleteFolderModalOpen"
-        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10000] flex items-center justify-center p-4"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10002] flex items-center justify-center p-4"
       >
-        <div class="bg-[#141414] border border-white/[0.12] rounded-3xl p-6 max-w-md w-full space-y-5 shadow-2xl">
-          <div class="flex items-center gap-3 text-red-400">
-            <AlertTriangle class="w-6 h-6" />
-            <h3 class="text-lg font-bold text-white">Delete "{{ folderBeingDeleted }}" Folder?</h3>
+        <div class="bg-[#141414] border border-white/[0.12] rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+          <div class="flex items-start gap-4">
+            <div class="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+              <AlertTriangle class="w-5 h-5" />
+            </div>
+
+            <div class="space-y-1 flex-1 min-w-0">
+              <h3 class="text-base font-bold text-white tracking-wide">Delete Folder?</h3>
+              <p class="text-xs text-neutral-300 leading-relaxed">
+                Are you sure you want to delete folder <strong class="text-white font-semibold">"{{ folderBeingDeleted }}"</strong>?
+              </p>
+            </div>
           </div>
 
-          <p class="text-xs text-neutral-300 leading-relaxed">
-            Photos inside this folder will <strong>NOT</strong> be deleted. They will automatically be safely moved to the <strong>General</strong> folder.
-          </p>
+          <div class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-xs text-neutral-300 leading-relaxed space-y-1">
+            <p class="font-semibold text-neutral-200">Safe Reassignment:</p>
+            <p class="text-[11px] text-neutral-400">
+              Photos inside this folder will <strong>NOT</strong> be deleted. They will automatically and safely be moved to the <strong>General</strong> folder.
+            </p>
+          </div>
 
-          <div class="flex justify-end gap-3 pt-3 border-t border-white/[0.08]">
+          <div class="flex justify-end items-center gap-2.5 pt-2">
             <button
+              type="button"
               @click="isDeleteFolderModalOpen = false"
-              class="cursor-pointer px-4 py-2 rounded-full border border-white/[0.08] text-neutral-400 hover:text-white text-xs font-medium"
+              class="cursor-pointer px-5 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.10] text-neutral-300 hover:text-white text-xs font-semibold transition text-center"
             >
               Cancel
             </button>
             <button
+              type="button"
               @click="handleDeleteFolder"
-              class="cursor-pointer px-6 py-2 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-xs uppercase transition shadow-lg shadow-red-600/30"
+              class="cursor-pointer px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-red-500/20 text-center flex items-center justify-center gap-1.5"
             >
-              Confirm Delete
+              <Trash2 class="w-3.5 h-3.5" />
+              <span>Delete Folder</span>
             </button>
           </div>
         </div>
@@ -1116,7 +1303,7 @@ function deselectAll() {
 
               <!-- Delete -->
               <button
-                @click="deleteMedia(viewingItem.id); closeImageViewer()"
+                @click="promptDeleteMedia(viewingItem)"
                 class="cursor-pointer p-2 rounded-xl bg-white/[0.05] hover:bg-red-500/20 text-neutral-400 hover:text-red-400 border border-white/10 transition"
                 title="Delete photo"
               >
@@ -1184,6 +1371,154 @@ function deselectAll() {
           </div>
         </div>
       </Transition>
+    </Teleport>
+
+    <!-- ========================================== -->
+    <!-- 6. DELETE SINGLE MEDIA CONFIRMATION MODAL -->
+    <!-- ========================================== -->
+    <Teleport to="body">
+      <div
+        v-if="mediaToDelete"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10002] flex items-center justify-center p-4"
+      >
+        <div class="bg-[#141414] border border-white/[0.12] rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+          <div class="flex items-start gap-4">
+            <div class="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+              <Trash2 class="w-5 h-5" />
+            </div>
+
+            <div class="space-y-1 flex-1 min-w-0">
+              <h3 class="text-base font-bold text-white tracking-wide">Delete Photo?</h3>
+              <p class="text-xs text-neutral-300 leading-relaxed">
+                Are you sure you want to permanently delete this photo? This action cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.08]">
+            <img
+              :src="mediaToDelete.image_url"
+              :alt="mediaToDelete.title || 'Photo Preview'"
+              class="w-12 h-12 rounded-xl object-cover border border-white/10 shrink-0"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="text-xs font-bold text-white truncate">{{ getImageFileName(mediaToDelete) }}</p>
+              <p class="text-[10px] text-neutral-400 font-mono">{{ ((mediaToDelete.file_size_bytes || 350000) / 1024).toFixed(0) }} KB &bull; {{ mediaToDelete.category }}</p>
+            </div>
+          </div>
+
+          <div class="flex justify-end items-center gap-2.5 pt-2">
+            <button
+              type="button"
+              @click="cancelDeleteMedia"
+              class="cursor-pointer px-5 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.10] text-neutral-300 hover:text-white text-xs font-semibold transition text-center"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              @click="confirmDeleteMedia"
+              class="cursor-pointer px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-red-500/20 text-center flex items-center justify-center gap-1.5"
+            >
+              <Trash2 class="w-3.5 h-3.5" />
+              <span>Delete Photo</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ========================================== -->
+    <!-- 7. DELETE BULK MEDIA CONFIRMATION MODAL -->
+    <!-- ========================================== -->
+    <Teleport to="body">
+      <div
+        v-if="isBulkDeleteModalOpen"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10002] flex items-center justify-center p-4"
+      >
+        <div class="bg-[#141414] border border-white/[0.12] rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+          <div class="flex items-start gap-4">
+            <div class="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+              <Trash2 class="w-5 h-5" />
+            </div>
+
+            <div class="space-y-1 flex-1 min-w-0">
+              <h3 class="text-base font-bold text-white tracking-wide">Delete Selected Photos?</h3>
+              <p class="text-xs text-neutral-300 leading-relaxed">
+                Are you sure you want to permanently delete <strong class="text-white font-semibold">{{ selectedMediaIds.length }} selected photos</strong>? This action cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex justify-end items-center gap-2.5 pt-2">
+            <button
+              type="button"
+              @click="isBulkDeleteModalOpen = false"
+              class="cursor-pointer px-5 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.10] text-neutral-300 hover:text-white text-xs font-semibold transition text-center"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              @click="confirmBulkDeleteMedia"
+              class="cursor-pointer px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-red-500/20 text-center flex items-center justify-center gap-1.5"
+            >
+              <Trash2 class="w-3.5 h-3.5" />
+              <span>Delete {{ selectedMediaIds.length }} Photos</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ========================================================= -->
+    <!-- VISUAL TOAST FEEDBACK NOTIFICATION                        -->
+    <!-- ========================================================= -->
+    <Teleport to="body">
+      <transition
+        enter-active-class="transition duration-300 ease-out"
+        enter-from-class="opacity-0 translate-y-6 scale-95"
+        enter-to-class="opacity-100 translate-y-0 scale-100"
+        leave-active-class="transition duration-200 ease-in"
+        leave-from-class="opacity-100 translate-y-0 scale-100"
+        leave-to-class="opacity-0 translate-y-6 scale-95"
+      >
+        <div
+          v-if="toast.visible"
+          class="fixed bottom-6 left-6 z-[10001] max-w-md w-[calc(100vw-3rem)] sm:w-auto bg-[#1a1a1a]/95 backdrop-blur-md border border-white/15 text-white px-4 py-3 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.8)] flex items-center justify-between gap-3.5 font-manrope select-none"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div
+              class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+              :class="[
+                toast.type === 'success'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : toast.type === 'danger'
+                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                  : 'bg-white/10 text-neutral-300 border border-white/15'
+              ]"
+            >
+              <CheckCircle2 v-if="toast.type === 'success'" class="w-4 h-4" />
+              <AlertTriangle v-else-if="toast.type === 'danger'" class="w-4 h-4" />
+              <Info v-else class="w-4 h-4" />
+            </div>
+
+            <div class="min-w-0">
+              <p class="text-xs font-bold text-white truncate">{{ toast.title }}</p>
+              <p v-if="toast.subtitle" class="text-[11px] text-neutral-400 truncate mt-0.5">{{ toast.subtitle }}</p>
+            </div>
+          </div>
+
+          <button
+            @click="dismissToast"
+            type="button"
+            class="cursor-pointer p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition shrink-0 ml-2"
+            title="Dismiss"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+      </transition>
     </Teleport>
   </div>
 </template>

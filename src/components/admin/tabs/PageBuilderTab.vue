@@ -59,6 +59,8 @@ import {
   Cloud,
   Loader2,
   Info,
+  CheckCircle2,
+  AlertTriangle,
 } from '@lucide/vue';
 import { adminModalTokens } from '../../../lib/designTokens';
 
@@ -578,7 +580,7 @@ const sectionCategoryCatalog = [
     key: 'hero',
     name: 'Hero Section',
     icon: Crown,
-    badgeColor: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
+    badgeColor: 'text-neutral-300 bg-white/10 border-white/15',
     description: 'The commanding opening statement with headline typography, booking CTAs, and background media.',
     designs: [
       {
@@ -676,7 +678,7 @@ const sectionCategoryCatalog = [
     key: 'features',
     name: 'Features Section',
     icon: Sparkles,
-    badgeColor: 'text-yellow-400 bg-yellow-400/10 border-yellow-400/20',
+    badgeColor: 'text-neutral-300 bg-white/10 border-white/15',
     description: 'Studio highlights, milestone statistics, 4-step booking workflow, camera rig arsenal, and philosophy.',
     designs: [
       {
@@ -759,7 +761,7 @@ const sectionCategoryCatalog = [
     key: 'pricing',
     name: 'Pricing Component',
     icon: Diamond,
-    badgeColor: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
+    badgeColor: 'text-neutral-300 bg-white/10 border-white/15',
     description: 'Display tailored pricing tiers, spotlight packages, deliverables checklists, and comparison matrices.',
     designs: [
       {
@@ -832,7 +834,7 @@ const sectionCategoryCatalog = [
     key: 'testimonials',
     name: 'Testimonials Component',
     icon: Star,
-    badgeColor: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20',
+    badgeColor: 'text-neutral-300 bg-white/10 border-white/15',
     description: 'Client reviews, dual spotlight cards, full-width editorial quotes, and partner venue tickers.',
     designs: [
       {
@@ -911,7 +913,7 @@ const sectionCategoryCatalog = [
     key: 'portfolio',
     name: 'Portfolio',
     icon: Film,
-    badgeColor: 'text-cyan-400 bg-cyan-400/10 border-cyan-400/20',
+    badgeColor: 'text-neutral-300 bg-white/10 border-white/15',
     description: '4K cinema video player, interactive retouching comparison slider, curated slider, and filmstrips.',
     designs: [
       {
@@ -982,7 +984,7 @@ const sectionCategoryCatalog = [
     key: 'gallery',
     name: 'Gallery Component',
     icon: Images,
-    badgeColor: 'text-indigo-400 bg-indigo-400/10 border-indigo-400/20',
+    badgeColor: 'text-neutral-300 bg-white/10 border-white/15',
     description: 'Masonry photo collection and edge-to-edge mosaic photo wall.',
     designs: [
       {
@@ -1025,7 +1027,7 @@ const sectionCategoryCatalog = [
     key: 'footer',
     name: 'Footer Component',
     icon: PanelBottom,
-    badgeColor: 'text-rose-400 bg-rose-400/10 border-rose-400/20',
+    badgeColor: 'text-neutral-300 bg-white/10 border-white/15',
     description: '4-column studio hub, centered minimalist luxury, and split studio map.',
     designs: [
       {
@@ -1087,7 +1089,7 @@ const sectionCategoryCatalog = [
     key: 'contact',
     name: 'Contact Us Page',
     icon: MessageSquare,
-    badgeColor: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
+    badgeColor: 'text-neutral-300 bg-white/10 border-white/15',
     description: 'Direct booking inquiry form and 2-column split booking & studio direct contact section.',
     designs: [
       {
@@ -1127,6 +1129,7 @@ const sectionCategoryCatalog = [
       },
     ],
   },
+
 ];
 
 // Active selected category object
@@ -1295,6 +1298,58 @@ function removeGearItem(catIndex, itemIndex) {
   editingSection.value.content.categories[catIndex].items.splice(itemIndex, 1);
 }
 
+// Toast feedback notification state
+const toast = ref({
+  visible: false,
+  title: '',
+  subtitle: '',
+  type: 'success', // 'success' | 'info' | 'danger'
+});
+
+let toastTimeout = null;
+
+function triggerToast(title, subtitle = '', type = 'success', duration = 3500) {
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toast.value = {
+    visible: true,
+    title,
+    subtitle,
+    type,
+  };
+  toastTimeout = setTimeout(() => {
+    toast.value.visible = false;
+  }, duration);
+}
+
+function dismissToast() {
+  if (toastTimeout) clearTimeout(toastTimeout);
+  toast.value.visible = false;
+}
+
+// Section Delete Confirmation State
+const sectionToDelete = ref(null);
+
+function promptDeleteSection(sec) {
+  sectionToDelete.value = sec;
+}
+
+function cancelDeleteSection() {
+  sectionToDelete.value = null;
+}
+
+async function confirmDeleteSection() {
+  if (!sectionToDelete.value) return;
+  const label = sectionToDelete.value.label || 'Section';
+  const id = sectionToDelete.value.id;
+  try {
+    await deleteSection(id);
+    sectionToDelete.value = null;
+    triggerToast('Section Removed', `"${label}" was deleted from page layout`, 'info', 3500);
+  } catch (err) {
+    triggerToast('Delete Failed', err.message || 'Failed to delete section', 'danger', 4500);
+  }
+}
+
 // Cloud Sync State & Actions
 const isSyncing = ref(false);
 const isSynced = ref(false);
@@ -1306,15 +1361,53 @@ async function handleSyncToCloud() {
   try {
     await syncAllToSupabase();
     isSynced.value = true;
+    triggerToast('Cloud Synced', 'All section layouts and content saved to Supabase', 'success', 3500);
   } catch (err) {
     syncError.value = err.message || 'Error syncing to Supabase';
-    alert('Failed to sync to Supabase: ' + syncError.value);
+    triggerToast('Sync Failed', syncError.value, 'danger', 4500);
   } finally {
     isSyncing.value = false;
   }
 }
 
+const isScrolledDown = ref(false);
+let lastScrollY = 0;
+
+function handleScroll() {
+  const currentY = window.scrollY || window.pageYOffset;
+  if (currentY <= 20) {
+    isScrolledDown.value = false;
+    lastScrollY = currentY;
+    return;
+  }
+  const delta = currentY - lastScrollY;
+  if (Math.abs(delta) > 4) {
+    if (delta > 0 && currentY > 60) {
+      isScrolledDown.value = true;
+    } else if (delta < 0) {
+      isScrolledDown.value = false;
+    }
+    lastScrollY = currentY;
+  }
+}
+
+// Watch modal states to lock taskbar dock if modal open
+watch(
+  () => Boolean(
+    editingSection.value ||
+    isAddModalOpen.value ||
+    isDrawerOpen.value ||
+    isMediaPickerOpen.value ||
+    sectionToDelete.value
+  ),
+  (isOpen, wasOpen) => {
+    if (isOpen && !wasOpen) openModal();
+    else if (!isOpen && wasOpen) closeModal();
+  }
+);
+
 onMounted(async () => {
+  window.addEventListener('scroll', handleScroll, { passive: true });
   // Automatically write all active layout sections directly to Supabase
   if (allSections.value.length > 0) {
     try {
@@ -1326,17 +1419,32 @@ onMounted(async () => {
   }
 });
 
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
+  if (
+    editingSection.value ||
+    isAddModalOpen.value ||
+    isDrawerOpen.value ||
+    isMediaPickerOpen.value ||
+    sectionToDelete.value
+  ) {
+    closeModal();
+  }
+});
+
 async function handleSaveEdit() {
   if (editingSection.value) {
     if (editingSection.value.section_type === 'testimonials' && editingSection.value.content?.variant === 'testimonials_featured') {
       syncFeaturedLegacy();
     }
+    const sectionLabel = editingSection.value.label || 'Section';
     try {
       await saveSection(editingSection.value);
       isSynced.value = true;
       editingSection.value = null;
+      triggerToast('Section Saved', `"${sectionLabel}" changes saved successfully`, 'success', 3500);
     } catch (err) {
-      alert('Failed to save changes to Supabase: ' + (err.message || err));
+      triggerToast('Save Failed', err.message || 'Failed to save changes to Supabase', 'danger', 4500);
     }
   }
 }
@@ -1362,8 +1470,9 @@ async function handleAddDesign(design) {
       try {
         await saveSection(updatedNavbar);
         isSynced.value = true;
+        triggerToast('Section Added', `"${design.name}" updated in page layout`, 'success', 3500);
       } catch (err) {
-        alert('Failed to update navbar in Supabase: ' + (err.message || err));
+        triggerToast('Failed to Add', err.message || 'Failed to update navbar in Supabase', 'danger', 4500);
       }
     } else {
       const newSec = {
@@ -1379,8 +1488,9 @@ async function handleAddDesign(design) {
         await saveSection(newSec);
         await reorderSections(list.map((s) => s.id));
         isSynced.value = true;
+        triggerToast('Section Added', `"${design.name}" added to page layout`, 'success', 3500);
       } catch (err) {
-        alert('Failed to save navbar in Supabase: ' + (err.message || err));
+        triggerToast('Failed to Add', err.message || 'Failed to save navbar in Supabase', 'danger', 4500);
       }
     }
 
@@ -1417,8 +1527,9 @@ async function handleAddDesign(design) {
     await saveSection(newSec);
     await reorderSections(list.map((s) => s.id));
     isSynced.value = true;
+    triggerToast('Section Added', `"${design.name}" added to page layout`, 'success', 3500);
   } catch (err) {
-    alert('Failed to save section to Supabase: ' + (err.message || err));
+    triggerToast('Failed to Add', err.message || 'Failed to save section to Supabase', 'danger', 4500);
   }
 
   isAddModalOpen.value = false;
@@ -1429,22 +1540,30 @@ async function handleAddDesign(design) {
 
 <template>
   <div class="space-y-6 font-manrope">
-    <!-- Page Builder Action Bar -->
-    <div class="bg-[#141414] border border-white/[0.08] rounded-3xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-4">
+    <!-- Top Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div>
+        <h2 class="text-2xl font-bold text-white tracking-wide">Page Builder & Visual Flow</h2>
+        <p class="text-xs text-neutral-400 mt-0.5">Customize, compose, reorder, and style all public-facing sections</p>
+      </div>
+    </div>
+
+    <!-- Page Builder Action Bar (Sticky) -->
+    <div
+      class="sticky z-30 bg-[#141414]/95 backdrop-blur-xl border border-white/[0.1] rounded-3xl p-4 shadow-2xl flex flex-wrap items-center justify-between gap-4 transition-all duration-300 ease-in-out"
+      :class="[
+        isScrolledDown ? 'top-4' : 'top-16 sm:top-[68px]'
+      ]"
+    >
       <div class="flex items-center gap-3">
         <!-- Drawer Toggle Button -->
         <button
           @click="isDrawerOpen = !isDrawerOpen"
-          class="px-4 py-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] text-white text-xs font-bold tracking-wide flex items-center gap-2 border border-white/[0.08] transition"
+          class="cursor-pointer px-4 py-2.5 rounded-2xl bg-white/[0.05] hover:bg-white/[0.1] text-white text-xs font-bold tracking-wide flex items-center gap-2 border border-white/[0.08] transition"
         >
           <ListOrdered class="w-4 h-4 text-[#FFD700]" />
           <span>Layout Flow ({{ allSections.length }} Sections)</span>
         </button>
-
-        <div class="hidden sm:flex items-center gap-2 text-xs text-neutral-400 font-medium pl-2 border-l border-white/10">
-          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Hover over any section below to edit, reorder, or toggle</span>
-        </div>
       </div>
 
       <div class="flex items-center gap-3">
@@ -1453,7 +1572,7 @@ async function handleAddDesign(design) {
           type="button"
           @click="handleSyncToCloud"
           :disabled="isSyncing"
-          class="px-4 py-2.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-bold tracking-wide flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+          class="cursor-pointer px-4 py-2.5 rounded-full bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-bold tracking-wide flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed"
           :title="isSynced ? 'All sections are saved in Supabase' : 'Sync all sections directly to Supabase'"
         >
           <Loader2 v-if="isSyncing" class="w-3.5 h-3.5 text-[#FFD700] animate-spin" />
@@ -1466,7 +1585,7 @@ async function handleAddDesign(design) {
         <!-- Add Section Button -->
         <button
           @click="openAddModal(null)"
-          class="px-5 py-2.5 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg shadow-yellow-500/20 flex items-center gap-2"
+          class="cursor-pointer px-5 py-2.5 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-lg shadow-yellow-500/20 flex items-center gap-2"
         >
           <Plus class="w-4 h-4" />
           <span>Add Section</span>
@@ -1539,8 +1658,8 @@ async function handleAddDesign(design) {
               <Edit3 class="w-4 h-4" />
             </button>
             <button
-              @click="deleteSection(sec.id)"
-              class="p-1.5 rounded-lg text-neutral-500 hover:text-red-400 text-xs transition"
+              @click="promptDeleteSection(sec)"
+              class="cursor-pointer p-1.5 rounded-lg text-neutral-500 hover:text-red-400 text-xs transition"
               title="Delete Section"
             >
               <Trash2 class="w-4 h-4" />
@@ -1573,7 +1692,7 @@ async function handleAddDesign(design) {
         </div>
         <button
           @click="openAddModal(null); activeCategoryKey = 'navbar'"
-          class="px-4 py-2 rounded-xl bg-[#FFD700] text-black font-bold text-xs hover:bg-yellow-400 transition flex items-center gap-1.5 shadow-md shadow-yellow-500/20"
+          class="cursor-pointer px-4 py-2 rounded-xl bg-[#FFD700] text-black font-bold text-xs hover:bg-yellow-400 transition flex items-center gap-1.5 shadow-md shadow-yellow-500/20"
         >
           <Plus class="w-3.5 h-3.5" />
           <span>Add Navbar Block</span>
@@ -1602,7 +1721,7 @@ async function handleAddDesign(design) {
               <button
                 @click="moveUp(index)"
                 :disabled="index === 0"
-                class="p-1.5 rounded-xl text-neutral-400 hover:text-[#FFD700] hover:bg-white/[0.08] disabled:opacity-20 transition"
+                class="cursor-pointer p-1.5 rounded-xl text-neutral-400 hover:text-[#FFD700] hover:bg-white/[0.08] disabled:opacity-20 transition"
                 title="Move Up"
               >
                 <ChevronUp class="w-4 h-4" />
@@ -1612,7 +1731,7 @@ async function handleAddDesign(design) {
               <button
                 @click="moveDown(index)"
                 :disabled="index === allSections.length - 1"
-                class="p-1.5 rounded-xl text-neutral-400 hover:text-[#FFD700] hover:bg-white/[0.08] disabled:opacity-20 transition"
+                class="cursor-pointer p-1.5 rounded-xl text-neutral-400 hover:text-[#FFD700] hover:bg-white/[0.08] disabled:opacity-20 transition"
                 title="Move Down"
               >
                 <ChevronDown class="w-4 h-4" />
@@ -1621,7 +1740,7 @@ async function handleAddDesign(design) {
               <!-- Toggle Visibility -->
               <button
                 @click="toggleSectionVisibility(sec.id)"
-                class="p-1.5 rounded-xl transition"
+                class="cursor-pointer p-1.5 rounded-xl transition"
                 :class="[sec.is_visible ? 'text-emerald-400 hover:bg-emerald-500/10' : 'text-neutral-500 hover:bg-white/10']"
                 :title="sec.is_visible ? 'Hide from public' : 'Show on public'"
               >
@@ -1631,7 +1750,7 @@ async function handleAddDesign(design) {
               <!-- Edit Content Button -->
               <button
                 @click="openEdit(sec)"
-                class="px-3 py-1.5 rounded-xl bg-[#FFD700] text-[#121212] text-xs font-bold hover:bg-yellow-400 transition flex items-center gap-1.5 shadow-md shadow-yellow-500/20"
+                class="cursor-pointer px-3 py-1.5 rounded-xl bg-[#FFD700] text-[#121212] text-xs font-bold hover:bg-yellow-400 transition flex items-center gap-1.5 shadow-md shadow-yellow-500/20"
               >
                 <Edit3 class="w-3.5 h-3.5" />
                 <span>Edit</span>
@@ -1639,8 +1758,8 @@ async function handleAddDesign(design) {
 
               <!-- Delete Button -->
               <button
-                @click="deleteSection(sec.id)"
-                class="p-1.5 rounded-xl text-neutral-400 hover:text-red-400 hover:bg-red-500/10 transition"
+                @click="promptDeleteSection(sec)"
+                class="cursor-pointer p-1.5 rounded-xl text-neutral-400 hover:text-red-400 hover:bg-red-500/10 transition"
                 title="Delete Section"
               >
                 <Trash2 class="w-4 h-4" />
@@ -5259,5 +5378,119 @@ async function handleAddDesign(design) {
         </div>
       </div>
     </div>
+
+    <!-- ======================================================== -->
+    <!-- DELETE SECTION CONFIRMATION MODAL                        -->
+    <!-- ======================================================== -->
+    <Teleport to="body">
+      <div
+        v-if="sectionToDelete"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-[10002] flex items-center justify-center p-4 font-manrope"
+      >
+        <div class="bg-[#141414] border border-white/[0.12] rounded-3xl max-w-md w-full p-6 md:p-8 space-y-5 shadow-2xl">
+          <div class="flex items-start gap-4">
+            <div class="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+              <Trash2 class="w-5 h-5" />
+            </div>
+
+            <div class="space-y-1 flex-1 min-w-0">
+              <h3 class="text-base font-bold text-white tracking-wide">Delete Section?</h3>
+              <p class="text-xs text-neutral-300 leading-relaxed">
+                Are you sure you want to permanently delete <strong class="text-white font-semibold">"{{ sectionToDelete.label }}"</strong> from your page layout?
+              </p>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-xs text-neutral-300 leading-relaxed flex items-center justify-between">
+            <div class="space-y-0.5 min-w-0 flex-1 mr-2">
+              <p class="font-bold text-white text-xs truncate">{{ sectionToDelete.label }}</p>
+              <p class="text-[10px] text-neutral-400 uppercase tracking-wider font-mono truncate">
+                Type: {{ sectionToDelete.section_type }} {{ sectionToDelete.content?.variant ? `(${sectionToDelete.content.variant})` : '' }}
+              </p>
+            </div>
+            <span class="px-2 py-0.5 rounded-md bg-white/[0.06] text-[10px] text-neutral-300 border border-white/10 font-mono shrink-0">
+              Order #{{ allSections.findIndex(s => s.id === sectionToDelete.id) + 1 }}
+            </span>
+          </div>
+
+          <div class="flex justify-end items-center gap-2.5 pt-2">
+            <button
+              type="button"
+              @click="cancelDeleteSection"
+              class="cursor-pointer px-5 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.10] text-neutral-300 hover:text-white text-xs font-semibold transition text-center"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              @click="confirmDeleteSection"
+              class="cursor-pointer px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-red-500/20 text-center flex items-center justify-center gap-1.5"
+            >
+              <Trash2 class="w-3.5 h-3.5" />
+              <span>Delete Section</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- ========================================================= -->
+    <!-- VISUAL TOAST FEEDBACK NOTIFICATION                        -->
+    <!-- ========================================================= -->
+    <Teleport to="body">
+      <transition
+        enter-active-class="transition duration-300 ease-out"
+        enter-from-class="opacity-0 translate-y-6 scale-95"
+        enter-to-class="opacity-100 translate-y-0 scale-100"
+        leave-active-class="transition duration-200 ease-in"
+        leave-from-class="opacity-100 translate-y-0 scale-100"
+        leave-to-class="opacity-0 translate-y-6 scale-95"
+      >
+        <div
+          v-if="toast.visible"
+          class="fixed bottom-6 left-6 z-[10001] max-w-md w-[calc(100vw-3rem)] sm:w-auto bg-[#1a1a1a]/95 backdrop-blur-md border border-white/15 text-white px-4 py-3 rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.8)] flex items-center justify-between gap-3.5 font-manrope select-none"
+        >
+          <div class="flex items-center gap-3 min-w-0">
+            <div
+              class="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+              :class="[
+                toast.type === 'success'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                  : toast.type === 'danger'
+                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                  : 'bg-white/10 text-neutral-300 border border-white/15'
+              ]"
+            >
+              <CheckCircle2 v-if="toast.type === 'success'" class="w-4 h-4" />
+              <AlertTriangle v-else-if="toast.type === 'danger'" class="w-4 h-4" />
+              <Info v-else class="w-4 h-4" />
+            </div>
+
+            <div class="min-w-0">
+              <p class="text-xs font-bold text-white truncate">{{ toast.title }}</p>
+              <p v-if="toast.subtitle" class="text-[11px] text-neutral-400 truncate mt-0.5">{{ toast.subtitle }}</p>
+            </div>
+          </div>
+
+          <button
+            @click="dismissToast"
+            type="button"
+            class="cursor-pointer p-1 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition shrink-0 ml-2"
+            title="Dismiss"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
+
+<style scoped>
+button:not(:disabled) {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+</style>

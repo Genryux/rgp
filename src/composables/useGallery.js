@@ -172,7 +172,7 @@ export async function compressImageToWebP(file, maxWidth = 2560, quality = 0.85)
 }
 
 export function useGallery() {
-  // Storage stats computed properties
+  // Media Storage stats computed properties (1 GB Free Tier)
   const totalStorageBytes = computed(() => {
     return gallery.value.reduce((acc, item) => acc + (item.file_size_bytes || 350000), 0);
   });
@@ -198,6 +198,86 @@ export function useGallery() {
     return Math.floor(remainingBytes / 350000); // Assuming avg ~350KB WebP photo
   });
 
+  // =========================================================================
+  // SUPABASE POSTGRES DATABASE QUOTA STATS (500 MB Free Tier)
+  // =========================================================================
+  const liveDbSizeBytes = ref(null);
+  const MAX_DB_QUOTA_BYTES = 500 * 1024 * 1024; // 500 MB in bytes
+  const maxDbQuotaMB = 500;
+
+  async function fetchDatabaseSize() {
+    if (!isSupabaseConfigured || !supabase) return;
+    try {
+      const { data, error } = await supabase.rpc('get_database_size');
+      if (!error && data && Number(data) > 0) {
+        liveDbSizeBytes.value = Number(data);
+        return;
+      }
+    } catch {
+      // Fallback to table schema and payload calculation
+    }
+  }
+
+  const totalDbStorageBytes = computed(() => {
+    if (liveDbSizeBytes.value !== null && liveDbSizeBytes.value > 0) {
+      return liveDbSizeBytes.value;
+    }
+    // Baseline PostgreSQL catalog & system tables footprint (~8.5 MB)
+    const baseCatalogBytes = 8.5 * 1024 * 1024;
+
+    // Gallery rows + metadata (~1.5 KB / record)
+    const galleryBytes = (gallery.value?.length || 0) * 1536;
+
+    // Folders table
+    const folderBytes = (folders.value?.length || 0) * 512;
+
+    // Packages & Inclusions table
+    let packagesBytes = 15 * 2048;
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('rgp_packages');
+        if (saved) packagesBytes = (JSON.parse(saved).length || 10) * 2048;
+      } catch {}
+    }
+
+    // Sections & Dynamic Page Builder Block Content
+    let sectionsBytes = 25 * 4096;
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('rgp_sections');
+        if (saved) sectionsBytes = (JSON.parse(saved).length || 20) * 4096;
+      } catch {}
+    }
+
+    // Inquiries & Client Leads
+    let inquiriesBytes = 10 * 2048;
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('rgp_inquiries');
+        if (saved) inquiriesBytes = (JSON.parse(saved).length || 5) * 2048;
+      } catch {}
+    }
+
+    // Settings, Dynamic Pages & Indexing overhead
+    const settingsAndIndexBytes = 48 * 1024;
+
+    return baseCatalogBytes + galleryBytes + folderBytes + packagesBytes + sectionsBytes + inquiriesBytes + settingsAndIndexBytes;
+  });
+
+  const totalDbStorageMB = computed(() => {
+    return (totalDbStorageBytes.value / (1024 * 1024)).toFixed(2);
+  });
+
+  const dbUsedPercentage = computed(() => {
+    const pct = (totalDbStorageBytes.value / MAX_DB_QUOTA_BYTES) * 100;
+    return Math.min(100, Math.max(0.1, Number(pct.toFixed(2))));
+  });
+
+  const dbRemainingMB = computed(() => {
+    const rem = maxDbQuotaMB - Number(totalDbStorageMB.value);
+    return Math.max(0, Number(rem.toFixed(2)));
+  });
+
   // Folder item counts mapping
   const folderCounts = computed(() => {
     const counts = {};
@@ -210,6 +290,7 @@ export function useGallery() {
   });
 
   async function fetchGallery() {
+    fetchDatabaseSize();
     if (!isSupabaseConfigured || !supabase) return;
     loading.value = true;
     try {
@@ -554,6 +635,12 @@ export function useGallery() {
     usedPercentage,
     remainingMB,
     estimatedPhotosRemaining,
+    totalDbStorageBytes,
+    totalDbStorageMB,
+    maxDbQuotaMB,
+    dbUsedPercentage,
+    dbRemainingMB,
+    fetchDatabaseSize,
     fetchGallery,
     createFolder,
     updateFolder,

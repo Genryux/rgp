@@ -1,7 +1,8 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useSettings } from '../../../composables/useSettings';
 import { useInquiries } from '../../../composables/useInquiries';
+import { usePackages } from '../../../composables/usePackages';
 import {
   Phone,
   Mail,
@@ -33,12 +34,17 @@ defineProps({
 
 const { settings } = useSettings();
 const { submitInquiry } = useInquiries();
+const { packageCategories, fetchPackages } = usePackages();
+
+onMounted(() => {
+  fetchPackages();
+});
 
 const form = ref({
   name: '',
   email: '',
   phone: '',
-  event_type: 'Wedding',
+  event_type: (packageCategories.value && packageCategories.value[0]) || 'Weddings',
   event_date: '',
   message: '',
   _gotcha: '', // Honeypot field
@@ -69,7 +75,7 @@ async function handleSubmit() {
       name: '',
       email: '',
       phone: '',
-      event_type: 'Wedding',
+      event_type: (packageCategories.value && packageCategories.value[0]) || 'Weddings',
       event_date: '',
       message: '',
       _gotcha: '',
@@ -294,13 +300,21 @@ async function handleSubmit() {
                       v-model="form.event_type"
                       class="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white text-sm focus:outline-none focus:border-[#FFD700] focus:ring-1 focus:ring-[#FFD700]/25 transition appearance-none cursor-pointer pr-10"
                     >
-                      <option value="Wedding" class="bg-neutral-900 text-white">Wedding Coverage</option>
-                      <option value="Debut" class="bg-neutral-900 text-white">Debut Celebration</option>
-                      <option value="Birthday" class="bg-neutral-900 text-white">Birthday / Milestone</option>
-                      <option value="Studio Portrait" class="bg-neutral-900 text-white">Studio / Creative Portrait</option>
-                      <option value="Graduation" class="bg-neutral-900 text-white">Graduation Portrait</option>
-                      <option value="Commercial" class="bg-neutral-900 text-white">Commercial / Product</option>
-                      <option value="Other" class="bg-neutral-900 text-white">Other Inquiries</option>
+                      <option
+                        v-for="cat in packageCategories"
+                        :key="cat"
+                        :value="cat"
+                        class="bg-neutral-900 text-white"
+                      >
+                        {{ cat }}
+                      </option>
+                      <option
+                        v-if="!packageCategories.includes('Other')"
+                        value="Other"
+                        class="bg-neutral-900 text-white"
+                      >
+                        Other Inquiries
+                      </option>
                     </select>
                     <div class="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-neutral-400">
                       <ChevronDown class="w-4 h-4" />

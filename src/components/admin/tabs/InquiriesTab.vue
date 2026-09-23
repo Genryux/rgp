@@ -49,7 +49,12 @@ import {
   Type,
   AlertTriangle,
   RefreshCw,
+  Settings,
 } from '@lucide/vue';
+import { useGmailAuth } from '../../../composables/useGmailAuth';
+
+const emit = defineEmits(['switch-tab']);
+const { isConnected: isGmailConnected, checkStatus: checkGmailStatus } = useGmailAuth();
 
 const { inquiries, loading: inquiriesLoading, fetchInquiries, markInquiryAsRead, updateStatus, updateNotes, deleteInquiry } = useInquiries();
 const {
@@ -97,8 +102,10 @@ function markInquiryAsReadLocally(inqId) {
 
 onMounted(async () => {
   loadReadInquiryIds();
+  checkGmailStatus();
   await fetchInquiries();
   await fetchAllMessages();
+  checkAndOpenPendingInquiry();
 
   // Auto-detect if any 'New' inquiries already have studio messages or replies
   for (const inq of inquiries.value) {
@@ -539,6 +546,10 @@ function deselectInquiry() {
 }
 
 function openComposer() {
+  if (!isGmailConnected.value) {
+    triggerToast('Gmail Not Connected', 'Please connect your Google account in Studio Settings to reply to inquiries.', 'danger', 4500);
+    return;
+  }
   if (!selectedInquiry.value) return;
   initComposerForInquiry(selectedInquiry.value);
   isComposerVisible.value = true;
@@ -548,6 +559,22 @@ function openComposer() {
       editorRef.value.innerHTML = composerBody.value;
     }
   });
+}
+
+function checkAndOpenPendingInquiry() {
+  try {
+    const targetId = sessionStorage.getItem('rgp_active_inquiry_id');
+    if (targetId && inquiries.value && inquiries.value.length > 0) {
+      sessionStorage.removeItem('rgp_active_inquiry_id');
+      const targetInq = inquiries.value.find((i) => i.id === targetId);
+      if (targetInq) {
+        selectInquiry(targetInq);
+        if (isGmailConnected.value) {
+          openComposer();
+        }
+      }
+    }
+  } catch {}
 }
 
 function closeComposer() {
@@ -703,6 +730,10 @@ function confirmDeleteInquiry() {
 }
 
 async function handleSendReply() {
+  if (!isGmailConnected.value) {
+    triggerToast('Gmail Not Connected', 'Please connect your Google account in Studio Settings to send replies.', 'danger', 4500);
+    return;
+  }
   if (!selectedInquiry.value || (!composerBody.value.trim() && composerAttachments.value.length === 0)) return;
 
   const clientName = selectedInquiry.value.name || 'Client';
@@ -761,6 +792,33 @@ function copyEmail(email) {
         <h2 class="text-2xl font-bold text-white tracking-wide">Inquiries & Leads</h2>
         <p class="text-xs text-neutral-400 mt-0.5">Manage incoming client booking requests, quotes, and messages</p>
       </div>
+    </div>
+
+    <!-- Gmail Not Connected Warning Banner -->
+    <div
+      v-if="!isGmailConnected"
+      class="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/[0.08] backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-lg shadow-amber-950/20"
+    >
+      <div class="flex items-start sm:items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+          <AlertTriangle class="w-5 h-5" />
+        </div>
+        <div>
+          <h4 class="text-sm font-bold text-amber-300">Gmail Account Not Connected</h4>
+          <p class="text-neutral-300 mt-0.5 leading-relaxed">
+            You need to connect your studio Gmail account to start replying to inquiries and receiving email threads directly in your inbox.
+          </p>
+        </div>
+      </div>
+
+      <button
+        @click="emit('switch-tab', 'settings')"
+        type="button"
+        class="cursor-pointer px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-bold text-xs transition flex items-center gap-2 shrink-0 self-start sm:self-auto shadow-md shadow-amber-400/20"
+      >
+        <Settings class="w-3.5 h-3.5" />
+        <span>Connect in Settings</span>
+      </button>
     </div>
 
     <!-- ========================================================= -->
@@ -1005,11 +1063,18 @@ function copyEmail(email) {
 
           <!-- Reply / Compose Button -->
           <button
-            @click="openComposer"
-            class="cursor-pointer px-4 py-1.5 rounded-full bg-[#FFD700] text-[#121212] hover:bg-yellow-400 text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+            @click="isGmailConnected ? openComposer() : emit('switch-tab', 'settings')"
+            :disabled="!isGmailConnected"
+            :class="[
+              isGmailConnected
+                ? 'bg-[#FFD700] text-[#121212] hover:bg-yellow-400 cursor-pointer shadow-sm'
+                : 'bg-white/10 text-neutral-500 cursor-not-allowed border border-white/10 opacity-60'
+            ]"
+            class="px-4 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5"
+            :title="isGmailConnected ? (hasDraft(selectedInquiry.id) ? 'Continue Draft' : 'Reply') : 'Connect Gmail in Settings to reply'"
           >
             <Reply class="w-3.5 h-3.5" />
-            <span>{{ hasDraft(selectedInquiry.id) ? 'Continue Draft' : 'Reply' }}</span>
+            <span>{{ isGmailConnected ? (hasDraft(selectedInquiry.id) ? 'Continue Draft' : 'Reply') : 'Gmail Disconnected' }}</span>
           </button>
 
           <!-- Delete Action -->
@@ -1075,9 +1140,15 @@ function copyEmail(email) {
               {{ formatMsgDate(selectedInquiry.created_at) }}
             </span>
             <button
-              @click="openComposer"
-              class="p-1.5 rounded-lg text-neutral-400 hover:text-white hover:bg-white/10 transition"
-              title="Reply"
+              @click="isGmailConnected && openComposer()"
+              :disabled="!isGmailConnected"
+              class="p-1.5 rounded-lg transition"
+              :class="[
+                isGmailConnected
+                  ? 'text-neutral-400 hover:text-white hover:bg-white/10 cursor-pointer'
+                  : 'text-neutral-600 cursor-not-allowed opacity-50'
+              ]"
+              :title="isGmailConnected ? 'Reply' : 'Connect Gmail in Settings to reply'"
             >
               <Reply class="w-4 h-4" />
             </button>
@@ -1237,6 +1308,7 @@ function copyEmail(email) {
         <!-- Bottom Gmail Reply Prompt Box -->
         <div class="pt-4 border-t border-white/[0.08]">
           <div
+            v-if="isGmailConnected"
             @click="openComposer"
             class="cursor-pointer p-4 rounded-xl border border-white/10 hover:border-white/30 bg-black/30 hover:bg-white/[0.03] text-neutral-400 hover:text-white transition flex items-center justify-between text-xs group"
           >
@@ -1247,6 +1319,23 @@ function copyEmail(email) {
             <span v-if="hasDraft(selectedInquiry.id)" class="px-2 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-300 font-semibold">
               Draft Active
             </span>
+          </div>
+          <div
+            v-else
+            class="p-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-neutral-300"
+          >
+            <div class="flex items-center gap-2.5">
+              <AlertTriangle class="w-4 h-4 text-amber-400 shrink-0" />
+              <span>Connect your studio Gmail account in Settings to reply to <strong>{{ selectedInquiry.name }}</strong>.</span>
+            </div>
+            <button
+              @click="emit('switch-tab', 'settings')"
+              type="button"
+              class="cursor-pointer px-3.5 py-1.5 rounded-xl bg-amber-400 text-black font-bold text-xs hover:bg-amber-300 transition flex items-center gap-1.5 shrink-0 self-start sm:self-auto shadow-sm"
+            >
+              <Settings class="w-3.5 h-3.5" />
+              <span>Connect Gmail</span>
+            </button>
           </div>
         </div>
 
@@ -1578,8 +1667,14 @@ function copyEmail(email) {
               <!-- Send Action -->
               <button
                 @click="handleSendReply"
-                :disabled="(!composerBody.trim() && composerAttachments.length === 0) || isSending"
-                class="cursor-pointer px-5 py-2 rounded-full bg-[#FFD700] text-[#121212] font-bold text-xs uppercase tracking-wider hover:bg-yellow-400 transition shadow-md shadow-yellow-500/20 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1.5"
+                :disabled="(!composerBody.trim() && composerAttachments.length === 0) || isSending || !isGmailConnected"
+                :class="[
+                  isGmailConnected && (composerBody.trim() || composerAttachments.length > 0) && !isSending
+                    ? 'bg-[#FFD700] text-[#121212] hover:bg-yellow-400 cursor-pointer shadow-md shadow-yellow-500/20'
+                    : 'bg-white/10 text-neutral-500 cursor-not-allowed border border-white/10 opacity-50'
+                ]"
+                class="px-5 py-2 rounded-full font-bold text-xs uppercase tracking-wider transition flex items-center gap-1.5"
+                :title="!isGmailConnected ? 'Connect Gmail in Settings to send replies' : 'Send email reply'"
               >
                 <Loader2 v-if="isSending" class="w-3.5 h-3.5 animate-spin" />
                 <Send v-else class="w-3 h-3" />
