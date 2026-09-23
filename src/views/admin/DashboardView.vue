@@ -34,7 +34,8 @@ const { fetchSections } = useSections();
 const { fetchSettings } = useSettings();
 const { isAnyModalOpen, resetModals } = useModalState();
 
-const currentTab = ref('overview');
+const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+const currentTab = ref(urlParams?.get('code') ? 'settings' : 'overview');
 const isScrolledDown = ref(false);
 let lastScrollY = 0;
 
@@ -44,7 +45,7 @@ watch(currentTab, () => {
 });
 
 const unreadCount = computed(
-  () => inquiries.value.filter((i) => i.status === 'New').length
+  () => inquiries.value.filter((i) => i.status === 'New' && !i.read).length
 );
 
 const tabs = [

@@ -1,6 +1,7 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useSettings } from '../../../composables/useSettings';
+import { useGmailAuth } from '../../../composables/useGmailAuth';
 import {
   Save,
   CheckCircle2,
@@ -10,14 +11,51 @@ import {
   Globe,
   Loader2,
   AlertTriangle,
+  Mail,
+  Link2,
+  Unlink,
+  RefreshCw,
 } from '@lucide/vue';
 
 const { settings, updateSettings } = useSettings();
+const {
+  isConnected,
+  connectedEmail,
+  senderDisplayName,
+  connectedAt,
+  loading: gmailLoading,
+  error: gmailError,
+  checkStatus,
+  connectGmail,
+  handleOAuthCallback,
+  disconnectGmail,
+} = useGmailAuth();
 
 const localSettings = ref({ ...settings.value });
 const saving = ref(false);
 const saveSuccess = ref(false);
 const saveError = ref('');
+const connectionSuccessNotice = ref(false);
+
+onMounted(async () => {
+  const isNewConnection = await handleOAuthCallback();
+  if (isNewConnection) {
+    connectionSuccessNotice.value = true;
+    setTimeout(() => {
+      connectionSuccessNotice.value = false;
+    }, 6000);
+  }
+  await checkStatus();
+});
+
+function formatConnectionDate(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
 
 async function handleSave() {
   saving.value = true;
@@ -64,6 +102,120 @@ async function handleSave() {
     >
       <CheckCircle2 class="w-4 h-4" />
       <span>Studio settings updated successfully!</span>
+    </div>
+
+    <!-- Connection Success Toast -->
+    <div
+      v-if="connectionSuccessNotice"
+      class="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 animate-fadeIn"
+    >
+      <CheckCircle2 class="w-4 h-4 text-emerald-400" />
+      <span>Studio Gmail account connected successfully! All admin inquiry replies will now send from this address.</span>
+    </div>
+
+    <!-- Official Studio Mailbox (Gmail OAuth) Card -->
+    <div class="bg-[#141414] border border-white/[0.08] rounded-3xl p-6 md:p-8 space-y-6 shadow-xl relative overflow-hidden">
+      <div class="absolute -right-20 -top-20 w-52 h-52 bg-[#FFD700]/5 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/[0.06] pb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center text-[#FFD700] shrink-0">
+            <Mail class="w-5 h-5" />
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white tracking-wide">Studio Email Integration (Gmail)</h3>
+            <p class="text-xs text-neutral-400 mt-0.5">Link your official studio Google account to send real inquiry replies directly from the CMS inbox</p>
+          </div>
+        </div>
+
+        <div>
+          <span
+            v-if="isConnected"
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 border border-emerald-500/25 text-emerald-400"
+          >
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Connected</span>
+          </span>
+          <span
+            v-else
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/5 border border-white/10 text-neutral-400"
+          >
+            <span class="w-2 h-2 rounded-full bg-neutral-500"></span>
+            <span>Not Connected</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Gmail Error Alert -->
+      <div
+        v-if="gmailError"
+        class="p-4 rounded-2xl bg-red-500/15 border border-red-500/30 text-red-300 text-xs font-semibold flex items-center gap-2"
+      >
+        <AlertTriangle class="w-4 h-4 text-red-400 shrink-0" />
+        <span>{{ gmailError }}</span>
+      </div>
+
+      <!-- Connected State UI -->
+      <div v-if="isConnected" class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-black/40 border border-white/[0.06]">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-neutral-400">Connected Mailbox:</span>
+            <strong class="text-sm text-[#FFD700] font-semibold">{{ connectedEmail }}</strong>
+          </div>
+          <p v-if="connectedAt" class="text-[11px] text-neutral-500">
+            Linked on {{ formatConnectionDate(connectedAt) }} &bull; Authenticated via Google OAuth
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button
+            type="button"
+            @click="connectGmail"
+            :disabled="gmailLoading"
+            class="cursor-pointer px-4 py-2 rounded-xl bg-white/[0.06] hover:bg-white/10 text-neutral-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': gmailLoading }" />
+            <span>Switch Account</span>
+          </button>
+          <button
+            type="button"
+            @click="disconnectGmail"
+            :disabled="gmailLoading"
+            class="cursor-pointer px-4 py-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold transition border border-red-500/20 flex items-center gap-1.5 disabled:opacity-50"
+          >
+            <Unlink class="w-3.5 h-3.5" />
+            <span>Disconnect</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Disconnected State UI -->
+      <div v-else class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-5 rounded-2xl bg-black/40 border border-white/[0.06]">
+        <div class="space-y-1 max-w-md">
+          <p class="text-xs text-neutral-300 font-medium">
+            No studio Google account connected yet. Click below to sign in with Google. All client replies sent from the CMS will automatically send from your connected Gmail.
+          </p>
+          <p class="text-[11px] text-neutral-500">
+            Requires standard Google sign-in. You can disconnect or change accounts at any time.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          @click="connectGmail"
+          :disabled="gmailLoading"
+          class="cursor-pointer px-6 py-3 rounded-full bg-white hover:bg-neutral-100 text-[#121212] text-xs font-bold transition flex items-center gap-2.5 shadow-lg shadow-white/5 active:scale-95 disabled:opacity-50 shrink-0"
+        >
+          <Loader2 v-if="gmailLoading" class="w-4 h-4 animate-spin text-neutral-600" />
+          <svg v-else class="w-4 h-4" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span>Connect with Google</span>
+        </button>
+      </div>
     </div>
 
     <form @submit.prevent="handleSave" class="space-y-8">

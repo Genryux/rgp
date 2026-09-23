@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, watch, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useInquiries } from '../../../composables/useInquiries';
 import { useEmailDrafts, EMAIL_TEMPLATES } from '../../../composables/useEmailDrafts';
 import { useModalState } from '../../../composables/useModalState';
+import { supabase, isSupabaseConfigured } from '../../../lib/supabase';
 import {
   Calendar,
   Mail,
@@ -47,9 +48,10 @@ import {
   Image as ImageIcon,
   Type,
   AlertTriangle,
+  RefreshCw,
 } from '@lucide/vue';
 
-const { inquiries, updateStatus, updateNotes, deleteInquiry } = useInquiries();
+const { inquiries, loading: inquiriesLoading, fetchInquiries, markInquiryAsRead, updateStatus, updateNotes, deleteInquiry } = useInquiries();
 const {
   hasDraft,
   getDraft,
@@ -58,11 +60,61 @@ const {
   renderTemplate,
   sendReply,
   getThreadMessages,
+  fetchThreadMessages,
+  fetchAllMessages,
+  markThreadAsRead,
+  hasNewReply,
+  syncRecentInquiries,
+  syncThread,
+  isSyncing,
 } = useEmailDrafts();
 
 const selectedFilter = ref('All');
-const filterStatuses = ['All', 'New', 'Contacted', 'Booked', 'Drafts', 'Archived'];
+const filterStatuses = ['All', 'New', 'Contacted', 'Booked', 'Drafts'];
 const searchQuery = ref('');
+const isRefreshing = ref(false);
+
+const READ_INQUIRIES_KEY = 'rgp_studio_read_inquiries_v1';
+const readInquiryIds = ref(new Set());
+
+function loadReadInquiryIds() {
+  try {
+    const raw = localStorage.getItem(READ_INQUIRIES_KEY);
+    const list = raw ? JSON.parse(raw) : [];
+    readInquiryIds.value = new Set(list);
+  } catch {
+    readInquiryIds.value = new Set();
+  }
+}
+
+function markInquiryAsReadLocally(inqId) {
+  if (!inqId) return;
+  readInquiryIds.value.add(inqId);
+  try {
+    localStorage.setItem(READ_INQUIRIES_KEY, JSON.stringify(Array.from(readInquiryIds.value)));
+  } catch {}
+}
+
+onMounted(async () => {
+  loadReadInquiryIds();
+  await fetchInquiries();
+  await fetchAllMessages();
+
+  // Auto-detect if any 'New' inquiries already have studio messages or replies
+  for (const inq of inquiries.value) {
+    if (inq.status === 'New') {
+      const thread = getThreadMessages(inq.id);
+      if (thread.some((m) => m.sender === 'studio')) {
+        updateStatus(inq.id, 'Contacted');
+      }
+    }
+  }
+
+  // Background sync recent active inquiries with Gmail
+  syncRecentInquiries(inquiries.value).then(() => {
+    fetchAllMessages();
+  });
+});
 
 // Active in-page selected inquiry
 const selectedInquiry = ref(null);
@@ -106,6 +158,27 @@ const filteredInquiries = computed(() => {
   return list;
 });
 
+const initialMessage = computed(() => {
+  if (!selectedInquiry.value) return null;
+  const allMessages = getThreadMessages(selectedInquiry.value.id);
+  if (allMessages.length > 0 && allMessages[0].sender === 'client') {
+    return allMessages[0];
+  }
+  return null;
+});
+
+const initialAttachments = computed(() => {
+  if (!selectedInquiry.value) return [];
+  if (selectedInquiry.value.attachments && selectedInquiry.value.attachments.length > 0) {
+    return selectedInquiry.value.attachments;
+  }
+  const initMsg = initialMessage.value;
+  if (initMsg && initMsg.attachments && initMsg.attachments.length > 0) {
+    return initMsg.attachments;
+  }
+  return [];
+});
+
 const subsequentThreadMessages = computed(() => {
   if (!selectedInquiry.value) return [];
   const allMessages = getThreadMessages(selectedInquiry.value.id);
@@ -131,6 +204,48 @@ function formatDate(dateStr) {
   });
 }
 
+function formatInquiryTimestamp(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const isToday = d.toDateString() === now.toDateString();
+  const timeStr = d.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  if (isToday) {
+    return `Today, ${timeStr}`;
+  }
+
+  const isCurrentYear = d.getFullYear() === now.getFullYear();
+  const dateFormatted = d.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    ...(isCurrentYear ? {} : { year: 'numeric' }),
+  });
+
+  return `${dateFormatted}, ${timeStr}`;
+}
+
+function isNewUnread(inq) {
+  if (!inq) return false;
+  if (inq.read || readInquiryIds.value.has(inq.id) || inq.status !== 'New') {
+    return false;
+  }
+  const thread = getThreadMessages(inq.id);
+  if (thread.some((m) => m.sender === 'studio' || (m.sender === 'client' && m.subject?.toLowerCase().startsWith('re:')))) {
+    return false;
+  }
+  return true;
+}
+
+function isUnread(inq) {
+  if (!inq) return false;
+  return hasNewReply(inq.id) || isNewUnread(inq);
+}
+
 function formatMsgDate(dateStr) {
   if (!dateStr) return '';
   return new Date(dateStr).toLocaleString('en-US', {
@@ -153,22 +268,83 @@ function handleFileUpload(e) {
   const files = Array.from(e.target.files || []);
   for (const file of files) {
     const isImg = file.type.startsWith('image/');
-    composerAttachments.value.push({
-      id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-      name: file.name,
-      size: formatFileSize(file.size),
-      type: file.type,
-      isImage: isImg,
-      previewUrl: isImg ? URL.createObjectURL(file) : null,
-    });
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const base64Data = uploadEvent.target?.result;
+      composerAttachments.value.push({
+        id: `att_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: file.type || (isImg ? 'image/jpeg' : 'application/octet-stream'),
+        isImage: isImg,
+        previewUrl: isImg ? base64Data : null,
+        data: base64Data, // full data URL: data:image/jpeg;base64,...
+      });
+      handleAutoSaveDraft();
+    };
+    reader.readAsDataURL(file);
   }
-  handleAutoSaveDraft();
   e.target.value = '';
 }
 
 function removeAttachment(index) {
   composerAttachments.value.splice(index, 1);
   handleAutoSaveDraft();
+}
+
+async function downloadAttachment(att, msg = null) {
+  if (!att) return;
+
+  // 1. Direct URL (if available from local session)
+  const targetUrl = att.data || att.previewUrl || att.url;
+  if (targetUrl) {
+    const link = document.createElement('a');
+    link.href = targetUrl;
+    link.download = att.name || 'attachment';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return;
+  }
+
+  // 2. Stream on demand directly from Gmail API (0 bytes stored in Supabase!)
+  const messageId = att.messageId || msg?.gmail_message_id;
+  const attachmentId = att.attachmentId || att.id;
+
+  if (messageId && attachmentId && isSupabaseConfigured && supabase) {
+    triggerToast('Fetching file...', `Retrieving ${att.name || 'attachment'} directly from Gmail...`, 'info', 2500);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-gmail-messages', {
+        body: {
+          action: 'get-attachment',
+          messageId,
+          attachmentId,
+          mimeType: att.type || 'application/octet-stream',
+        },
+      });
+
+      if (error || !data?.data) {
+        throw new Error(data?.error || error?.message || 'Could not fetch file from Gmail');
+      }
+
+      const link = document.createElement('a');
+      link.href = data.data;
+      link.download = att.name || 'attachment';
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      triggerToast('Download started', `Retrieved ${att.name} from Gmail.`, 'success', 3000);
+      return;
+    } catch (err) {
+      console.error('[DownloadAttachment] Error streaming from Gmail:', err);
+      triggerToast('Download failed', err?.message || 'Failed to download from Gmail.', 'danger', 4000);
+      return;
+    }
+  }
+
+  triggerToast('Attachment unavailable', 'Attachment record not found in Gmail thread.', 'info', 3000);
 }
 
 function convertTextToHtml(text) {
@@ -216,12 +392,39 @@ function applyFormatting(command) {
   handleAutoSaveDraft();
 }
 
+function stripQuotedReply(content) {
+  if (!content) return '';
+  let cleaned = content;
+
+  // 1. Remove standard email HTML quote containers (matching gmail_quote, gmail_attr, etc.)
+  cleaned = cleaned.replace(/<div[^>]*class=["'][^"']*gmail_quote[^"']*["'][\s\S]*$/i, '');
+  cleaned = cleaned.replace(/<div[^>]*class=["'][^"']*gmail_attr[^"']*["'][\s\S]*$/i, '');
+  cleaned = cleaned.replace(/<div[^>]*class=["'][^"']*gmail_signature[^"']*["'][\s\S]*$/i, '');
+  cleaned = cleaned.replace(/<blockquote[\s\S]*$/i, '');
+  cleaned = cleaned.replace(/<hr[^>]*id=["']stopSpelling["'][\s\S]*$/i, '');
+  cleaned = cleaned.replace(/-----Original Message-----[\s\S]*$/i, '');
+  cleaned = cleaned.replace(/________________________________[\s\S]*$/i, '');
+
+  // 2. Remove standard "On [date/time] ... wrote:" attribution lines
+  cleaned = cleaned.replace(/(?:<p[^>]*>|<div[^>]*>|\n|^|\r)?\s*On\s+([A-Za-z]{3},\s+)?[A-Za-z]{3}\s+\d{1,2},?\s+\d{4}[\s\S]*$/i, '');
+  cleaned = cleaned.replace(/(?:<p[^>]*>|<div[^>]*>|\n|^|\r)?\s*On\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4}[\s\S]*$/i, '');
+  cleaned = cleaned.replace(/(?:<p[^>]*>|<div[^>]*>|\n|^|\r)?\s*On\s+.*?wrote:\s*(?:<br\s*\/?>)?[\s\S]*$/i, '');
+
+  // 3. Trim trailing break tags, empty tags, non-breaking spaces
+  cleaned = cleaned.replace(/(?:<br\s*\/?>|\s|&nbsp;|<p>\s*<\/p>|<div>\s*<\/div>)+$/i, '').trim();
+
+  return cleaned || content;
+}
+
 function formatMessageContent(content) {
   if (!content) return '';
-  if (/<[a-z][\s\S]*>/i.test(content)) {
-    return content;
+  let cleaned = stripQuotedReply(content);
+  // Remove any broken unresolved cid: image references so no broken image boxes appear
+  cleaned = cleaned.replace(/<img[^>]*src=["']cid:[^"']*["'][^>]*>/gi, '');
+  if (/<[a-z][\s\S]*>/i.test(cleaned)) {
+    return cleaned;
   }
-  let sanitized = content
+  let sanitized = cleaned
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
@@ -231,12 +434,103 @@ function formatMessageContent(content) {
     .join('');
 }
 
+const highlightedMessageId = ref(null);
+const threadBottomRef = ref(null);
+
+function scrollToBottomAndHighlight(msgId = null) {
+  nextTick(() => {
+    setTimeout(() => {
+      if (threadBottomRef.value) {
+        threadBottomRef.value.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      }
+      if (msgId) {
+        highlightedMessageId.value = msgId;
+        setTimeout(() => {
+          highlightedMessageId.value = null;
+        }, 3500);
+      }
+    }, 150);
+  });
+}
+
 function selectInquiry(inq) {
+  if (!inq) return;
   selectedInquiry.value = inq;
   isComposerVisible.value = false;
   isComposerMinimized.value = false;
   isComposerExpanded.value = false;
   initComposerForInquiry(inq);
+
+  // 1. Immediately mark inquiry as read in Vue state, localStorage, and DB
+  inq.read = true;
+  markInquiryAsReadLocally(inq.id);
+  markInquiryAsRead(inq.id);
+
+  // 2. Mark thread messages as read (clears amber dot / hasNewReply)
+  markThreadAsRead(inq.id);
+
+  // 3. Auto-update status to 'Contacted' if it was 'New' but already has replies/messages
+  const thread = getThreadMessages(inq.id);
+  if (inq.status === 'New' && thread.some((m) => m.sender === 'studio')) {
+    updateStatus(inq.id, 'Contacted');
+  }
+
+  fetchThreadMessages(inq.id);
+
+  // Background check for incoming Gmail replies
+  syncThread(inq.id).then((res) => {
+    if (res?.success && res.syncedCount > 0 && selectedInquiry.value?.id === inq.id) {
+      fetchThreadMessages(inq.id);
+      markThreadAsRead(inq.id);
+      const msgs = subsequentThreadMessages.value;
+      const latestMsg = msgs[msgs.length - 1];
+      if (latestMsg) {
+        scrollToBottomAndHighlight(latestMsg.id);
+      }
+    }
+  });
+}
+
+async function handleManualSync() {
+  if (!selectedInquiry.value) return;
+  const inqId = selectedInquiry.value.id;
+  const clientName = selectedInquiry.value.name || 'Client';
+  const res = await syncThread(inqId);
+  if (res?.success && res.syncedCount > 0) {
+    await fetchThreadMessages(inqId);
+    markThreadAsRead(inqId);
+    const msgs = subsequentThreadMessages.value;
+    const latestMsg = msgs[msgs.length - 1];
+    if (latestMsg) {
+      scrollToBottomAndHighlight(latestMsg.id);
+    }
+    triggerToast(
+      'New reply synced',
+      `Downloaded ${res.syncedCount} new reply from ${clientName}.`,
+      'success',
+      4500
+    );
+  } else if (res?.success) {
+    triggerToast('Thread up to date', 'No new incoming replies found in Gmail.', 'info', 3000);
+  } else {
+    triggerToast('Sync notice', res?.error || 'Could not reach Gmail sync.', 'info', 3500);
+  }
+}
+
+async function handleRefreshInquiries() {
+  if (isRefreshing.value) return;
+  isRefreshing.value = true;
+  try {
+    await fetchInquiries();
+    // Check Gmail for any incoming replies on active inquiries
+    await syncRecentInquiries(inquiries.value);
+    await fetchAllMessages();
+    triggerToast('Reloaded', 'Inquiries and latest Gmail replies synchronized.', 'info', 2500);
+  } catch (err) {
+    console.warn('Error refreshing inquiries:', err);
+  } finally {
+    isRefreshing.value = false;
+  }
 }
 
 function deselectInquiry() {
@@ -302,7 +596,10 @@ function applyTemplate(tpl) {
   if (!selectedInquiry.value) return;
   composerTemplateId.value = tpl.id;
   const rendered = renderTemplate(tpl, selectedInquiry.value);
-  composerSubject.value = rendered.subject;
+  // Keep the conversation's unified subject line so Gmail preserves the single thread!
+  if (!composerSubject.value || !composerSubject.value.trim()) {
+    composerSubject.value = `Re: ${selectedInquiry.value.event_type || 'Photography'} Inquiry — ${selectedInquiry.value.name || 'RGP Studio'}`;
+  }
   syncEditorContent(rendered.body);
   handleAutoSaveDraft();
 }
@@ -412,20 +709,38 @@ async function handleSendReply() {
   const recipientEmail = composerTo.value || selectedInquiry.value.email;
   isSending.value = true;
 
-  setTimeout(() => {
-    sendReply(selectedInquiry.value.id, {
-      to: composerTo.value,
+  try {
+    const result = await sendReply(selectedInquiry.value.id, {
+      to: recipientEmail,
       subject: composerSubject.value,
       body: composerBody.value,
       attachments: [...composerAttachments.value],
     });
+
     updateStatus(selectedInquiry.value.id, 'Contacted');
     composerAttachments.value = [];
-    isSending.value = false;
     isComposerVisible.value = false;
 
-    triggerToast('Email sent successfully', `Your reply to ${clientName} (${recipientEmail}) has been sent.`, 'success', 4500);
-  }, 700);
+    if (result?.isLive) {
+      triggerToast(
+        'Email sent via Gmail API',
+        `Dispatched reply to ${clientName} (${recipientEmail}).`,
+        'success',
+        4500
+      );
+    } else {
+      triggerToast(
+        'Reply recorded',
+        `Reply to ${clientName} (${recipientEmail}) recorded. Configure Gmail OAuth secrets for live sending.`,
+        'info',
+        5000
+      );
+    }
+  } catch (err) {
+    triggerToast('Failed to send email', err?.message || 'An error occurred while sending reply.', 'danger', 5000);
+  } finally {
+    isSending.value = false;
+  }
 }
 
 function copyEmail(email) {
@@ -440,7 +755,7 @@ function copyEmail(email) {
 
 <template>
   <div class="space-y-6 font-manrope">
-    <!-- Top Header (Separated outside inbox container just like before) -->
+    <!-- Top Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
       <div>
         <h2 class="text-2xl font-bold text-white tracking-wide">Inquiries & Leads</h2>
@@ -452,7 +767,7 @@ function copyEmail(email) {
     <!-- GMAIL-STYLE INBOX LIST VIEW                               -->
     <!-- ========================================================= -->
     <div v-if="!selectedInquiry" class="bg-[#141414] border border-white/[0.08] rounded-2xl overflow-hidden shadow-xl">
-      <!-- Toolbar: Filters + Search Bar -->
+      <!-- Toolbar: Filters + Refresh + Search Bar -->
       <div class="px-5 py-3.5 border-b border-white/[0.08] flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-black/30">
         <!-- Filter Tabs -->
         <div class="flex flex-wrap gap-1.5 bg-black/50 p-1 rounded-xl border border-white/[0.06] shrink-0">
@@ -477,22 +792,34 @@ function copyEmail(email) {
           </button>
         </div>
 
-        <!-- Search Bar -->
-        <div class="relative flex-1 max-w-sm">
-          <Search class="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search inquiries by name..."
-            class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-8.5 pr-8 py-1.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#FFD700]/50 transition"
-          />
+        <!-- Search Bar & Refresh -->
+        <div class="flex items-center gap-2 flex-1 max-w-md justify-end">
           <button
-            v-if="searchQuery"
-            @click="searchQuery = ''"
-            class="cursor-pointer absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+            @click="handleRefreshInquiries"
+            :disabled="isRefreshing"
+            class="cursor-pointer px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/10 text-neutral-400 hover:text-white border border-white/[0.08] transition flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50 shrink-0"
+            title="Reload latest inquiries"
           >
-            <X class="w-3.5 h-3.5" />
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isRefreshing }" />
+            <span class="hidden sm:inline">Reload</span>
           </button>
+
+          <div class="relative flex-1">
+            <Search class="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search inquiries..."
+              class="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-8.5 pr-8 py-1.5 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#FFD700]/50 transition"
+            />
+            <button
+              v-if="searchQuery"
+              @click="searchQuery = ''"
+              class="cursor-pointer absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white"
+            >
+              <X class="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -502,32 +829,61 @@ function copyEmail(email) {
           v-for="inq in filteredInquiries"
           :key="inq.id"
           @click="selectInquiry(inq)"
-          class="flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.04] transition-colors cursor-pointer group text-xs select-none min-h-[52px]"
-          :class="[inq.status === 'New' ? 'bg-white/[0.02]' : '']"
+          class="flex items-center gap-3.5 sm:gap-4 px-4 sm:px-5 py-3.5 hover:bg-white/[0.06] transition-all cursor-pointer group text-xs select-none min-h-[54px] border-l-2"
+          :class="[
+            isUnread(inq)
+              ? 'bg-white/[0.04] border-l-[#FFD700]'
+              : 'bg-transparent border-l-transparent'
+          ]"
         >
-          <!-- Status Indicator Dot -->
-          <div class="shrink-0 flex items-center">
+          <!-- Status Indicator Dot: ONLY shown for New Inquiry or Inquiry with New Reply -->
+          <div class="shrink-0 w-2.5 flex items-center justify-center">
+            <!-- Amber Dot: New unread client reply -->
             <span
-              class="w-2 h-2 rounded-full"
-              :class="[
-                inq.status === 'New' ? 'bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.5)]' : inq.status === 'Contacted' ? 'bg-blue-400' : inq.status === 'Booked' ? 'bg-emerald-400' : 'bg-neutral-600'
-              ]"
+              v-if="hasNewReply(inq.id)"
+              class="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)]"
+              title="New client reply"
             ></span>
+            <!-- Yellow Dot: Brand new unread inquiry -->
+            <span
+              v-else-if="isNewUnread(inq)"
+              class="w-2 h-2 rounded-full bg-yellow-400 shadow-[0_0_8px_rgba(250,204,21,0.7)]"
+              title="New unread inquiry"
+            ></span>
+            <!-- No dot if read / contacted / booked without new reply -->
+            <span v-else class="w-2 h-2"></span>
           </div>
 
-          <!-- Sender / Client Name -->
-          <div class="w-36 sm:w-44 shrink-0 truncate">
+          <!-- Sender / Client Name + Subtle New Reply Indicator -->
+          <div class="w-36 sm:w-48 shrink-0 flex items-center gap-2 min-w-0">
             <span
               class="text-sm truncate"
-              :class="[inq.status === 'New' ? 'font-bold text-white' : 'font-semibold text-neutral-200']"
+              :class="[isUnread(inq) ? 'font-bold text-white' : 'font-normal text-neutral-400']"
             >
               {{ inq.name }}
+            </span>
+
+            <!-- Subtle New Reply Badge -->
+            <span
+              v-if="hasNewReply(inq.id)"
+              class="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-400/15 text-amber-300 border border-amber-400/30 flex items-center gap-1"
+              title="New client reply received"
+            >
+              <Reply class="w-2.5 h-2.5" />
+              <span>Reply</span>
             </span>
           </div>
 
           <!-- Event Chip -->
           <div class="shrink-0 hidden sm:block">
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/[0.06] text-neutral-300 border border-white/[0.08]">
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border"
+              :class="[
+                isUnread(inq)
+                  ? 'bg-white/10 text-neutral-200 border-white/15'
+                  : 'bg-white/[0.04] text-neutral-400 border-white/[0.06]'
+              ]"
+            >
               {{ inq.event_type }}
             </span>
           </div>
@@ -540,15 +896,22 @@ function copyEmail(email) {
           </div>
 
           <!-- Subject & Message Snippet -->
-          <div class="flex-1 min-w-0 truncate text-neutral-400">
-            <span class="text-neutral-200 font-medium">{{ inq.event_type }} Inquiry — </span>
-            <span class="text-neutral-400 font-normal">{{ inq.message }}</span>
+          <div class="flex-1 min-w-0 truncate">
+            <span :class="[isUnread(inq) ? 'text-neutral-200 font-medium' : 'text-neutral-500 font-normal']">
+              {{ inq.event_type }} Inquiry — 
+            </span>
+            <span :class="[isUnread(inq) ? 'text-neutral-300 font-normal' : 'text-neutral-500 font-normal']">
+              {{ inq.message }}
+            </span>
           </div>
 
-          <!-- Received Date & Hover Quick Actions (Zero layout shift with absolute overlay) -->
-          <div class="w-24 shrink-0 h-7 flex items-center justify-end relative">
-            <span class="text-[11px] text-neutral-500 group-hover:opacity-0 transition-opacity font-medium absolute right-0">
-              {{ formatDate(inq.created_at) }}
+          <!-- Received Timestamp & Hover Quick Actions -->
+          <div class="w-32 sm:w-40 shrink-0 h-7 flex items-center justify-end relative">
+            <span
+              class="text-[11px] group-hover:opacity-0 transition-opacity font-mono absolute right-0"
+              :class="[isUnread(inq) ? 'text-neutral-300 font-medium' : 'text-neutral-600 font-normal']"
+            >
+              {{ formatInquiryTimestamp(inq.created_at) }}
             </span>
 
             <!-- Actions shown on hover -->
@@ -624,12 +987,22 @@ function copyEmail(email) {
               <option value="New" class="bg-neutral-900 text-yellow-300">New</option>
               <option value="Contacted" class="bg-neutral-900 text-blue-300">Contacted</option>
               <option value="Booked" class="bg-neutral-900 text-emerald-300">Booked</option>
-              <option value="Archived" class="bg-neutral-900 text-neutral-400">Archived</option>
             </select>
           </div>
         </div>
 
         <div class="flex items-center gap-2">
+          <!-- Check for Replies Sync Button -->
+          <button
+            @click="handleManualSync"
+            :disabled="isSyncing"
+            class="cursor-pointer px-3.5 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/10 text-neutral-300 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 border border-white/10 disabled:opacity-50"
+            title="Check Gmail for new client replies"
+          >
+            <RefreshCw class="w-3.5 h-3.5" :class="{ 'animate-spin': isSyncing }" />
+            <span class="hidden sm:inline">{{ isSyncing ? 'Checking...' : 'Check Replies' }}</span>
+          </button>
+
           <!-- Reply / Compose Button -->
           <button
             @click="openComposer"
@@ -748,19 +1121,17 @@ function copyEmail(email) {
           v-html="formatMessageContent(selectedInquiry.message)"
         ></div>
 
-        <!-- Client / Initial Attachments (In-memory mock files) -->
-        <div v-if="selectedInquiry.id === 'inq_1' || (selectedInquiry.attachments && selectedInquiry.attachments.length > 0)" class="space-y-2 pt-2">
+        <!-- Client / Initial Attachments -->
+        <div v-if="initialAttachments.length > 0" class="space-y-2 pt-2">
           <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1.5">
             <Paperclip class="w-3.5 h-3.5 text-neutral-400" />
-            <span>Attachments (2)</span>
+            <span>Attachments ({{ initialAttachments.length }})</span>
           </span>
           <div class="flex flex-wrap gap-2.5">
             <div
-              v-for="att in [
-                { name: 'Tagaytay_Wedding_Moodboard.pdf', size: '2.4 MB', type: 'application/pdf', isImage: false },
-                { name: 'Church_Interior_Sample.jpg', size: '1.8 MB', type: 'image/jpeg', isImage: true }
-              ]"
-              :key="att.name"
+              v-for="att in initialAttachments"
+              :key="att.id || att.name"
+              @click="downloadAttachment(att, initialMessage)"
               class="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-black/40 border border-white/10 hover:border-white/25 text-xs transition group cursor-pointer"
             >
               <div class="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center text-neutral-300">
@@ -792,11 +1163,15 @@ function copyEmail(email) {
               :class="[msg.sender === 'studio' ? 'items-end' : 'items-start']"
             >
               <div
-                class="p-4 rounded-2xl transition max-w-[90%] sm:max-w-[75%]"
+                :id="`msg-${msg.id}`"
+                class="p-4 rounded-2xl transition-all duration-700 max-w-[90%] sm:max-w-[75%]"
                 :class="[
                   msg.sender === 'studio'
                     ? 'bg-white/[0.08] border border-white/15 rounded-tr-sm shadow-md'
-                    : 'bg-black/40 border border-white/[0.07] rounded-tl-sm'
+                    : 'bg-black/40 border border-white/[0.07] rounded-tl-sm',
+                  highlightedMessageId === msg.id
+                    ? 'ring-2 ring-[#FFD700] bg-[#FFD700]/10 shadow-[0_0_20px_rgba(255,215,0,0.25)]'
+                    : ''
                 ]"
               >
                 <div
@@ -807,7 +1182,9 @@ function copyEmail(email) {
                       : 'justify-start border-white/[0.06]'
                   ]"
                 >
-                  <span class="font-bold text-white">{{ msg.sender_name }}</span>
+                  <span class="font-bold text-white">
+                    {{ msg.sender === 'studio' ? (msg.sender_name || 'RGP Films & Studio') : (selectedInquiry?.name || msg.sender_name || 'Client') }}
+                  </span>
                   <span
                     class="font-mono text-[11px]"
                     :class="[msg.sender === 'studio' ? 'text-neutral-400' : 'text-neutral-500']"
@@ -827,21 +1204,33 @@ function copyEmail(email) {
                   <div
                     v-for="att in msg.attachments"
                     :key="att.id || att.name"
-                    class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[11px]"
+                    @click="downloadAttachment(att, msg)"
+                    class="flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-[11px] cursor-pointer hover:border-white/30 transition group select-none shadow-sm"
                     :class="[
                       msg.sender === 'studio'
-                        ? 'bg-black/40 border-white/15'
-                        : 'bg-black/50 border-white/10'
+                        ? 'bg-black/40 border-white/15 hover:bg-black/60'
+                        : 'bg-black/50 border-white/10 hover:bg-black/70'
                     ]"
+                    :title="`Click to download/open ${att.name}`"
                   >
-                    <ImageIcon v-if="att.isImage" class="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+                    <img
+                      v-if="att.isImage && (att.data || att.previewUrl)"
+                      :src="att.data || att.previewUrl"
+                      alt="preview"
+                      class="w-5 h-5 rounded object-cover border border-white/10 shrink-0"
+                    />
+                    <ImageIcon v-else-if="att.isImage" class="w-3.5 h-3.5 text-neutral-400 shrink-0" />
                     <FileText v-else class="w-3.5 h-3.5 text-neutral-400 shrink-0" />
-                    <span class="text-neutral-200 font-medium truncate max-w-[140px]">{{ att.name }}</span>
+                    <span class="text-neutral-200 font-medium truncate max-w-[140px] group-hover:text-white">{{ att.name }}</span>
                     <span class="text-neutral-500 text-[10px] font-mono">{{ att.size }}</span>
+                    <Download class="w-3 h-3 text-neutral-400 group-hover:text-[#FFD700] ml-0.5 transition shrink-0" />
                   </div>
                 </div>
               </div>
             </div>
+
+            <!-- Thread Bottom Scroll Anchor -->
+            <div ref="threadBottomRef" class="h-px"></div>
           </div>
         </div>
 

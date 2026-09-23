@@ -32,6 +32,17 @@ const DEFAULT_INQUIRIES = [
 const inquiries = ref(DEFAULT_INQUIRIES);
 const loading = ref(false);
 
+const READ_STORAGE_KEY = 'rgp_studio_read_inquiries_v1';
+
+function getStoredReadIds() {
+  try {
+    const raw = localStorage.getItem(READ_STORAGE_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
 export function useInquiries() {
   async function fetchInquiries() {
     if (!isSupabaseConfigured || !supabase) return;
@@ -44,7 +55,11 @@ export function useInquiries() {
 
       if (error) throw error;
       if (data) {
-        inquiries.value = data;
+        const storedRead = getStoredReadIds();
+        inquiries.value = data.map((item) => ({
+          ...item,
+          read: Boolean(item.read || storedRead.has(item.id) || item.status !== 'New'),
+        }));
       }
     } catch (err) {
       console.error('[Inquiries] Error fetching inquiries:', err);
@@ -53,8 +68,41 @@ export function useInquiries() {
     }
   }
 
+  async function markInquiryAsRead(id) {
+    if (!id) return;
+    const item = inquiries.value.find((inq) => inq.id === id);
+    if (item) {
+      item.read = true;
+    }
+
+    try {
+      const raw = localStorage.getItem(READ_STORAGE_KEY);
+      const list = raw ? JSON.parse(raw) : [];
+      if (!list.includes(id)) {
+        list.push(id);
+        localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(list));
+      }
+    } catch (e) {}
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('inquiries')
+          .update({ read: true })
+          .eq('id', id);
+      } catch (err) {
+        console.warn('[Inquiries] Error marking inquiry as read in DB:', err);
+      }
+    }
+  }
+
   async function submitInquiry(formData) {
+    const inquiryId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `inq_${Date.now()}`;
+
     const newInquiry = {
+      id: inquiryId,
       name: formData.name,
       email: formData.email,
       phone: formData.phone || null,
@@ -67,21 +115,40 @@ export function useInquiries() {
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('inquiries')
-          .insert(newInquiry)
-          .select()
-          .single();
+          .insert(newInquiry);
 
         if (error) throw error;
-        return { data, error: null };
+
+        // Dispatches instant email notification to the studio's connected Gmail account
+        supabase.functions.invoke('notify-inquiry', {
+          body: {
+            inquiryId,
+            name: newInquiry.name,
+            email: newInquiry.email,
+            phone: newInquiry.phone,
+            event_type: newInquiry.event_type,
+            event_date: newInquiry.event_date,
+            message: newInquiry.message,
+          },
+        }).then(({ data, error: fnErr }) => {
+          if (fnErr) {
+            console.warn('[Inquiries] notify-inquiry dispatch warning:', fnErr);
+          } else {
+            console.log('[Inquiries] notify-inquiry dispatched successfully:', data);
+          }
+        }).catch((err) => {
+          console.warn('[Inquiries] notify-inquiry invocation error:', err);
+        });
+
+        return { data: newInquiry, error: null };
       } catch (err) {
         console.error('[Inquiries] Submit failed:', err);
         return { data: null, error: err };
       }
     } else {
       // Mock submit
-      newInquiry.id = `inq_${Date.now()}`;
       inquiries.value.unshift(newInquiry);
       return { data: newInquiry, error: null };
     }
@@ -136,6 +203,7 @@ export function useInquiries() {
     inquiries,
     loading,
     fetchInquiries,
+    markInquiryAsRead,
     submitInquiry,
     updateStatus,
     updateNotes,
