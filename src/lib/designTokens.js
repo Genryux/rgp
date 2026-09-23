@@ -111,13 +111,14 @@ export const adminModalTokens = {
   badgeGold: 'px-2 py-0.5 rounded-full bg-[#FFD700]/20 text-[#FFD700] text-[10px] font-bold uppercase tracking-wider shrink-0',
 
   // Public Section & Category Filters (Segmented Floating Track & Sliding Frosted Capsule)
-  filterTrack: 'relative inline-flex flex-wrap items-center justify-center p-1.5 rounded-full bg-neutral-900/90 border border-white/[0.08] backdrop-blur-xl shadow-2xl shadow-black/50 max-w-full',
+  filterWrapper: 'w-full max-w-full overflow-x-auto flex justify-start sm:justify-center mt-8 px-4 py-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent',
+  filterTrack: 'relative inline-flex items-center p-1.5 rounded-full bg-neutral-900/90 border border-white/[0.08] backdrop-blur-xl shadow-2xl shadow-black/50 flex-nowrap whitespace-nowrap shrink-0 mx-auto sm:mx-0',
   filterSlidingCapsule: 'absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-b from-white/[0.14] to-white/[0.06] border border-white/25 shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]',
-  filterButton: 'relative z-10 px-6 py-2 rounded-full text-xs tracking-wider uppercase transition-colors duration-300 cursor-pointer select-none active:scale-95',
+  filterButton: 'relative z-10 whitespace-nowrap shrink-0 px-4 sm:px-6 py-2 rounded-full text-xs tracking-wider uppercase transition-colors duration-300 cursor-pointer select-none active:scale-95',
   filterButtonActive: 'text-white font-semibold',
   filterButtonInactive: 'text-neutral-400 hover:text-white font-medium',
-  filterPillActive: 'relative px-6 py-2 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 ease-out bg-gradient-to-b from-white/[0.14] to-white/[0.06] text-white border border-white/25 shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] cursor-pointer select-none active:scale-95',
-  filterPillInactive: 'relative px-6 py-2 rounded-full text-xs font-medium tracking-wider uppercase transition-all duration-300 ease-out text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04] border border-transparent cursor-pointer select-none active:scale-95',
+  filterPillActive: 'relative whitespace-nowrap shrink-0 px-4 sm:px-6 py-2 rounded-full text-xs font-semibold tracking-wider uppercase transition-all duration-300 ease-out bg-gradient-to-b from-white/[0.14] to-white/[0.06] text-white border border-white/25 shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] cursor-pointer select-none active:scale-95',
+  filterPillInactive: 'relative whitespace-nowrap shrink-0 px-4 sm:px-6 py-2 rounded-full text-xs font-medium tracking-wider uppercase transition-all duration-300 ease-out text-neutral-400 hover:text-neutral-200 hover:bg-white/[0.04] border border-transparent cursor-pointer select-none active:scale-95',
 
   // Section Typography & Subtitle/Caption Patterns (aligned with interactive retouching slider "POST-PRODUCTION MASTERY")
   eyebrowMastery: 'text-xs font-semibold uppercase tracking-widest text-[#FFD700] font-manrope',

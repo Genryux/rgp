@@ -2,6 +2,7 @@
 import { ref, computed, watch, watchEffect, nextTick, onMounted, onUnmounted } from 'vue';
 import { usePackages, formatMaskedPrice } from '../../../composables/usePackages';
 import { useGallery } from '../../../composables/useGallery';
+import { adminModalTokens } from '../../../lib/designTokens';
 import { Check, Sparkles, Plus, Star, ShieldCheck, ArrowRight } from '@lucide/vue';
 
 const props = defineProps({
@@ -70,6 +71,17 @@ function updatePillPosition() {
   } else {
     pillState.value.opacity = 0;
   }
+}
+
+function selectCategory(cat) {
+  selectedCategory.value = cat;
+  nextTick(() => {
+    updatePillPosition();
+    const el = filterButtonRefs.value.get(cat);
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  });
 }
 
 watch(
@@ -506,11 +518,11 @@ function packageHasFeature(pkg, featureName) {
         </p>
 
         <!-- Category Filters -->
-        <div v-if="categories.length > 1" class="flex justify-center mt-8">
-          <div class="relative inline-flex flex-wrap items-center justify-center p-1.5 rounded-full bg-neutral-900/90 border border-white/[0.08] backdrop-blur-xl shadow-2xl shadow-black/50 max-w-full">
+        <div v-if="categories.length > 1" :class="adminModalTokens.filterWrapper">
+          <div :class="adminModalTokens.filterTrack">
             <!-- Smooth Sliding Frosted Glass Capsule -->
             <div
-              class="absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-b from-white/[0.14] to-white/[0.06] border border-white/25 shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
+              :class="adminModalTokens.filterSlidingCapsule"
               :style="{
                 left: `${pillState.left}px`,
                 width: `${pillState.width}px`,
@@ -523,12 +535,12 @@ function packageHasFeature(pkg, featureName) {
               :key="cat"
               :ref="(el) => setFilterBtnRef(el, cat)"
               type="button"
-              @click="selectedCategory = cat"
-              class="relative z-10 px-6 py-2 rounded-full text-xs tracking-wider uppercase transition-colors duration-300 cursor-pointer select-none active:scale-95"
+              @click="selectCategory(cat)"
               :class="[
+                adminModalTokens.filterButton,
                 selectedCategory === cat
-                  ? 'text-white font-semibold'
-                  : 'text-neutral-400 hover:text-white font-medium'
+                  ? adminModalTokens.filterButtonActive
+                  : adminModalTokens.filterButtonInactive
               ]"
             >
               <span>{{ cat }}</span>
@@ -640,11 +652,11 @@ function packageHasFeature(pkg, featureName) {
         </p>
 
         <!-- Category Filter Pills (if multiple categories available) -->
-        <div v-if="categories.length > 1" class="flex justify-center mt-8">
-          <div class="relative inline-flex flex-wrap items-center justify-center p-1.5 rounded-full bg-neutral-900/90 border border-white/[0.08] backdrop-blur-xl shadow-2xl shadow-black/50 max-w-full">
+        <div v-if="categories.length > 1" :class="adminModalTokens.filterWrapper">
+          <div :class="adminModalTokens.filterTrack">
             <!-- Smooth Sliding Frosted Glass Capsule -->
             <div
-              class="absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-b from-white/[0.14] to-white/[0.06] border border-white/25 shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
+              :class="adminModalTokens.filterSlidingCapsule"
               :style="{
                 left: `${pillState.left}px`,
                 width: `${pillState.width}px`,
@@ -657,12 +669,12 @@ function packageHasFeature(pkg, featureName) {
               :key="cat"
               :ref="(el) => setFilterBtnRef(el, cat)"
               type="button"
-              @click="selectedCategory = cat"
-              class="relative z-10 px-6 py-2 rounded-full text-xs tracking-wider uppercase transition-colors duration-300 cursor-pointer select-none active:scale-95"
+              @click="selectCategory(cat)"
               :class="[
+                adminModalTokens.filterButton,
                 selectedCategory === cat
-                  ? 'text-white font-semibold'
-                  : 'text-neutral-400 hover:text-white font-medium'
+                  ? adminModalTokens.filterButtonActive
+                  : adminModalTokens.filterButtonInactive
               ]"
             >
               <span>{{ cat }}</span>
@@ -848,11 +860,11 @@ function packageHasFeature(pkg, featureName) {
         </p>
 
         <!-- Category Filters with Sliding Frosted Glass Capsule -->
-        <div v-if="categories.length > 1" class="flex justify-center mt-8">
-          <div class="relative inline-flex flex-wrap items-center justify-center p-1.5 rounded-full bg-neutral-900/90 border border-white/[0.08] backdrop-blur-md shadow-2xl shadow-black/50 max-w-full">
+        <div v-if="categories.length > 1" :class="adminModalTokens.filterWrapper">
+          <div :class="adminModalTokens.filterTrack">
             <!-- Smooth Sliding Frosted Glass Capsule -->
             <div
-              class="absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-b from-white/[0.14] to-white/[0.06] border border-white/25 shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
+              :class="adminModalTokens.filterSlidingCapsule"
               :style="{
                 left: `${pillState.left}px`,
                 width: `${pillState.width}px`,
@@ -865,12 +877,12 @@ function packageHasFeature(pkg, featureName) {
               :key="cat"
               :ref="(el) => setFilterBtnRef(el, cat)"
               type="button"
-              @click="selectedCategory = cat"
-              class="relative z-10 px-6 py-2 rounded-full text-xs tracking-wider uppercase transition-colors duration-300 cursor-pointer select-none active:scale-95"
+              @click="selectCategory(cat)"
               :class="[
+                adminModalTokens.filterButton,
                 selectedCategory === cat
-                  ? 'text-white font-semibold'
-                  : 'text-neutral-400 hover:text-white font-medium'
+                  ? adminModalTokens.filterButtonActive
+                  : adminModalTokens.filterButtonInactive
               ]"
             >
               <span>{{ cat }}</span>
@@ -1004,11 +1016,11 @@ function packageHasFeature(pkg, featureName) {
         </p>
 
         <!-- Category Filters (if multiple categories available) -->
-        <div v-if="categories.length > 1" class="flex justify-center mt-8">
-          <div class="relative inline-flex flex-wrap items-center justify-center p-1.5 rounded-full bg-neutral-900/90 border border-white/[0.08] backdrop-blur-xl shadow-2xl shadow-black/50 max-w-full">
+        <div v-if="categories.length > 1" :class="adminModalTokens.filterWrapper">
+          <div :class="adminModalTokens.filterTrack">
             <!-- Smooth Sliding Frosted Glass Capsule -->
             <div
-              class="absolute top-1.5 bottom-1.5 rounded-full bg-gradient-to-b from-white/[0.14] to-white/[0.06] border border-white/25 shadow-[0_4px_20px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.2)] pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)]"
+              :class="adminModalTokens.filterSlidingCapsule"
               :style="{
                 left: `${pillState.left}px`,
                 width: `${pillState.width}px`,
@@ -1021,12 +1033,12 @@ function packageHasFeature(pkg, featureName) {
               :key="cat"
               :ref="(el) => setFilterBtnRef(el, cat)"
               type="button"
-              @click="selectedCategory = cat"
-              class="relative z-10 px-6 py-2 rounded-full text-xs tracking-wider uppercase transition-colors duration-300 cursor-pointer select-none active:scale-95"
+              @click="selectCategory(cat)"
               :class="[
+                adminModalTokens.filterButton,
                 selectedCategory === cat
-                  ? 'text-white font-semibold'
-                  : 'text-neutral-400 hover:text-white font-medium'
+                  ? adminModalTokens.filterButtonActive
+                  : adminModalTokens.filterButtonInactive
               ]"
             >
               <span>{{ cat }}</span>

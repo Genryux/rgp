@@ -203,6 +203,10 @@ function setCategory(cat) {
   activeCategory.value = cat;
   nextTick(() => {
     updatePillPosition();
+    const el = filterButtonRefs.value.get(cat);
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
     const len = filteredItems.value.length;
     currentSlideIndex.value = len > 1 ? len : 0;
     updateTrackPosition(false);
@@ -481,7 +485,7 @@ onUnmounted(() => {
       </p>
 
       <!-- Category Filter Pills with Smooth Sliding Capsule (Design Tokens Pattern) -->
-      <div v-if="categories.length > 1" class="flex justify-center mt-8 px-2">
+      <div v-if="categories.length > 1" :class="adminModalTokens.filterWrapper">
         <div :class="adminModalTokens.filterTrack">
           <!-- Smooth Sliding Frosted Glass Capsule -->
           <div
