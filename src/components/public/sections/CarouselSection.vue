@@ -40,13 +40,13 @@ const defaultItems = [
   { id: '6', image_url: '/images/6.jpg', category: 'Weddings', title: 'Beachfront Destination Reception' },
 ];
 
-// Resolved items (custom content takes precedence, capped at 10)
+// Resolved items (custom content takes precedence)
 const rawItems = computed(() => {
   if (props.content?.items && Array.isArray(props.content.items) && props.content.items.length > 0) {
-    return props.content.items.slice(0, 10);
+    return props.content.items;
   }
   if (gallery.value && gallery.value.length > 0) {
-    return gallery.value.slice(0, 10);
+    return gallery.value;
   }
   return defaultItems;
 });
@@ -581,7 +581,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Dots Pagination (Only based on active filtered items) -->
-    <div v-if="filteredItems.length > 1" class="flex justify-center gap-2 mt-8">
+    <div v-if="filteredItems.length > 1" class="flex justify-center gap-2 mt-8 flex-wrap max-w-4xl mx-auto px-4">
       <button
         v-for="(_, index) in filteredItems"
         :key="index"

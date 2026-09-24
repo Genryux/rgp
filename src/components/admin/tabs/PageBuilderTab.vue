@@ -134,14 +134,12 @@ function selectImageForHero(imageUrl) {
       editingSection.value.content.after_image = imageUrl;
     } else if (target === 'carousel_add_image') {
       const items = getCarouselItems(editingSection.value.content);
-      if (items.length < 10) {
-        const defaultCategory = getCarouselCategories(editingSection.value.content)[0] || 'Weddings';
-        items.push({
-          id: 'curated_' + Date.now(),
-          image_url: imageUrl,
-          category: defaultCategory
-        });
-      }
+      const defaultCategory = getCarouselCategories(editingSection.value.content)[0] || 'Weddings';
+      items.push({
+        id: 'curated_' + Date.now(),
+        image_url: imageUrl,
+        category: defaultCategory
+      });
     } else if (target.startsWith('carousel_item_image_')) {
       const idx = parseInt(target.replace('carousel_item_image_', ''), 10);
       const items = getCarouselItems(editingSection.value.content);
@@ -1856,7 +1854,7 @@ async function handleAddDesign(design) {
             </template>
             <template v-else>
               <h3 class="text-lg font-bold text-white tracking-wide">Edit Curated Featured Works Slider</h3>
-              <p class="text-xs text-neutral-400 mt-1">Manage showcase photos (max 10), category filter pills, and header typography.</p>
+              <p class="text-xs text-neutral-400 mt-1">Manage showcase photos, category filter pills, and header typography.</p>
             </template>
           </div>
           <div v-else-if="editingSection.section_type === 'gallery_grid'">
@@ -4190,25 +4188,21 @@ async function handleAddDesign(design) {
               </div>
             </div>
 
-            <!-- 3. Curated Showcase Cards (Max 10) -->
+            <!-- 3. Curated Showcase Cards -->
             <div :class="adminModalTokens.cardSpacious">
               <div :class="adminModalTokens.cardHeader">
                 <div>
                   <label :class="adminModalTokens.cardLabel">Curated Showcase Photos</label>
-                  <p :class="adminModalTokens.cardSubtitle">Select up to 10 photos from media library. Cards loop seamlessly and open image viewer.</p>
+                  <p :class="adminModalTokens.cardSubtitle">Select photos from media library. Cards loop seamlessly and open image viewer.</p>
                 </div>
                 <div class="flex items-center gap-2">
                   <span :class="adminModalTokens.cardCounterBadge">
-                    {{ getCarouselItems(editingSection.content).length }} / 10 Photos
+                    {{ getCarouselItems(editingSection.content).length }} {{ getCarouselItems(editingSection.content).length === 1 ? 'Photo' : 'Photos' }}
                   </span>
                   <button
                     type="button"
                     @click="openMediaPicker('carousel_add_image')"
-                    :disabled="getCarouselItems(editingSection.content).length >= 10"
-                    :class="[
-                      adminModalTokens.btnSecondary,
-                      getCarouselItems(editingSection.content).length >= 10 ? 'opacity-40 cursor-not-allowed' : ''
-                    ]"
+                    :class="adminModalTokens.btnSecondary"
                   >
                     <Plus class="w-3.5 h-3.5 text-[#FFD700]" />
                     <span>Add Photo</span>
@@ -5093,7 +5087,7 @@ async function handleAddDesign(design) {
               <span>Select Media from Showcase</span>
             </h3>
             <p class="text-xs text-neutral-400 mt-0.5">
-              {{ mediaPickerTargetField === 'carousel_add_image' ? 'Add a curated showcase photo to your slider (max 10).' : (typeof mediaPickerTargetField === 'string' && mediaPickerTargetField.startsWith('carousel_item_image_') ? 'Replace photo for this curated showcase card.' : (mediaPickerTargetField === 'image_url' ? 'Choose an image from your media library for this section.' : 'Choose an image from your media library for the background.')) }}
+              {{ mediaPickerTargetField === 'carousel_add_image' ? 'Add a curated showcase photo to your slider.' : (typeof mediaPickerTargetField === 'string' && mediaPickerTargetField.startsWith('carousel_item_image_') ? 'Replace photo for this curated showcase card.' : (mediaPickerTargetField === 'image_url' ? 'Choose an image from your media library for this section.' : 'Choose an image from your media library for the background.')) }}
             </p>
           </div>
           <button @click="isMediaPickerOpen = false" class="p-2 rounded-xl text-neutral-400 hover:text-white hover:bg-white/[0.05] transition cursor-pointer">
