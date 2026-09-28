@@ -43,6 +43,7 @@ function getStoredReadIds() {
   }
 }
 
+
 export function useInquiries() {
   async function fetchInquiries() {
     if (!isSupabaseConfigured || !supabase) return;
@@ -101,6 +102,23 @@ export function useInquiries() {
       ? crypto.randomUUID()
       : `inq_${Date.now()}`;
 
+    const pkgName = formData.package_name || '';
+    const pkgPrice = formData.package_price || 0;
+    const pkgInclusions = Array.isArray(formData.package_inclusions) ? formData.package_inclusions : [];
+    const addonsList = Array.isArray(formData.addons) ? formData.addons : [];
+    const addonsSum = formData.addons_total || 0;
+
+    const attachedBundleData = (pkgName || addonsList.length > 0) ? {
+      package_name: pkgName,
+      package_price: pkgPrice,
+      package_inclusions: pkgInclusions,
+      addons: addonsList,
+      addons_total: addonsSum,
+    } : null;
+
+    const cleanMessage = (formData.message || '').trim();
+    const dbMessage = cleanMessage + (attachedBundleData ? `\n\n<!-- RGP_ATTACHED_PACKAGE: ${JSON.stringify(attachedBundleData)} -->` : '');
+
     const newInquiry = {
       id: inquiryId,
       name: formData.name,
@@ -108,16 +126,59 @@ export function useInquiries() {
       phone: formData.phone || null,
       event_type: formData.event_type || 'General Inquiry',
       event_date: formData.event_date || null,
-      message: formData.message,
+      message: dbMessage,
       status: 'New',
       created_at: new Date().toISOString(),
+      ...(attachedBundleData ? {
+        package_name: pkgName,
+        package_price: pkgPrice,
+        package_inclusions: pkgInclusions,
+        addons: addonsList,
+        addons_total: addonsSum,
+      } : {}),
     };
 
     if (isSupabaseConfigured && supabase) {
       try {
-        const { error } = await supabase
+        const insertPayload = {
+          id: newInquiry.id,
+          name: newInquiry.name,
+          email: newInquiry.email,
+          phone: newInquiry.phone,
+          event_type: newInquiry.event_type,
+          event_date: newInquiry.event_date,
+          message: newInquiry.message,
+          status: newInquiry.status,
+          created_at: newInquiry.created_at,
+          ...(attachedBundleData ? {
+            package_name: pkgName,
+            package_price: pkgPrice,
+            package_inclusions: pkgInclusions,
+            addons: addonsList,
+            addons_total: addonsSum,
+          } : {}),
+        };
+
+        let { error } = await supabase
           .from('inquiries')
-          .insert(newInquiry);
+          .insert(insertPayload);
+
+        // Fallback if specific package columns are not present in DB schema yet
+        if (error && error.message && error.message.includes('column')) {
+          console.warn('[Inquiries] Retrying insert with standard columns:', error.message);
+          const fallbackRes = await supabase.from('inquiries').insert({
+            id: newInquiry.id,
+            name: newInquiry.name,
+            email: newInquiry.email,
+            phone: newInquiry.phone,
+            event_type: newInquiry.event_type,
+            event_date: newInquiry.event_date,
+            message: newInquiry.message,
+            status: newInquiry.status,
+            created_at: newInquiry.created_at,
+          });
+          error = fallbackRes.error;
+        }
 
         if (error) throw error;
 
@@ -130,7 +191,12 @@ export function useInquiries() {
             phone: newInquiry.phone,
             event_type: newInquiry.event_type,
             event_date: newInquiry.event_date,
-            message: newInquiry.message,
+            message: cleanMessage,
+            package_name: pkgName,
+            package_price: pkgPrice,
+            package_inclusions: pkgInclusions,
+            addons: addonsList,
+            addons_total: addonsSum,
           },
         }).then(({ data, error: fnErr }) => {
           if (fnErr) {
@@ -142,6 +208,7 @@ export function useInquiries() {
           console.warn('[Inquiries] notify-inquiry invocation error:', err);
         });
 
+        inquiries.value.unshift(newInquiry);
         return { data: newInquiry, error: null };
       } catch (err) {
         console.error('[Inquiries] Submit failed:', err);

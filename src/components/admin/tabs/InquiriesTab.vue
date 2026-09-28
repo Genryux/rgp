@@ -50,6 +50,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Settings,
+  Package,
 } from '@lucide/vue';
 import { useGmailAuth } from '../../../composables/useGmailAuth';
 
@@ -426,6 +427,28 @@ function stripQuotedReply(content) {
 function formatMessageContent(content) {
   if (!content) return '';
   let cleaned = stripQuotedReply(content);
+
+  // 1. Remove ASCII / unicode / underscore package summary block completely
+  cleaned = cleaned.replace(/(?:─{3,}|_{3,}|\-{3,})[\s\S]*?ATTACHED PACKAGE & ADD-ONS:[\s\S]*?(?:─{3,}|_{3,}|\-{3,})/gi, '');
+
+  // 2. Remove any PACKAGE: ... TOTAL: ... text block (and any trailing dividers)
+  cleaned = cleaned.replace(/PACKAGE:\s*[^\n]+[\s\S]*?TOTAL:\s*[^\n]+(?:\n*(?:─{3,}|_{3,}|\-{3,}))?/gi, '');
+
+  // 3. Remove standalone ATTACHED PACKAGE & ADD-ONS: section if any remained
+  cleaned = cleaned.replace(/ATTACHED PACKAGE & ADD-ONS:[\s\S]*?(?=\n\n|$)/gi, '');
+
+  // 4. Remove any remaining divider lines (─, _, -)
+  cleaned = cleaned.replace(/^[─_\-]{3,}\s*$/gm, '');
+
+  // 5. Remove any internal attached package JSON comment
+  cleaned = cleaned.replace(/<!--\s*RGP_ATTACHED_PACKAGE:[\s\S]*?-->/gi, '');
+
+  // 6. Strip trailing legacy text markers if present
+  cleaned = cleaned.replace(/\n*\[Inquired Package\]:[\s\S]*?(?=\n\[Add-ons\]:|$)/gi, '');
+  cleaned = cleaned.replace(/\n*\[Add-ons\]:[\s\S]*?$/gi, '');
+
+  cleaned = cleaned.trim();
+
   // Remove any broken unresolved cid: image references so no broken image boxes appear
   cleaned = cleaned.replace(/<img[^>]*src=["']cid:[^"']*["'][^>]*>/gi, '');
   if (/<[a-z][\s\S]*>/i.test(cleaned)) {
@@ -440,6 +463,130 @@ function formatMessageContent(content) {
     .map((para) => `<p>${para.trim().replace(/\n/g, '<br>')}</p>`)
     .join('');
 }
+
+function parseAttachedPackageFromInquiry(inquiry) {
+  if (!inquiry) return null;
+
+  // 1. Direct columns if present on record
+  if (inquiry.package_name || (Array.isArray(inquiry.addons) && inquiry.addons.length > 0)) {
+    return {
+      packageName: inquiry.package_name || '',
+      packagePrice: inquiry.package_price || 0,
+      inclusions: Array.isArray(inquiry.package_inclusions) ? inquiry.package_inclusions : [],
+      addons: Array.isArray(inquiry.addons) ? inquiry.addons : [],
+      addonsTotal: inquiry.addons_total || 0,
+      eventType: inquiry.event_type || 'General',
+    };
+  }
+
+  // 2. Structured JSON comment inside inquiry.message
+  if (inquiry.message) {
+    const jsonMatch = inquiry.message.match(/<!--\s*RGP_ATTACHED_PACKAGE:\s*([\s\S]*?)\s*-->/i);
+    if (jsonMatch && jsonMatch[1]) {
+      try {
+        const parsed = JSON.parse(jsonMatch[1]);
+        return {
+          packageName: parsed.package_name || '',
+          packagePrice: parsed.package_price || 0,
+          inclusions: Array.isArray(parsed.package_inclusions) ? parsed.package_inclusions : [],
+          addons: Array.isArray(parsed.addons) ? parsed.addons : [],
+          addonsTotal: parsed.addons_total || 0,
+          eventType: inquiry.event_type || 'General',
+        };
+      } catch (err) {
+        console.warn('[InquiriesTab] Failed to parse package metadata JSON:', err);
+      }
+    }
+
+    // 3. Structured text summary block
+    const summaryMatch = inquiry.message.match(/(?:ATTACHED PACKAGE & ADD-ONS:[\s\S]*?)?PACKAGE:\s*([^\n(]+)(?:\s*\(([^)]+)\))?/i);
+    if (summaryMatch) {
+      const pkgName = summaryMatch[1].trim();
+      const rawPrice = summaryMatch[2] ? summaryMatch[2].replace(/[^\d.]/g, '') : '0';
+      const pkgPrice = parseFloat(rawPrice) || 0;
+
+      // Extract inclusions
+      const inclusions = [];
+      const incBlockMatch = inquiry.message.match(/Deliverables & Inclusions:\s*\n((?:\s*[•*-][^\n]+\n?)+)/i);
+      if (incBlockMatch && incBlockMatch[1]) {
+        incBlockMatch[1].split('\n').forEach((line) => {
+          const cleaned = line.replace(/^\s*[•*-]\s*/, '').trim();
+          if (cleaned) inclusions.push(cleaned);
+        });
+      }
+
+      // Extract add-ons
+      const addons = [];
+      const addBlockMatch = inquiry.message.match(/Add-ons:\s*\n((?:\s*[+•*-][^\n]+\n?)+)/i);
+      if (addBlockMatch && addBlockMatch[1]) {
+        addBlockMatch[1].split('\n').forEach((line) => {
+          const m = line.trim().match(/^[+•*-]?\s*(.+?)\s*\(([^)]+)\)$/);
+          if (m) {
+            addons.push({ title: m[1].trim(), price: m[2].trim() });
+          }
+        });
+      }
+
+      const addonsTotal = addons.reduce((sum, item) => {
+        const num = parseFloat(String(item.price).replace(/[^\d.]/g, ''));
+        return sum + (isNaN(num) ? 0 : num);
+      }, 0);
+
+      return {
+        packageName: pkgName,
+        packagePrice: pkgPrice,
+        inclusions,
+        addons,
+        addonsTotal,
+        eventType: inquiry.event_type || 'General',
+      };
+    }
+
+    // 4. Legacy text pattern [Inquired Package]: ... and [Add-ons]: ...
+    const pkgMatch = inquiry.message.match(/\[Inquired Package\]:\s*([^\n]+)/i);
+    const addonsMatch = inquiry.message.match(/\[Add-ons\]:\s*([^\n]+)/i);
+
+    if (pkgMatch || addonsMatch) {
+      const pkgName = pkgMatch ? pkgMatch[1].trim() : '';
+      const addons = [];
+      if (addonsMatch && addonsMatch[1]) {
+        const rawAddons = addonsMatch[1].split(',');
+        for (const raw of rawAddons) {
+          const itemMatch = raw.trim().match(/^(.+?)\s*\(([^)]+)\)$/);
+          if (itemMatch) {
+            addons.push({ title: itemMatch[1].trim(), price: itemMatch[2].trim() });
+          } else if (raw.trim()) {
+            addons.push({ title: raw.trim(), price: '' });
+          }
+        }
+      }
+
+      return {
+        packageName: pkgName,
+        packagePrice: 0,
+        inclusions: [],
+        addons,
+        addonsTotal: 0,
+        eventType: inquiry.event_type || 'General',
+      };
+    }
+  }
+
+  return null;
+}
+
+function formattedPackageTotal(data) {
+  if (!data) return '0';
+  const pkg = Number(data.packagePrice) || 0;
+  const addons = Number(data.addonsTotal) || (Array.isArray(data.addons) ? data.addons.reduce((sum, item) => {
+    const cleaned = String(item.price || item.rawPrice || '').replace(/[^\d.]/g, '');
+    const num = parseFloat(cleaned);
+    return sum + (isNaN(num) ? 0 : num);
+  }, 0) : 0);
+  return (pkg + addons).toLocaleString('en-PH');
+}
+
+const attachedPackageDetails = computed(() => parseAttachedPackageFromInquiry(selectedInquiry.value));
 
 const highlightedMessageId = ref(null);
 const threadBottomRef = ref(null);
@@ -1191,6 +1338,112 @@ function copyEmail(email) {
           class="py-2 text-neutral-100 text-sm md:text-base leading-relaxed font-normal [&_p]:mb-3.5 [&_p:last-child]:mb-0 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-3.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-3.5 [&_li]:mb-1.5 [&_a]:text-[#FFD700] [&_a]:underline [&_b]:font-bold [&_strong]:font-bold [&_i]:italic [&_em]:italic [&_u]:underline"
           v-html="formatMessageContent(selectedInquiry.message)"
         ></div>
+
+        <!-- Attached Package & Add-ons Card (Redesigned Compact Admin Card) -->
+        <div
+          v-if="attachedPackageDetails"
+          class="my-4 max-w-xl rounded-2xl bg-black/40 border border-white/[0.08] p-4 sm:p-5 font-manrope space-y-3.5 shadow-xl"
+        >
+          <!-- Card Header / Category & Total -->
+          <div class="flex items-center justify-between gap-3 pb-3 border-b border-white/[0.06]">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-7 h-7 rounded-lg bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center text-[#FFD700] shrink-0">
+                <Package class="w-3.5 h-3.5" />
+              </div>
+              <div class="min-w-0">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block">
+                  Inquiring For
+                </span>
+                <span class="text-xs font-bold text-white truncate block">
+                  {{ attachedPackageDetails.eventType || selectedInquiry.event_type }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Combined Total Value -->
+            <div class="text-right shrink-0">
+              <span class="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block">
+                Total Value
+              </span>
+              <span class="text-sm sm:text-base font-bold font-mono text-[#FFD700]">
+                ₱{{ formattedPackageTotal(attachedPackageDetails) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Base Package Block -->
+          <div
+            v-if="attachedPackageDetails.packageName"
+            class="p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-between gap-3"
+          >
+            <div class="min-w-0">
+              <span class="text-[10px] uppercase font-semibold text-neutral-400 tracking-wider block">
+                Attached Package Tier
+              </span>
+              <h4 class="text-xs sm:text-sm font-bold text-white uppercase tracking-wide truncate mt-0.5" :title="attachedPackageDetails.packageName">
+                {{ attachedPackageDetails.packageName }}
+              </h4>
+            </div>
+            <div class="text-right shrink-0">
+              <span class="text-xs sm:text-sm font-bold font-mono text-[#FFD700]">
+                ₱{{ Number(attachedPackageDetails.packagePrice).toLocaleString('en-PH') }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Deliverables / Inclusions Checklist -->
+          <div
+            v-if="attachedPackageDetails.inclusions && attachedPackageDetails.inclusions.length > 0"
+            class="space-y-1.5"
+          >
+            <span class="text-[10px] uppercase font-bold text-neutral-400 tracking-wider block">
+              Deliverables &amp; Inclusions ({{ attachedPackageDetails.inclusions.length }})
+            </span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <div
+                v-for="(feature, idx) in attachedPackageDetails.inclusions"
+                :key="idx"
+                class="flex items-start gap-1.5 text-xs text-neutral-300"
+              >
+                <Check class="w-3.5 h-3.5 text-[#FFD700] shrink-0 mt-0.5" />
+                <span class="truncate leading-tight text-[11px]" :title="feature">{{ feature }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add-ons Section -->
+          <div
+            v-if="attachedPackageDetails.addons && attachedPackageDetails.addons.length > 0"
+            class="pt-3 border-t border-white/[0.06] space-y-2"
+          >
+            <div class="flex items-center justify-between">
+              <span class="text-[10px] uppercase font-bold text-neutral-400 tracking-wider">
+                Selected Add-ons ({{ attachedPackageDetails.addons.length }})
+              </span>
+              <span class="text-[11px] font-mono font-semibold text-[#FFD700]">
+                +₱{{ Number(attachedPackageDetails.addonsTotal).toLocaleString('en-PH') }}
+              </span>
+            </div>
+
+            <div class="space-y-1">
+              <div
+                v-for="(ad, idx) in attachedPackageDetails.addons"
+                :key="idx"
+                class="flex items-center justify-between gap-2 py-1.5 px-3 rounded-lg bg-white/[0.02] border border-white/[0.04] text-xs"
+              >
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <Check class="w-3 h-3 text-neutral-400 shrink-0" />
+                  <span class="text-neutral-200 text-[11px] truncate uppercase font-medium" :title="ad.title || ad.name">
+                    {{ ad.title || ad.name }}
+                  </span>
+                </div>
+                <span class="font-mono text-[#FFD700] text-[11px] shrink-0 font-semibold pl-2">
+                  {{ ad.price }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Client / Initial Attachments -->
         <div v-if="initialAttachments.length > 0" class="space-y-2 pt-2">

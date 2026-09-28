@@ -32,6 +32,7 @@ const {
   packages,
   packageCategories,
   masterInclusions,
+  masterAddons,
   isGlobalPriceMasked,
   toggleGlobalPriceMask,
   togglePackagePriceMask,
@@ -41,6 +42,9 @@ const {
   addMasterInclusion,
   removeMasterInclusion,
   updateMasterInclusion,
+  addMasterAddon,
+  updateMasterAddon,
+  deleteMasterAddon,
   addCategory,
   deleteCategory,
   renameCategory,
@@ -210,8 +214,368 @@ async function confirmDeleteInclusion() {
   triggerToast('Inclusion Removed', `"${deletedItem}" removed from master list`, 'info', 3500);
 }
 
+// =========================================================================
+// Add-on Creation Form Modal State
+// =========================================================================
+const showAddAddonModal = ref(false);
+const newAddonForm = ref({ title: '', price: '' });
+const addAddonError = ref('');
+
+function openAddAddonModal() {
+  newAddonForm.value = { title: '', price: '' };
+  addAddonError.value = '';
+  showAddAddonModal.value = true;
+}
+
+async function handleCreateAddon() {
+  addAddonError.value = '';
+  const trimmed = newAddonForm.value.title.trim();
+  if (!trimmed) {
+    addAddonError.value = 'Add-on title cannot be empty.';
+    return;
+  }
+  const cleanPrice = Number(newAddonForm.value.price);
+  if (isNaN(cleanPrice) || cleanPrice < 0) {
+    addAddonError.value = 'Please enter a valid price (0 or greater).';
+    return;
+  }
+
+  const added = await addMasterAddon({ title: trimmed, price: cleanPrice });
+  if (added) {
+    newAddonForm.value = { title: '', price: '' };
+    showAddAddonModal.value = false;
+    triggerToast('Add-on Created', `"${trimmed}" (₱${cleanPrice.toLocaleString('en-PH')}) added to Master Add-ons`, 'success', 3500);
+  }
+}
+
+// =========================================================================
+// Master Add-ons Management Modal State
+// =========================================================================
+const showMasterAddonsModal = ref(false);
+const masterAddonsSearch = ref('');
+const inlineNewAddon = ref({ title: '', price: '' });
+const editingMasterAddon = ref(null); // { id, title, price }
+const addonToDelete = ref(null);
+
+const filteredMasterAddons = computed(() => {
+  let list = masterAddons.value || [];
+  if (masterAddonsSearch.value.trim()) {
+    const q = masterAddonsSearch.value.toLowerCase().trim();
+    list = list.filter((a) =>
+      (a.title || '').toLowerCase().includes(q) || String(a.price || '').includes(q)
+    );
+  }
+  return list;
+});
+
+async function handleAddInlineAddon() {
+  const trimmed = inlineNewAddon.value.title.trim();
+  if (!trimmed) return;
+  const cleanPrice = Math.max(0, Number(inlineNewAddon.value.price) || 0);
+  await addMasterAddon({ title: trimmed, price: cleanPrice });
+  inlineNewAddon.value = { title: '', price: '' };
+  triggerToast('Add-on Added', `"${trimmed}" added to master deliverables`, 'success', 3500);
+}
+
+function startEditMasterAddon(addon) {
+  editingMasterAddon.value = { id: addon.id, title: addon.title, price: addon.price };
+}
+
+function cancelEditMasterAddon() {
+  editingMasterAddon.value = null;
+}
+
+async function saveEditMasterAddon() {
+  if (!editingMasterAddon.value) return;
+  const { id, title, price } = editingMasterAddon.value;
+  const trimmed = title.trim();
+  if (!trimmed) return;
+  const cleanPrice = Math.max(0, Number(price) || 0);
+  await updateMasterAddon(id, { title: trimmed, price: cleanPrice });
+  editingMasterAddon.value = null;
+  triggerToast('Add-on Updated', `"${trimmed}" updated successfully`, 'success', 3500);
+}
+
+function promptDeleteAddon(addon) {
+  addonToDelete.value = addon;
+}
+
+function cancelDeleteAddon() {
+  addonToDelete.value = null;
+}
+
+async function confirmDeleteAddon() {
+  if (!addonToDelete.value) return;
+  const title = addonToDelete.value.title;
+  await deleteMasterAddon(addonToDelete.value.id);
+  addonToDelete.value = null;
+  triggerToast('Add-on Removed', `"${title}" removed from master list`, 'info', 3500);
+}
+
+// =========================================================================
+// Input Sanitization Helpers (Strict Numeric Only)
+// =========================================================================
+function allowOnlyDigits(e) {
+  const allowedKeys = [
+    'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+    'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'
+  ];
+  if (allowedKeys.includes(e.key)) return;
+  if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x', 'z', 'A', 'C', 'V', 'Z'].includes(e.key)) return;
+  if (!/^[0-9]$/.test(e.key)) {
+    e.preventDefault();
+  }
+}
+
+function sanitizeNumericInput(e, targetObj, propName) {
+  const raw = String(e.target.value ?? '');
+  const sanitized = raw.replace(/\D/g, '');
+  if (raw !== sanitized) {
+    e.target.value = sanitized;
+  }
+  targetObj[propName] = sanitized;
+}
+
+// =========================================================================
+// Category Add-on Package Modal State & Logic
+// =========================================================================
+const activeCategoryDropdown = ref(null);
+
+function toggleCategoryDropdown(cat) {
+  if (activeCategoryDropdown.value === cat) {
+    activeCategoryDropdown.value = null;
+  } else {
+    activeCategoryDropdown.value = cat;
+  }
+}
+
+const showCategoryAddonsModal = ref(false);
+const categoryAddonPackageForm = ref({
+  id: '',
+  category: '',
+  title: 'ADDITIONALS',
+  badge: '',
+  selectedAddonIds: [],
+});
+const categoryAddonSearch = ref('');
+const categoryAddonFilterMode = ref('all'); // 'all' | 'selected'
+const categoryAddonError = ref('');
+
+const selectedCategoryAddonsCount = computed(() => {
+  return (categoryAddonPackageForm.value.selectedAddonIds || []).length;
+});
+
+const computedCategoryAddonsTotal = computed(() => {
+  const selectedSet = new Set(categoryAddonPackageForm.value.selectedAddonIds || []);
+  let total = 0;
+  (masterAddons.value || []).forEach((item) => {
+    if (selectedSet.has(item.id)) {
+      total += Number(item.price) || 0;
+    }
+  });
+  return total;
+});
+
+const filteredCategoryMasterAddons = computed(() => {
+  let list = masterAddons.value || [];
+  const selectedSet = new Set(categoryAddonPackageForm.value.selectedAddonIds || []);
+
+  if (categoryAddonFilterMode.value === 'selected') {
+    list = list.filter((item) => selectedSet.has(item.id));
+  }
+
+  if (categoryAddonSearch.value.trim()) {
+    const q = categoryAddonSearch.value.toLowerCase().trim();
+    list = list.filter(
+      (item) =>
+        (item.title || '').toLowerCase().includes(q) ||
+        String(item.price || '').includes(q)
+    );
+  }
+
+  return list;
+});
+
+function openCreateCategoryAddons(category) {
+  categoryAddonSearch.value = '';
+  categoryAddonFilterMode.value = 'all';
+  categoryAddonError.value = '';
+
+  // If this category already has an ADDITIONALS package, open in edit mode
+  const existing = (packages.value || []).find(
+    (p) => p.category === category && (p.is_addon || (p.title && p.title.toUpperCase().includes('ADDITIONAL')))
+  );
+
+  if (existing) {
+    openEditCategoryAddons(existing);
+    return;
+  }
+
+  categoryAddonPackageForm.value = {
+    id: '',
+    category,
+    title: 'ADDITIONALS',
+    badge: '',
+    selectedAddonIds: [],
+  };
+
+  showCategoryAddonsModal.value = true;
+}
+
+function openEditCategoryAddons(pkg) {
+  categoryAddonSearch.value = '';
+  categoryAddonFilterMode.value = 'all';
+  categoryAddonError.value = '';
+
+  const selectedIds = [];
+  const existingFeatures = Array.isArray(pkg.features) ? pkg.features : [];
+
+  existingFeatures.forEach((feat) => {
+    const featClean = feat.split('+')[0].trim().toLowerCase();
+    const match = (masterAddons.value || []).find(
+      (a) => (a.title || '').trim().toLowerCase() === featClean
+    );
+    if (match) {
+      if (!selectedIds.includes(match.id)) {
+        selectedIds.push(match.id);
+      }
+    }
+  });
+
+  categoryAddonPackageForm.value = {
+    id: pkg.id,
+    category: pkg.category,
+    title: pkg.title || 'ADDITIONALS',
+    badge: pkg.badge || '',
+    selectedAddonIds: selectedIds,
+  };
+
+  showCategoryAddonsModal.value = true;
+}
+
+function toggleCategoryAddonSelection(addonId) {
+  const list = categoryAddonPackageForm.value.selectedAddonIds;
+  const idx = list.indexOf(addonId);
+  if (idx !== -1) {
+    list.splice(idx, 1);
+  } else {
+    list.push(addonId);
+  }
+}
+
+function isCategoryAddonSelected(addonId) {
+  return (categoryAddonPackageForm.value.selectedAddonIds || []).includes(addonId);
+}
+
+function selectAllCategoryAddons() {
+  categoryAddonPackageForm.value.selectedAddonIds = (masterAddons.value || []).map((a) => a.id);
+}
+
+function clearAllCategoryAddons() {
+  categoryAddonPackageForm.value.selectedAddonIds = [];
+}
+
+async function handleSaveCategoryAddons() {
+  categoryAddonError.value = '';
+  const form = categoryAddonPackageForm.value;
+  const title = (form.title || '').trim() || 'ADDITIONALS';
+  const category = form.category;
+
+  if (!category) {
+    categoryAddonError.value = 'Please provide a valid category.';
+    return;
+  }
+
+  if (form.selectedAddonIds.length === 0) {
+    categoryAddonError.value = 'Please select at least one add-on item from the master list.';
+    return;
+  }
+
+  const idMap = new Map((masterAddons.value || []).map((a) => [a.id, a]));
+  const features = form.selectedAddonIds
+    .map((id) => idMap.get(id))
+    .filter(Boolean)
+    .map((item) => `${item.title} + ₱${Number(item.price || 0).toLocaleString('en-PH')}`);
+
+  const isNew = !form.id || form.id.startsWith('pkg_temp_');
+  const pkgId = form.id || `pkg_addon_${Date.now()}`;
+
+  const payload = {
+    id: pkgId,
+    category,
+    title,
+    badge: (form.badge || '').trim(),
+    price: computedCategoryAddonsTotal.value,
+    promo_price: null,
+    features,
+    is_addon: true,
+    is_active: true,
+    is_featured: false,
+    hide_price: false,
+  };
+
+  const res = await savePackage(payload);
+  if (res?.error) {
+    categoryAddonError.value = res.error.message || 'Failed to save add-on package.';
+    triggerToast('Save Failed', res.error.message || 'Please check your admin session.', 'danger', 4500);
+    return;
+  }
+
+  showCategoryAddonsModal.value = false;
+  if (isNew) {
+    triggerToast('Add-ons Created', `"${title}" added to ${category}`, 'success', 3500);
+  } else {
+    triggerToast('Add-ons Updated', `Updated "${title}" for ${category}`, 'success', 3500);
+  }
+}
+
+function isAddonPackage(pkg) {
+  if (!pkg) return false;
+  return Boolean(
+    pkg.is_addon ||
+    (typeof pkg.title === 'string' && pkg.title.toUpperCase().includes('ADDITIONAL'))
+  );
+}
+
+function parseAddonFeature(feat) {
+  if (!feat) return { title: '', price: '' };
+  if (typeof feat === 'object') {
+    const title = feat.title || feat.name || '';
+    const price = feat.price ? `₱${Number(feat.price).toLocaleString('en-PH')}` : '';
+    return { title, price };
+  }
+  if (typeof feat !== 'string') return { title: String(feat), price: '' };
+  if (feat.includes('+')) {
+    const parts = feat.split('+');
+    const title = parts[0].trim();
+    let pricePart = parts.slice(1).join('+').trim();
+    if (!pricePart.startsWith('₱') && !pricePart.startsWith('PHP')) {
+      const num = Number(pricePart.replace(/[^\d.]/g, ''));
+      if (!isNaN(num) && num > 0) {
+        pricePart = `₱${num.toLocaleString('en-PH')}`;
+      } else {
+        pricePart = `+ ${pricePart}`;
+      }
+    }
+    return { title, price: pricePart };
+  }
+  return { title: feat.trim(), price: '' };
+}
+
 watch(
-  () => Boolean(editingPackage.value || showMasterListModal.value || inclusionToDelete.value || showAddCategoryModal.value || showManageCategoriesModal.value || categoryToDelete.value || packageToDelete.value),
+  () => Boolean(
+    editingPackage.value ||
+    showMasterListModal.value ||
+    inclusionToDelete.value ||
+    showAddCategoryModal.value ||
+    showManageCategoriesModal.value ||
+    categoryToDelete.value ||
+    packageToDelete.value ||
+    showAddAddonModal.value ||
+    showMasterAddonsModal.value ||
+    showCategoryAddonsModal.value ||
+    addonToDelete.value
+  ),
   (isOpen, wasOpen) => {
     if (isOpen && !wasOpen) openModal();
     else if (!isOpen && wasOpen) closeModal();
@@ -219,7 +583,19 @@ watch(
 );
 
 onUnmounted(() => {
-  if (editingPackage.value || showMasterListModal.value || inclusionToDelete.value || showAddCategoryModal.value || showManageCategoriesModal.value || categoryToDelete.value || packageToDelete.value) {
+  if (
+    editingPackage.value ||
+    showMasterListModal.value ||
+    inclusionToDelete.value ||
+    showAddCategoryModal.value ||
+    showManageCategoriesModal.value ||
+    categoryToDelete.value ||
+    packageToDelete.value ||
+    showAddAddonModal.value ||
+    showMasterAddonsModal.value ||
+    showCategoryAddonsModal.value ||
+    addonToDelete.value
+  ) {
     closeModal();
   }
 });
@@ -328,6 +704,10 @@ function openNewPackage(defaultCategory = 'Weddings') {
 }
 
 function openEditPackage(pkg) {
+  if (pkg.is_addon || (pkg.title && pkg.title.toUpperCase().includes('ADDITIONAL'))) {
+    openEditCategoryAddons(pkg);
+    return;
+  }
   inclusionSearch.value = '';
   inclusionFilterMode.value = 'all';
   inlineNewInclusion.value = '';
@@ -552,9 +932,24 @@ async function handleSave() {
                 </div>
               </button>
 
+              <!-- 3. Add New Add-on -->
+              <button
+                type="button"
+                @click="openAddAddonModal(); isActionDropdownOpen = false"
+                class="w-full text-left p-3 rounded-xl hover:bg-white/[0.08] transition flex items-center gap-3 group cursor-pointer"
+              >
+                <div class="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 text-neutral-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Sparkles class="w-4 h-4" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <h4 class="text-xs font-bold text-white group-hover:text-white transition">Add New Add-ons</h4>
+                  <p class="text-[11px] text-neutral-400">Create extra service or deliverable</p>
+                </div>
+              </button>
+
               <div class="h-px bg-white/[0.08] my-1 mx-2"></div>
 
-              <!-- 3. Manage Categories -->
+              <!-- 4. Manage Categories -->
               <button
                 type="button"
                 @click="showManageCategoriesModal = true; isActionDropdownOpen = false"
@@ -572,7 +967,7 @@ async function handleSave() {
                 </div>
               </button>
 
-              <!-- 4. Master Inclusions Library -->
+              <!-- 5. Master Inclusions Library -->
               <button
                 type="button"
                 @click="showMasterListModal = true; isActionDropdownOpen = false"
@@ -587,6 +982,24 @@ async function handleSave() {
                     <span class="px-1.5 py-0.5 rounded-full bg-white/10 text-[10px] font-mono text-neutral-300">{{ masterInclusions.length }}</span>
                   </div>
                   <p class="text-[11px] text-neutral-400">Standard studio deliverables</p>
+                </div>
+              </button>
+
+              <!-- 6. Master Add-ons Library -->
+              <button
+                type="button"
+                @click="showMasterAddonsModal = true; isActionDropdownOpen = false"
+                class="w-full text-left p-3 rounded-xl hover:bg-white/[0.08] transition flex items-center gap-3 group cursor-pointer"
+              >
+                <div class="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 text-neutral-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                  <Layers class="w-4 h-4" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <div class="flex items-center justify-between">
+                    <h4 class="text-xs font-bold text-white">Master add-ons</h4>
+                    <span class="px-1.5 py-0.5 rounded-full bg-white/10 text-[10px] font-mono text-neutral-300">{{ masterAddons.length }}</span>
+                  </div>
+                  <p class="text-[11px] text-neutral-400">Standard studio add-ons & extras</p>
                 </div>
               </button>
             </div>
@@ -660,13 +1073,70 @@ async function handleSave() {
             </span>
           </div>
 
-          <button
-            @click="openNewPackage(group.category)"
-            class="cursor-pointer px-3.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.12] text-neutral-300 hover:text-white text-xs font-medium transition flex items-center gap-1.5 border border-white/[0.06]"
-          >
-            <Plus class="w-3.5 h-3.5" />
-            <span>Add to {{ group.category }}</span>
-          </button>
+          <!-- Add to Category Dropdown Menu -->
+          <div class="relative">
+            <button
+              type="button"
+              @click="toggleCategoryDropdown(group.category)"
+              class="cursor-pointer px-3.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.12] text-neutral-300 hover:text-white text-xs font-medium transition flex items-center gap-1.5 border border-white/[0.06]"
+            >
+              <Plus class="w-3.5 h-3.5" />
+              <span>Add to {{ group.category }}</span>
+              <ChevronDown class="w-3.5 h-3.5 transition-transform duration-200" :class="{ 'rotate-180': activeCategoryDropdown === group.category }" />
+            </button>
+
+            <!-- Dropdown Backdrop to close on click outside -->
+            <div
+              v-if="activeCategoryDropdown === group.category"
+              @click="activeCategoryDropdown = null"
+              class="fixed inset-0 z-40"
+            ></div>
+
+            <!-- Dropdown Action Menu -->
+            <Transition
+              enter-active-class="transition duration-150 ease-out"
+              enter-from-class="opacity-0 scale-95 -translate-y-1"
+              enter-to-class="opacity-100 scale-100 translate-y-0"
+              leave-active-class="transition duration-100 ease-in"
+              leave-from-class="opacity-100 scale-100 translate-y-0"
+              leave-to-class="opacity-0 scale-95 -translate-y-1"
+            >
+              <div
+                v-if="activeCategoryDropdown === group.category"
+                class="absolute right-0 mt-2 w-64 rounded-2xl bg-[#141414]/98 backdrop-blur-2xl border border-white/[0.14] shadow-2xl p-1.5 z-50 space-y-1 ring-1 ring-black/80 font-manrope select-none"
+              >
+                <!-- 1. Add Package -->
+                <button
+                  type="button"
+                  @click="openNewPackage(group.category); activeCategoryDropdown = null"
+                  class="w-full text-left p-2.5 rounded-xl hover:bg-white/[0.08] transition flex items-center gap-3 group cursor-pointer"
+                >
+                  <div class="w-8 h-8 rounded-xl bg-[#FFD700]/15 border border-[#FFD700]/30 text-[#FFD700] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Tag class="w-4 h-4" />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <h4 class="text-xs font-bold text-white group-hover:text-[#FFD700] transition">Add Package</h4>
+                    <p class="text-[11px] text-neutral-400">Rate plan for {{ group.category }}</p>
+                  </div>
+                </button>
+
+                <!-- 2. Add Add-ons -->
+                <button
+                  type="button"
+                  @click="openCreateCategoryAddons(group.category); activeCategoryDropdown = null"
+                  class="w-full text-left p-2.5 rounded-xl hover:bg-white/[0.08] transition flex items-center gap-3 group cursor-pointer"
+                >
+                  <div class="w-8 h-8 rounded-xl bg-white/[0.06] border border-white/10 text-neutral-300 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                    <Sparkles class="w-4 h-4" />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <h4 class="text-xs font-bold text-white group-hover:text-white transition">Add Add-ons</h4>
+                    <p class="text-[11px] text-neutral-400">Additionals for {{ group.category }}</p>
+                  </div>
+                </button>
+              </div>
+            </Transition>
+          </div>
         </div>
 
         <!-- Cards Grid for this Category (Collapsible & Content-Aware Height) -->
@@ -694,105 +1164,192 @@ async function handleSave() {
             v-else
             class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-start"
           >
-            <div
-              v-for="pkg in group.items"
-            :key="pkg.id"
-            class="rounded-3xl p-6 bg-[#141414] border flex flex-col justify-between relative group transition shadow-xl h-fit self-start"
-            :class="[
-              pkg.badge
-                ? 'border-[#FFD700]/40 bg-gradient-to-b from-[#FFD700]/[0.03] to-[#141414] hover:border-[#FFD700]/70'
-                : 'border-white/[0.08] hover:border-white/[0.18]'
-            ]"
-          >
-            <!-- Badge if present (With matching gold border highlight) -->
-            <div
-              v-if="pkg.badge"
-              class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-[#FFD700] text-[#141414] text-[10px] font-bold uppercase tracking-wider shadow-md"
-            >
-              {{ pkg.badge }}
-            </div>
-
-            <div>
-              <h3 class="text-lg font-bold text-white tracking-wide mb-2">{{ pkg.title }}</h3>
-
-              <!-- Price Display (with Eye Mask Toggle Button directly beside it) -->
-              <div class="flex items-center gap-2.5 mb-4">
-                <div class="flex items-baseline gap-2">
-                  <!-- If Masked: Show 2?,??? and hide promo price -->
-                  <template v-if="pkg.hide_price || isGlobalPriceMasked">
-                    <span class="text-2xl font-extrabold text-[#FFD700]">₱{{ formatMaskedPrice(pkg.price) }}</span>
-                  </template>
-
-                  <!-- Standard Full Price & Promo Price -->
-                  <template v-else>
-                    <span class="text-2xl font-extrabold text-[#FFD700]">
-                      ₱{{ Number(pkg.promo_price || pkg.price).toLocaleString('en-PH') }}
-                    </span>
-                    <span v-if="pkg.promo_price" class="text-xs text-neutral-500 line-through font-medium">
-                      ₱{{ Number(pkg.price).toLocaleString('en-PH') }}
-                    </span>
-                  </template>
-                </div>
-
-                <!-- Eye Mask Toggle Button -->
-                <button
-                  @click="togglePackagePriceMask(pkg.id)"
-                  class="cursor-pointer p-1 rounded-lg transition"
-                  :class="[
-                    (pkg.hide_price || isGlobalPriceMasked)
-                      ? 'text-neutral-200 hover:text-white hover:bg-white/10'
-                      : 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5'
-                  ]"
-                  :title="pkg.hide_price ? 'Price is masked (Click to reveal)' : 'Price is visible (Click to mask)'"
+            <template v-for="pkg in group.items" :key="pkg.id">
+              <!-- Case A: Add-ons / Additionals Card (Noticeably Lighter Graphite Surface) -->
+              <div
+                v-if="isAddonPackage(pkg)"
+                class="rounded-3xl p-6 bg-gradient-to-b from-[#30323a] to-[#23252c] border flex flex-col justify-between relative group transition shadow-xl h-fit self-start"
+                :class="[
+                  pkg.badge
+                    ? 'border-[#FFD700]/50 hover:border-[#FFD700]/80'
+                    : 'border-white/[0.18] hover:border-white/[0.32]'
+                ]"
+              >
+                <!-- Badge if present -->
+                <div
+                  v-if="pkg.badge"
+                  class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-[#FFD700] text-[#141414] text-[10px] font-bold uppercase tracking-wider shadow-md"
                 >
-                  <component :is="(pkg.hide_price || isGlobalPriceMasked) ? EyeOff : Eye" class="w-4 h-4" />
-                </button>
-              </div>
-
-              <!-- Inclusions Count & List -->
-              <div class="mb-6 space-y-2.5">
-                <div class="flex items-center justify-between text-[11px] text-neutral-400 border-b border-white/[0.06] pb-1.5">
-                  <span>Inclusions</span>
-                  <span class="font-mono text-neutral-400">{{ pkg.features ? pkg.features.length : 0 }} items</span>
+                  {{ pkg.badge }}
                 </div>
-                <ul v-if="pkg.features && pkg.features.length > 0" class="space-y-1.5 text-xs text-neutral-300 pr-1">
-                  <li v-for="(feat, idx) in pkg.features" :key="idx" class="flex items-start gap-2 leading-snug">
-                    <Check class="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
-                    <span>{{ feat }}</span>
-                  </li>
-                </ul>
-                <div v-else class="py-5 px-3 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 text-center space-y-1">
-                  <p class="text-xs text-neutral-400">No inclusions configured yet</p>
+
+                <div>
+                  <!-- Title -->
+                  <h3 class="text-lg font-bold text-white tracking-wide mb-2">
+                    {{ pkg.title }}
+                  </h3>
+
+                  <!-- Unmasked Total Price (No Eye Mask Toggle) -->
+                  <div class="mb-4 p-3 rounded-2xl bg-black/35 border border-white/[0.08] flex items-baseline justify-between gap-2">
+                    <span class="text-xs uppercase tracking-wider text-neutral-400 font-medium">Total Value</span>
+                    <span class="text-xl font-extrabold text-[#FFD700] font-mono">
+                      ₱{{ Number(pkg.price || 0).toLocaleString('en-PH') }}
+                    </span>
+                  </div>
+
+                  <!-- Add-on Items List -->
+                  <div class="mb-6 space-y-2">
+                    <div class="flex items-center justify-between text-[11px] text-neutral-400 border-b border-white/[0.08] pb-1.5">
+                      <span class="font-medium text-neutral-200">Add-on Items</span>
+                      <span class="font-mono text-neutral-400">{{ pkg.features ? pkg.features.length : 0 }} items</span>
+                    </div>
+                    <ul v-if="pkg.features && pkg.features.length > 0" class="space-y-1.5 text-xs pr-1">
+                      <li
+                        v-for="(feat, idx) in pkg.features"
+                        :key="idx"
+                        class="flex items-center justify-between gap-2.5 py-1.5 px-2.5 rounded-xl bg-black/35 border border-white/[0.08] hover:border-white/20 transition"
+                      >
+                        <span class="truncate text-neutral-200 text-xs font-medium min-w-0 flex-1" :title="parseAddonFeature(feat).title">
+                          {{ parseAddonFeature(feat).title }}
+                        </span>
+                        <span v-if="parseAddonFeature(feat).price" class="shrink-0 font-mono text-[#FFD700] text-xs font-bold pl-2 text-right">
+                          {{ parseAddonFeature(feat).price }}
+                        </span>
+                      </li>
+                    </ul>
+                    <div v-else class="py-5 px-3 rounded-2xl bg-black/20 border border-dashed border-white/15 text-center space-y-1">
+                      <p class="text-xs text-neutral-400">No add-on items configured yet</p>
+                      <button
+                        type="button"
+                        @click="openEditCategoryAddons(pkg)"
+                        class="text-[11px] text-[#FFD700] hover:underline font-medium cursor-pointer"
+                      >
+                        + Add items
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Action Controls -->
+                <div class="pt-4 border-t border-white/[0.10] flex justify-between items-center">
                   <button
-                    type="button"
-                    @click="openEditPackage(pkg)"
-                    class="text-[11px] text-[#FFD700] hover:underline font-medium cursor-pointer"
+                    @click="openEditCategoryAddons(pkg)"
+                    class="cursor-pointer px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-neutral-100 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
                   >
-                    + Add inclusions
+                    <Edit3 class="w-3.5 h-3.5" />
+                    <span>Edit Add-ons</span>
+                  </button>
+
+                  <button
+                    @click="promptDeletePackage(pkg)"
+                    class="cursor-pointer text-neutral-400 hover:text-red-400 p-1.5 text-xs transition rounded-xl hover:bg-red-500/10"
+                    title="Delete Add-ons"
+                  >
+                    <Trash2 class="w-4 h-4" />
                   </button>
                 </div>
               </div>
-            </div>
 
-            <!-- Action Controls -->
-            <div class="pt-4 border-t border-white/[0.08] flex justify-between items-center">
-              <button
-                @click="openEditPackage(pkg)"
-                class="cursor-pointer px-4 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 text-neutral-200 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
+            <!-- Case B: Standard Package Card -->
+            <div
+              v-else
+              class="rounded-3xl p-6 bg-[#141414] border flex flex-col justify-between relative group transition shadow-xl h-fit self-start"
+              :class="[
+                pkg.badge
+                  ? 'border-[#FFD700]/40 bg-gradient-to-b from-[#FFD700]/[0.03] to-[#141414] hover:border-[#FFD700]/70'
+                  : 'border-white/[0.08] hover:border-white/[0.18]'
+              ]"
+            >
+              <!-- Badge if present (With matching gold border highlight) -->
+              <div
+                v-if="pkg.badge"
+                class="absolute -top-3 right-6 px-3 py-0.5 rounded-full bg-[#FFD700] text-[#141414] text-[10px] font-bold uppercase tracking-wider shadow-md"
               >
-                <Edit3 class="w-3.5 h-3.5" />
-                <span>Edit Package</span>
-              </button>
+                {{ pkg.badge }}
+              </div>
 
-              <button
-                @click="promptDeletePackage(pkg)"
-                class="cursor-pointer text-neutral-400 hover:text-red-400 p-1.5 text-xs transition rounded-xl hover:bg-red-500/10"
-                title="Delete Package"
-              >
-                <Trash2 class="w-4 h-4" />
-              </button>
+              <div>
+                <h3 class="text-lg font-bold text-white tracking-wide mb-2">{{ pkg.title }}</h3>
+
+                <!-- Price Display (with Eye Mask Toggle Button directly beside it) -->
+                <div class="flex items-center gap-2.5 mb-4">
+                  <div class="flex items-baseline gap-2">
+                    <!-- If Masked: Show 2?,??? and hide promo price -->
+                    <template v-if="pkg.hide_price || isGlobalPriceMasked">
+                      <span class="text-2xl font-extrabold text-[#FFD700]">₱{{ formatMaskedPrice(pkg.price) }}</span>
+                    </template>
+
+                    <!-- Standard Full Price & Promo Price -->
+                    <template v-else>
+                      <span class="text-2xl font-extrabold text-[#FFD700]">
+                        ₱{{ Number(pkg.promo_price || pkg.price).toLocaleString('en-PH') }}
+                      </span>
+                      <span v-if="pkg.promo_price" class="text-xs text-neutral-500 line-through font-medium">
+                        ₱{{ Number(pkg.price).toLocaleString('en-PH') }}
+                      </span>
+                    </template>
+                  </div>
+
+                  <!-- Eye Mask Toggle Button -->
+                  <button
+                    @click="togglePackagePriceMask(pkg.id)"
+                    class="cursor-pointer p-1 rounded-lg transition"
+                    :class="[
+                      (pkg.hide_price || isGlobalPriceMasked)
+                        ? 'text-neutral-200 hover:text-white hover:bg-white/10'
+                        : 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5'
+                    ]"
+                    :title="pkg.hide_price ? 'Price is masked (Click to reveal)' : 'Price is visible (Click to mask)'"
+                  >
+                    <component :is="(pkg.hide_price || isGlobalPriceMasked) ? EyeOff : Eye" class="w-4 h-4" />
+                  </button>
+                </div>
+
+                <!-- Inclusions Count & List -->
+                <div class="mb-6 space-y-2.5">
+                  <div class="flex items-center justify-between text-[11px] text-neutral-400 border-b border-white/[0.06] pb-1.5">
+                    <span>Inclusions</span>
+                    <span class="font-mono text-neutral-400">{{ pkg.features ? pkg.features.length : 0 }} items</span>
+                  </div>
+                  <ul v-if="pkg.features && pkg.features.length > 0" class="space-y-1.5 text-xs text-neutral-300 pr-1">
+                    <li v-for="(feat, idx) in pkg.features" :key="idx" class="flex items-start gap-2 leading-snug">
+                      <Check class="w-3.5 h-3.5 text-neutral-400 shrink-0 mt-0.5" />
+                      <span>{{ feat }}</span>
+                    </li>
+                  </ul>
+                  <div v-else class="py-5 px-3 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 text-center space-y-1">
+                    <p class="text-xs text-neutral-400">No inclusions configured yet</p>
+                    <button
+                      type="button"
+                      @click="openEditPackage(pkg)"
+                      class="text-[11px] text-[#FFD700] hover:underline font-medium cursor-pointer"
+                    >
+                      + Add inclusions
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Controls -->
+              <div class="pt-4 border-t border-white/[0.08] flex justify-between items-center">
+                <button
+                  @click="openEditPackage(pkg)"
+                  class="cursor-pointer px-4 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.14] border border-white/10 text-neutral-200 hover:text-white text-xs font-semibold transition flex items-center gap-1.5 shadow-sm"
+                >
+                  <Edit3 class="w-3.5 h-3.5" />
+                  <span>Edit Package</span>
+                </button>
+
+                <button
+                  @click="promptDeletePackage(pkg)"
+                  class="cursor-pointer text-neutral-400 hover:text-red-400 p-1.5 text-xs transition rounded-xl hover:bg-red-500/10"
+                  title="Delete Package"
+                >
+                  <Trash2 class="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          </template>
         </div>
       </div>
     </div>
@@ -1365,6 +1922,215 @@ async function handleSave() {
     </div>
 
     <!-- ======================================================== -->
+    <!-- MASTER ADD-ONS MANAGEMENT MODAL                          -->
+    <!-- ======================================================== -->
+    <div
+      v-if="showMasterAddonsModal"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+    >
+      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <!-- Fixed Header -->
+        <div class="flex justify-between items-center border-b border-white/[0.08] p-6 md:px-8 py-5 shrink-0">
+          <div>
+            <h3 class="text-xl font-bold text-white tracking-wide">
+              <span>Master Add-ons List</span>
+            </h3>
+            <p class="text-xs text-neutral-400 mt-0.5">
+              Standardized add-on services and extra deliverables with itemized pricing
+            </p>
+          </div>
+          <button
+            @click="showMasterAddonsModal = false"
+            class="w-9 h-9 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-neutral-300 hover:text-white transition cursor-pointer flex items-center justify-center shadow-sm"
+            title="Close modal"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Scrollable Body Content -->
+        <div class="flex-1 overflow-y-auto p-6 md:px-8 py-6 space-y-4">
+          <!-- Add New Master Add-on Form -->
+          <div>
+            <label class="block text-xs font-medium text-neutral-300 mb-1.5">Add New Master Add-on</label>
+            <div class="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                v-model="inlineNewAddon.title"
+                @keyup.enter="handleAddInlineAddon"
+                placeholder="Add-on title (e.g. SDE Highlight Reel)..."
+                class="flex-1 px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
+              />
+              <div class="relative w-full sm:w-36">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-400">₱</span>
+                <input
+                  type="text"
+                  inputmode="numeric"
+                  v-model="inlineNewAddon.price"
+                  @keydown="allowOnlyDigits"
+                  @input="sanitizeNumericInput($event, inlineNewAddon, 'price')"
+                  @keyup.enter="handleAddInlineAddon"
+                  placeholder="Price"
+                  class="w-full pl-7 pr-3 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition font-mono"
+                />
+              </div>
+              <button
+                @click="handleAddInlineAddon"
+                type="button"
+                class="cursor-pointer px-5 py-2.5 rounded-xl bg-[#FFD700] text-[#141414] text-xs font-bold uppercase tracking-wider hover:bg-yellow-400 transition flex items-center justify-center gap-1.5 shrink-0 shadow-sm"
+              >
+                <Plus class="w-4 h-4" />
+                <span>Add</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Search Bar -->
+          <div class="relative">
+            <Search class="w-3.5 h-3.5 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              v-model="masterAddonsSearch"
+              placeholder="Search master add-ons by title or price..."
+              class="w-full pl-9 pr-4 py-2 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
+            />
+          </div>
+
+          <!-- Master Add-ons Items List -->
+          <div class="space-y-2 max-h-72 overflow-y-auto pr-1">
+            <div
+              v-for="addon in filteredMasterAddons"
+              :key="addon.id"
+              class="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between gap-3 text-xs text-neutral-200 hover:border-white/20 transition"
+            >
+              <!-- In-place edit mode -->
+              <template v-if="editingMasterAddon && editingMasterAddon.id === addon.id">
+                <div class="flex-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                  <input
+                    type="text"
+                    v-model="editingMasterAddon.title"
+                    @keyup.enter="saveEditMasterAddon"
+                    @keyup.esc="cancelEditMasterAddon"
+                    class="flex-1 px-3 py-1.5 rounded-lg bg-white/[0.08] border border-white/30 text-white text-xs focus:outline-none focus:ring-1 focus:ring-white/20"
+                    placeholder="Add-on title"
+                    autofocus
+                  />
+                  <div class="relative w-full sm:w-32">
+                    <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-400">₱</span>
+                    <input
+                      type="text"
+                      inputmode="numeric"
+                      v-model="editingMasterAddon.price"
+                      @keydown="allowOnlyDigits"
+                      @input="sanitizeNumericInput($event, editingMasterAddon, 'price')"
+                      @keyup.enter="saveEditMasterAddon"
+                      @keyup.esc="cancelEditMasterAddon"
+                      class="w-full pl-6 pr-2 py-1.5 rounded-lg bg-white/[0.08] border border-white/30 text-white text-xs focus:outline-none focus:ring-1 focus:ring-white/20 font-mono"
+                      placeholder="Price"
+                    />
+                  </div>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    @click="saveEditMasterAddon"
+                    class="px-3 py-1 rounded-lg bg-[#FFD700] text-[#141414] font-bold text-[11px] cursor-pointer"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    @click="cancelEditMasterAddon"
+                    class="px-2.5 py-1 rounded-lg bg-white/10 text-neutral-300 text-[11px] cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </template>
+
+              <!-- Normal display mode -->
+              <template v-else>
+                <div class="flex items-center gap-3 min-w-0 flex-1">
+                  <span class="font-medium text-white truncate">{{ addon.title }}</span>
+                  <span class="px-2.5 py-0.5 rounded-full bg-[#FFD700]/15 border border-[#FFD700]/30 text-[#FFD700] text-[11px] font-mono font-bold shrink-0">
+                    ₱{{ Number(addon.price || 0).toLocaleString('en-PH') }}
+                  </span>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    @click="startEditMasterAddon(addon)"
+                    class="p-1.5 rounded-lg hover:bg-white/10 text-neutral-400 hover:text-white transition cursor-pointer"
+                    title="Edit Add-on"
+                  >
+                    <Edit3 class="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    @click="promptDeleteAddon(addon)"
+                    class="p-1.5 rounded-lg hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition cursor-pointer"
+                    title="Delete from Master Add-ons"
+                  >
+                    <Trash2 class="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </template>
+            </div>
+
+            <!-- Rich Empty State for Master Add-ons Manager -->
+            <div
+              v-if="filteredMasterAddons.length === 0"
+              class="py-12 px-4 text-center rounded-2xl bg-white/[0.01] border border-dashed border-white/10 flex flex-col items-center justify-center space-y-3"
+            >
+              <!-- Case 1: Search has no results -->
+              <template v-if="masterAddonsSearch.trim()">
+                <div class="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-neutral-400">
+                  <Search class="w-5 h-5 text-neutral-400" />
+                </div>
+                <div class="space-y-1">
+                  <h4 class="text-sm font-semibold text-white">No matching add-ons</h4>
+                  <p class="text-xs text-neutral-400 max-w-xs mx-auto leading-relaxed">
+                    No add-on deliverables found matching "<span class="text-neutral-200 font-medium">{{ masterAddonsSearch }}</span>".
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  @click="masterAddonsSearch = ''"
+                  class="cursor-pointer px-3.5 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs font-semibold text-neutral-300 hover:text-white transition mt-1"
+                >
+                  Clear search filter
+                </button>
+              </template>
+
+              <!-- Case 2: Master add-ons list has 0 items -->
+              <template v-else>
+                <div class="w-12 h-12 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-neutral-400">
+                  <Layers class="w-5 h-5 text-neutral-400" />
+                </div>
+                <div class="space-y-1">
+                  <h4 class="text-sm font-semibold text-white">No Master Add-ons Yet</h4>
+                  <p class="text-xs text-neutral-400 max-w-sm mx-auto leading-relaxed">
+                    Your studio master add-on list is currently empty. Use the input box above to add your standard add-ons and extra deliverables.
+                  </p>
+                </div>
+              </template>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fixed Footer Actions -->
+        <div class="flex justify-end p-6 md:px-8 py-4 border-t border-white/[0.08] bg-[#141414] shrink-0">
+          <button
+            @click="showMasterAddonsModal = false"
+            class="cursor-pointer px-6 py-2.5 min-w-[120px] rounded-xl bg-[#FFD700] hover:bg-yellow-400 text-[#141414] font-bold text-xs uppercase tracking-wider transition shadow-md text-center flex items-center justify-center"
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
     <!-- MASTER INCLUSION DELETE CONFIRMATION MODAL               -->
     <!-- ======================================================== -->
     <div
@@ -1409,6 +2175,49 @@ async function handleSave() {
           <button
             type="button"
             @click="confirmDeleteInclusion"
+            class="cursor-pointer px-5 py-2.5 min-w-[110px] rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-red-500/20 text-center flex items-center justify-center gap-1.5"
+          >
+            <Trash2 class="w-3.5 h-3.5" />
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- MASTER ADD-ON DELETE CONFIRMATION MODAL                  -->
+    <!-- ======================================================== -->
+    <div
+      v-if="addonToDelete"
+      class="fixed inset-0 bg-black/85 backdrop-blur-md z-[60] flex items-center justify-center p-4 select-none"
+    >
+      <div class="bg-[#141414] border border-white/[0.14] rounded-3xl max-w-md w-full p-6 sm:p-7 space-y-5 shadow-2xl overflow-hidden">
+        <!-- Icon & Header -->
+        <div class="flex items-start gap-4">
+          <div class="w-11 h-11 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+            <AlertTriangle class="w-5 h-5" />
+          </div>
+
+          <div class="space-y-1 flex-1 min-w-0">
+            <h3 class="text-base font-bold text-white tracking-wide">Delete Master Add-on?</h3>
+            <p class="text-xs text-neutral-300 leading-relaxed">
+              Are you sure you want to remove <strong class="text-white font-semibold">"{{ addonToDelete.title }}"</strong> (₱{{ Number(addonToDelete.price || 0).toLocaleString('en-PH') }}) from the master add-ons list?
+            </p>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="flex justify-end items-center gap-2.5 pt-2">
+          <button
+            type="button"
+            @click="cancelDeleteAddon"
+            class="cursor-pointer px-5 py-2.5 min-w-[100px] rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.10] text-neutral-300 hover:text-white text-xs font-semibold transition text-center"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="confirmDeleteAddon"
             class="cursor-pointer px-5 py-2.5 min-w-[110px] rounded-xl bg-red-500 hover:bg-red-600 text-white font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-red-500/20 text-center flex items-center justify-center gap-1.5"
           >
             <Trash2 class="w-3.5 h-3.5" />
@@ -1474,6 +2283,89 @@ async function handleSave() {
           >
             <Plus class="w-3.5 h-3.5" />
             <span>Create Category</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- ADD NEW ADD-ON MODAL                                     -->
+    <!-- ======================================================== -->
+    <div
+      v-if="showAddAddonModal"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4"
+    >
+      <div class="bg-[#141414] border border-white/[0.12] rounded-3xl max-w-md w-full p-6 md:p-8 space-y-6 shadow-2xl">
+        <!-- Header -->
+        <div class="flex justify-between items-start">
+          <div class="space-y-1">
+            <h3 class="text-xl font-bold text-white tracking-wide">Add New Add-on</h3>
+            <p class="text-xs text-neutral-400">Create an itemized extra service or deliverable</p>
+          </div>
+          <button
+            type="button"
+            @click="showAddAddonModal = false"
+            class="w-9 h-9 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-neutral-300 hover:text-white transition cursor-pointer flex items-center justify-center shadow-sm"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Form Fields -->
+        <div class="space-y-4">
+          <!-- Add-on Title -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-neutral-300">Add-on Title <span class="text-[#FFD700]">*</span></label>
+            <input
+              type="text"
+              v-model="newAddonForm.title"
+              @keyup.enter="handleCreateAddon"
+              placeholder="e.g., Same Day Edit (SDE), Aerial Drone..."
+              class="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
+              autofocus
+            />
+          </div>
+
+          <!-- Add-on Price -->
+          <div class="space-y-1.5">
+            <label class="block text-xs font-medium text-neutral-300">Add-on Price (₱) <span class="text-[#FFD700]">*</span></label>
+            <div class="relative">
+              <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-xs font-mono text-neutral-400">₱</span>
+              <input
+                type="text"
+                inputmode="numeric"
+                v-model="newAddonForm.price"
+                @keydown="allowOnlyDigits"
+                @input="sanitizeNumericInput($event, newAddonForm, 'price')"
+                @keyup.enter="handleCreateAddon"
+                placeholder="7000"
+                class="w-full pl-8 pr-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition font-mono"
+              />
+            </div>
+          </div>
+
+          <p v-if="addAddonError" class="text-xs text-red-400 mt-1 flex items-center gap-1">
+            <AlertTriangle class="w-3.5 h-3.5 shrink-0" />
+            <span>{{ addAddonError }}</span>
+          </p>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="flex justify-end items-center gap-3 pt-2">
+          <button
+            type="button"
+            @click="showAddAddonModal = false"
+            class="cursor-pointer px-5 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.10] text-neutral-300 hover:text-white text-xs font-semibold transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="handleCreateAddon"
+            class="cursor-pointer px-5 py-2.5 rounded-xl bg-[#FFD700] hover:bg-yellow-400 text-[#141414] font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-yellow-500/20 flex items-center gap-1.5"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span>Create Add-on</span>
           </button>
         </div>
       </div>
@@ -1695,6 +2587,263 @@ async function handleSave() {
           >
             <Trash2 class="w-3.5 h-3.5" />
             <span>Delete Package</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======================================================== -->
+    <!-- CREATE / EDIT CATEGORY ADD-ONS MODAL                      -->
+    <!-- ======================================================== -->
+    <div
+      v-if="showCategoryAddonsModal"
+      class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 font-manrope select-none"
+    >
+      <div class="bg-[#141414] border border-white/[0.14] rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        <!-- Header -->
+        <div class="flex justify-between items-center border-b border-white/[0.08] p-6 md:px-8 py-5 shrink-0">
+          <div>
+            <h3 class="text-xl font-bold text-white tracking-wide">
+              <span>{{ categoryAddonPackageForm.id ? 'Edit Add-ons for ' : 'Create Add-ons for ' }}<span class="text-[#FFD700]">{{ categoryAddonPackageForm.category }}</span></span>
+            </h3>
+            <p class="text-xs text-neutral-400 mt-0.5">
+              Select and bundle master add-on deliverables and extra options for this category
+            </p>
+          </div>
+          <button
+            type="button"
+            @click="showCategoryAddonsModal = false"
+            class="w-9 h-9 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-neutral-300 hover:text-white transition cursor-pointer flex items-center justify-center shadow-sm"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <!-- Body Content -->
+        <div class="flex-1 overflow-y-auto p-6 md:px-8 py-6 space-y-5">
+          <!-- Form Fields Grid: Category (Auto-select), Add-on Title, Badge -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <!-- Category (Auto-selected) -->
+            <div>
+              <label class="block text-xs font-medium text-neutral-300 mb-1.5">Category</label>
+              <div class="px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 text-neutral-200 text-xs font-bold flex items-center justify-between">
+                <span>{{ categoryAddonPackageForm.category }}</span>
+                <span class="px-1.5 py-0.5 rounded bg-white/10 text-[10px] text-neutral-400 font-normal">Auto-selected</span>
+              </div>
+            </div>
+
+            <!-- Add-on Package Title -->
+            <div>
+              <label class="block text-xs font-medium text-neutral-300 mb-1.5">Add-on Package Title <span class="text-[#FFD700]">*</span></label>
+              <input
+                type="text"
+                v-model="categoryAddonPackageForm.title"
+                placeholder="e.g., ADDITIONALS"
+                class="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition font-semibold"
+              />
+            </div>
+
+            <!-- Optional Badge -->
+            <div>
+              <label class="block text-xs font-medium text-neutral-300 mb-1.5">Badge (Optional)</label>
+              <input
+                type="text"
+                v-model="categoryAddonPackageForm.badge"
+                placeholder="e.g., Popular Extras"
+                class="w-full px-4 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
+              />
+            </div>
+          </div>
+
+          <!-- Add-ons Master List Selection Container -->
+          <div class="p-5 rounded-3xl bg-black/40 border border-white/[0.08] space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] pb-3">
+              <div>
+                <label class="block text-sm font-semibold text-white">
+                  Select add-ons from master list
+                </label>
+                <p class="text-[11px] text-neutral-400">Choose the extra deliverables to bundle for this category</p>
+              </div>
+
+              <!-- Selected Count & Quick Actions -->
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-1 rounded-full bg-[#FFD700]/15 text-[#FFD700] border border-[#FFD700]/30 text-xs font-mono font-bold">
+                  {{ selectedCategoryAddonsCount }} Selected
+                </span>
+                <button
+                  type="button"
+                  @click="selectAllCategoryAddons"
+                  class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 border border-white/10 text-neutral-300 hover:text-white transition cursor-pointer"
+                >
+                  Select All
+                </button>
+                <button
+                  v-if="selectedCategoryAddonsCount > 0"
+                  type="button"
+                  @click="clearAllCategoryAddons"
+                  class="px-2.5 py-1 rounded-xl text-[11px] font-semibold bg-white/5 border border-white/10 text-neutral-400 hover:text-red-400 transition cursor-pointer"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <!-- Search & Filter Controls -->
+            <div class="flex flex-col sm:flex-row items-center gap-2.5">
+              <div class="relative flex-1 w-full">
+                <Search class="w-3.5 h-3.5 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  v-model="categoryAddonSearch"
+                  placeholder="Search master add-ons by title or price..."
+                  class="w-full pl-9 pr-4 py-2 rounded-xl bg-white/[0.06] border border-white/10 text-white text-xs placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:ring-1 focus:ring-white/15 transition"
+                />
+              </div>
+
+              <!-- Filter pills -->
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  @click="categoryAddonFilterMode = 'all'"
+                  class="px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+                  :class="[
+                    categoryAddonFilterMode === 'all'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-white/[0.03] text-neutral-400 hover:text-white'
+                  ]"
+                >
+                  All ({{ masterAddons.length }})
+                </button>
+                <button
+                  type="button"
+                  @click="categoryAddonFilterMode = 'selected'"
+                  class="px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer"
+                  :class="[
+                    categoryAddonFilterMode === 'selected'
+                      ? 'bg-white/20 text-white font-semibold'
+                      : 'bg-white/[0.03] text-neutral-400 hover:text-white'
+                  ]"
+                >
+                  Selected ({{ selectedCategoryAddonsCount }})
+                </button>
+              </div>
+            </div>
+
+            <!-- Multi-selection Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto pr-1">
+              <button
+                v-for="addon in filteredCategoryMasterAddons"
+                :key="addon.id"
+                type="button"
+                @click="toggleCategoryAddonSelection(addon.id)"
+                class="p-3 rounded-2xl border text-left transition-all duration-200 flex items-center justify-between gap-3 group cursor-pointer"
+                :class="[
+                  isCategoryAddonSelected(addon.id)
+                    ? 'bg-[#FFD700]/10 border-[#FFD700]/40 text-white shadow-sm'
+                    : 'bg-transparent border-white/[0.12] text-neutral-300 hover:bg-white/[0.04] hover:border-white/25'
+                ]"
+              >
+                <div class="min-w-0 flex-1">
+                  <p class="text-xs leading-snug break-words" :class="{ 'font-bold text-white': isCategoryAddonSelected(addon.id) }">
+                    {{ addon.title }}
+                  </p>
+                  <p class="text-[11px] font-mono font-semibold text-[#FFD700] mt-0.5">
+                    ₱{{ Number(addon.price || 0).toLocaleString('en-PH') }}
+                  </p>
+                </div>
+
+                <!-- Checkbox / Indicator -->
+                <div
+                  class="w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition"
+                  :class="[
+                    isCategoryAddonSelected(addon.id)
+                      ? 'bg-[#FFD700] text-[#141414] shadow-sm'
+                      : 'border border-white/20 group-hover:border-white/40'
+                  ]"
+                >
+                  <Check v-if="isCategoryAddonSelected(addon.id)" class="w-3 h-3 stroke-[3]" />
+                </div>
+              </button>
+
+              <!-- Empty State -->
+              <div
+                v-if="filteredCategoryMasterAddons.length === 0"
+                class="col-span-full py-8 text-center rounded-2xl bg-white/[0.01] border border-dashed border-white/10 flex flex-col items-center justify-center space-y-2"
+              >
+                <template v-if="categoryAddonSearch.trim()">
+                  <p class="text-xs text-neutral-400">No add-ons matching "{{ categoryAddonSearch }}"</p>
+                  <button
+                    type="button"
+                    @click="categoryAddonSearch = ''"
+                    class="text-[11px] text-[#FFD700] hover:underline cursor-pointer"
+                  >
+                    Clear search
+                  </button>
+                </template>
+                <template v-else-if="categoryAddonFilterMode === 'selected'">
+                  <p class="text-xs text-neutral-400">No add-ons selected yet</p>
+                  <button
+                    type="button"
+                    @click="categoryAddonFilterMode = 'all'"
+                    class="text-[11px] text-[#FFD700] hover:underline cursor-pointer"
+                  >
+                    Browse all add-ons
+                  </button>
+                </template>
+                <template v-else>
+                  <p class="text-xs text-neutral-400">Master add-ons list is currently empty.</p>
+                  <button
+                    type="button"
+                    @click="openAddAddonModal()"
+                    class="text-[11px] text-[#FFD700] hover:underline font-medium cursor-pointer"
+                  >
+                    + Create New Add-on
+                  </button>
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- Total Computation Card -->
+          <div class="p-4 rounded-2xl bg-[#FFD700]/[0.06] border border-[#FFD700]/25 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div class="space-y-0.5">
+              <div>
+                <span class="text-xs font-bold text-white uppercase tracking-wider">Total Computation</span>
+              </div>
+              <p class="text-[11px] text-neutral-400">
+                Calculated total value of all <span class="text-neutral-200 font-semibold">{{ selectedCategoryAddonsCount }}</span> selected add-on deliverables
+              </p>
+            </div>
+            <div class="flex items-baseline gap-2 shrink-0">
+              <span class="text-xs text-neutral-400">Total Value:</span>
+              <span class="text-xl font-extrabold text-[#FFD700] font-mono">
+                ₱{{ computedCategoryAddonsTotal.toLocaleString('en-PH') }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Error Alert if any -->
+          <p v-if="categoryAddonError" class="text-xs text-red-400 flex items-center gap-1.5">
+            <AlertTriangle class="w-3.5 h-3.5 shrink-0" />
+            <span>{{ categoryAddonError }}</span>
+          </p>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="flex justify-end items-center gap-3 p-6 md:px-8 py-4 border-t border-white/[0.08] bg-[#141414] shrink-0">
+          <button
+            type="button"
+            @click="showCategoryAddonsModal = false"
+            class="cursor-pointer px-5 py-2.5 rounded-xl border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.10] text-neutral-300 hover:text-white text-xs font-semibold transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            @click="handleSaveCategoryAddons"
+            class="cursor-pointer px-6 py-2.5 rounded-xl bg-[#FFD700] hover:bg-yellow-400 text-[#141414] font-bold text-xs uppercase tracking-wider transition shadow-lg shadow-yellow-500/20 flex items-center gap-1.5"
+          >
+            <span>{{ categoryAddonPackageForm.id ? 'Save Changes' : 'Create Add-ons' }}</span>
           </button>
         </div>
       </div>
