@@ -28,6 +28,8 @@ import {
   AlertTriangle,
   Download,
   ExternalLink,
+  Search,
+  ArrowUpDown,
 } from '@lucide/vue';
 
 const {
@@ -253,10 +255,108 @@ onUnmounted(() => {
   }
 });
 
-// Filtered media by active folder
+// Search & Sort State
+const searchQuery = ref('');
+const sortBy = ref('default'); // 'default' | 'name-asc' | 'name-desc' | 'size-desc' | 'size-asc' | 'oldest'
+
+// Filtered & Sorted media by active folder and search query
 const filteredGallery = computed(() => {
-  if (activeFolder.value === 'All') return gallery.value;
-  return gallery.value.filter((item) => item.category === activeFolder.value);
+  let list = activeFolder.value === 'All'
+    ? [...gallery.value]
+    : gallery.value.filter((item) => item.category === activeFolder.value);
+
+  // Search filter
+  const q = searchQuery.value.trim().toLowerCase();
+  if (q) {
+    list = list.filter((item) => {
+      const fileName = getImageFileName(item).toLowerCase();
+      const title = (item.title || '').toLowerCase();
+      const category = (item.category || '').toLowerCase();
+      return fileName.includes(q) || title.includes(q) || category.includes(q);
+    });
+  }
+
+  // Sorting
+  if (sortBy.value === 'name-asc') {
+    list.sort((a, b) => getImageFileName(a).localeCompare(getImageFileName(b)));
+  } else if (sortBy.value === 'name-desc') {
+    list.sort((a, b) => getImageFileName(b).localeCompare(getImageFileName(a)));
+  } else if (sortBy.value === 'size-desc') {
+    list.sort((a, b) => (b.file_size_bytes || 0) - (a.file_size_bytes || 0));
+  } else if (sortBy.value === 'size-asc') {
+    list.sort((a, b) => (a.file_size_bytes || 0) - (b.file_size_bytes || 0));
+  } else if (sortBy.value === 'oldest') {
+    list.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  }
+
+  return list;
+});
+
+// Pagination State
+const currentPage = ref(1);
+const pageSize = ref(18); // 18 | 36 | 72 | 'All'
+const pageSizeOptions = [18, 36, 72, 'All'];
+
+const totalPhotosCount = computed(() => filteredGallery.value.length);
+
+const effectivePageSize = computed(() => {
+  if (pageSize.value === 'All') return Math.max(1, totalPhotosCount.value);
+  return Number(pageSize.value) || 18;
+});
+
+const totalPages = computed(() => {
+  if (pageSize.value === 'All') return 1;
+  return Math.max(1, Math.ceil(totalPhotosCount.value / effectivePageSize.value));
+});
+
+// Auto-clamp page if items change or search filters out items
+watch([totalPages, filteredGallery], () => {
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value;
+  }
+  if (currentPage.value < 1) {
+    currentPage.value = 1;
+  }
+});
+
+// Reset to page 1 on folder, search, sort, or page size change
+watch([activeFolder, searchQuery, sortBy, pageSize], () => {
+  currentPage.value = 1;
+});
+
+// Windowed / Paginated Gallery Slice
+const paginatedGallery = computed(() => {
+  if (pageSize.value === 'All') return filteredGallery.value;
+  const start = (currentPage.value - 1) * effectivePageSize.value;
+  const end = start + effectivePageSize.value;
+  return filteredGallery.value.slice(start, end);
+});
+
+// Human-friendly pagination range summary
+const paginationRange = computed(() => {
+  const total = totalPhotosCount.value;
+  if (total === 0) return { start: 0, end: 0, total: 0 };
+  const start = (currentPage.value - 1) * effectivePageSize.value + 1;
+  const end = Math.min(start + effectivePageSize.value - 1, total);
+  return { start, end, total };
+});
+
+// Visible Page Numbers for pagination buttons (with smart ellipsis)
+const visiblePageNumbers = computed(() => {
+  const total = totalPages.value;
+  const curr = currentPage.value;
+  if (total <= 7) {
+    const pages = [];
+    for (let i = 1; i <= total; i++) pages.push(i);
+    return pages;
+  }
+  if (curr <= 4) {
+    return [1, 2, 3, 4, 5, '...', total];
+  }
+  if (curr >= total - 3) {
+    return [1, '...', total - 4, total - 3, total - 2, total - 1, total];
+  }
+  return [1, '...', curr - 1, curr, curr + 1, '...', total];
 });
 
 // Current index of viewing image in filtered gallery
@@ -466,7 +566,13 @@ async function handleConfirmMove() {
   targetMediaToMove.value = null;
 }
 
-// Batch selection helpers
+// High-Performance Set-based Batch selection helpers
+const selectedMediaSet = computed(() => new Set(selectedMediaIds.value));
+
+function isMediaSelected(id) {
+  return selectedMediaSet.value.has(id);
+}
+
 function toggleSelectMedia(id) {
   const index = selectedMediaIds.value.indexOf(id);
   if (index === -1) {
@@ -476,7 +582,14 @@ function toggleSelectMedia(id) {
   }
 }
 
-function selectAllVisible() {
+function selectAllPage() {
+  const pageIds = paginatedGallery.value.map((m) => m.id);
+  const currentSet = new Set(selectedMediaIds.value);
+  pageIds.forEach((id) => currentSet.add(id));
+  selectedMediaIds.value = Array.from(currentSet);
+}
+
+function selectAllFiltered() {
   selectedMediaIds.value = filteredGallery.value.map((m) => m.id);
 }
 
@@ -726,14 +839,21 @@ function deselectAll() {
         </span>
         <span class="text-xs font-bold text-white">Photos Selected</span>
         <button
-          @click="selectAllVisible"
-          class="text-xs text-neutral-400 hover:text-white underline pl-2 border-l border-white/10"
+          @click="selectAllPage"
+          class="text-xs text-neutral-400 hover:text-white underline pl-2 border-l border-white/10 cursor-pointer"
         >
-          Select All ({{ filteredGallery.length }})
+          Select Page ({{ paginatedGallery.length }})
+        </button>
+        <button
+          v-if="filteredGallery.length > paginatedGallery.length"
+          @click="selectAllFiltered"
+          class="text-xs text-neutral-400 hover:text-white underline pl-2 border-l border-white/10 cursor-pointer"
+        >
+          Select All in Folder ({{ filteredGallery.length }})
         </button>
         <button
           @click="deselectAll"
-          class="text-xs text-neutral-400 hover:text-white underline"
+          class="text-xs text-neutral-400 hover:text-white underline cursor-pointer"
         >
           Clear
         </button>
@@ -919,18 +1039,67 @@ function deselectAll() {
       </div>
 
       <!-- COMPACT PHOTOS & MEDIA GRID -->
-      <div v-if="viewFilter !== 'folders'" class="space-y-3">
-        <div v-if="activeFolder === 'All'" class="flex items-center justify-between text-xs font-bold text-neutral-400 uppercase tracking-wider pt-2">
-          <span>Photos ({{ filteredGallery.length }})</span>
+      <div v-if="viewFilter !== 'folders'" class="space-y-4">
+        
+        <!-- Search, Sort & Subheader Bar -->
+        <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-neutral-300 uppercase tracking-wider">
+              Photos
+            </span>
+            <span class="text-xs text-neutral-400 font-mono">
+              ({{ filteredGallery.length }}<span v-if="searchQuery"> of {{ activeFolder === 'All' ? gallery.length : (folderCounts[activeFolder] || gallery.length) }}</span>)
+            </span>
+          </div>
+
+          <!-- Search & Sort Controls -->
+          <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Search Input -->
+            <div class="relative flex-1 sm:w-60 md:w-72">
+              <Search class="w-3.5 h-3.5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="Search by filename..."
+                class="w-full pl-8 pr-7 py-1.5 rounded-xl bg-black/50 border border-white/10 hover:border-white/20 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-[#FFD700] transition"
+              />
+              <button
+                v-if="searchQuery"
+                type="button"
+                @click="searchQuery = ''"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-white p-0.5 cursor-pointer"
+                title="Clear search"
+              >
+                <X class="w-3 h-3" />
+              </button>
+            </div>
+
+            <!-- Sort Dropdown -->
+            <div class="relative">
+              <select
+                v-model="sortBy"
+                class="pl-7 pr-6 py-1.5 rounded-xl bg-black/50 border border-white/10 hover:border-white/20 text-xs text-neutral-200 focus:outline-none focus:border-[#FFD700] transition appearance-none cursor-pointer"
+              >
+                <option value="default" class="bg-[#141414] text-white">Recent / Sort Order</option>
+                <option value="name-asc" class="bg-[#141414] text-white">Name (A → Z)</option>
+                <option value="name-desc" class="bg-[#141414] text-white">Name (Z → A)</option>
+                <option value="size-desc" class="bg-[#141414] text-white">Size (Largest First)</option>
+                <option value="size-asc" class="bg-[#141414] text-white">Size (Smallest First)</option>
+                <option value="oldest" class="bg-[#141414] text-white">Oldest First</option>
+              </select>
+              <ArrowUpDown class="w-3 h-3 text-neutral-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
         </div>
 
-        <div v-if="filteredGallery.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
+        <!-- Windowed Photos Grid -->
+        <div v-if="paginatedGallery.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3.5">
           <div
-            v-for="item in filteredGallery"
+            v-for="item in paginatedGallery"
             :key="item.id"
-            class="rounded-2xl overflow-hidden bg-[#141414] border flex flex-col group relative shadow-lg transition duration-200"
+            class="photo-card rounded-2xl overflow-hidden bg-[#141414] border flex flex-col group relative shadow-lg transition duration-200"
             :class="[
-              selectedMediaIds.includes(item.id)
+              isMediaSelected(item.id)
                 ? 'border-[#FFD700] ring-2 ring-[#FFD700]/30'
                 : 'border-white/[0.08] hover:border-white/20'
             ]"
@@ -943,8 +1112,9 @@ function deselectAll() {
               <img
                 :src="item.image_url"
                 :alt="item.title || 'Photo'"
-                class="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                class="w-full h-full object-cover pointer-events-none group-hover:opacity-90 transition-opacity duration-200"
                 loading="lazy"
+                decoding="async"
               />
 
               <!-- Batch Selection Checkbox Overlay -->
@@ -955,7 +1125,7 @@ function deselectAll() {
                 <div
                   class="w-5 h-5 rounded-md flex items-center justify-center transition shadow-md"
                   :class="[
-                    selectedMediaIds.includes(item.id)
+                    isMediaSelected(item.id)
                       ? 'bg-[#FFD700] text-black'
                       : 'bg-black/70 border border-white/30 text-transparent'
                   ]"
@@ -969,7 +1139,7 @@ function deselectAll() {
                 v-if="!isBatchMode"
                 class="absolute top-2 left-2 pointer-events-none"
               >
-                <span class="px-1.5 py-0.5 rounded-md bg-black/75 backdrop-blur-xs text-[9px] font-semibold text-neutral-200 flex items-center gap-1">
+                <span class="px-1.5 py-0.5 rounded-md bg-black/90 border border-white/10 text-[9px] font-semibold text-neutral-200 flex items-center gap-1">
                   <Folder class="w-2.5 h-2.5 fill-neutral-400 text-neutral-400" />
                   <span>{{ item.category }}</span>
                 </span>
@@ -977,7 +1147,7 @@ function deselectAll() {
 
               <!-- File Size Badge at Bottom Left of Thumbnail -->
               <div class="absolute bottom-1.5 left-1.5 pointer-events-none">
-                <span class="px-1.5 py-0.5 rounded bg-black/80 backdrop-blur-xs text-[8px] font-mono text-neutral-300">
+                <span class="px-1.5 py-0.5 rounded bg-black/90 border border-white/10 text-[8px] font-mono text-neutral-300">
                   {{ ((item.file_size_bytes || 350000) / 1024).toFixed(0) }} KB
                 </span>
               </div>
@@ -1013,13 +1183,116 @@ function deselectAll() {
           </div>
         </div>
 
-        <!-- Empty State -->
+        <!-- Empty Search Result State -->
+        <div v-else-if="searchQuery" class="text-center py-12 bg-[#141414] border border-white/[0.08] rounded-3xl space-y-3">
+          <Search class="w-8 h-8 text-neutral-600 mx-auto" />
+          <p class="text-xs font-bold text-neutral-300">No photos match "{{ searchQuery }}"</p>
+          <p class="text-[11px] text-neutral-500 max-w-xs mx-auto">
+            Try searching with a different filename, title, or clear the search filter.
+          </p>
+          <button
+            type="button"
+            @click="searchQuery = ''"
+            class="cursor-pointer px-4 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition inline-block"
+          >
+            Clear Search
+          </button>
+        </div>
+
+        <!-- Empty Folder State -->
         <div v-else class="text-center py-12 bg-[#141414] border border-white/[0.08] rounded-3xl space-y-2.5">
           <Folder class="w-8 h-8 fill-neutral-600 text-neutral-600 mx-auto" />
           <p class="text-xs font-bold text-neutral-300">No photos in "{{ activeFolder }}"</p>
           <p class="text-[11px] text-neutral-500 max-w-xs mx-auto">
             Upload new photos into this folder or move existing photos here.
           </p>
+        </div>
+
+        <!-- PAGINATION BAR -->
+        <div
+          v-if="totalPhotosCount > 0"
+          class="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-2xl bg-[#141414] border border-white/[0.08] shadow-md mt-6"
+        >
+          <!-- Left: Showing Range -->
+          <div class="text-xs text-neutral-400 font-manrope">
+            Showing <span class="text-white font-bold">{{ paginationRange.start }}–{{ paginationRange.end }}</span> of <span class="text-[#FFD700] font-bold">{{ paginationRange.total }}</span> photos
+          </div>
+
+          <!-- Center: Page Controls -->
+          <div v-if="totalPages > 1" class="flex items-center gap-1.5">
+            <!-- Prev Button -->
+            <button
+              type="button"
+              :disabled="currentPage === 1"
+              @click="currentPage--"
+              class="px-2.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1"
+              :class="[
+                currentPage === 1
+                  ? 'border-white/5 text-neutral-600 cursor-not-allowed'
+                  : 'border-white/10 hover:border-white/25 text-neutral-300 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] cursor-pointer'
+              ]"
+            >
+              <ChevronLeft class="w-3.5 h-3.5" />
+              <span class="hidden sm:inline">Prev</span>
+            </button>
+
+            <!-- Page Number Buttons with Smart Ellipsis -->
+            <template v-for="(p, pIdx) in visiblePageNumbers" :key="pIdx">
+              <span v-if="p === '...'" class="px-2 text-xs text-neutral-600 font-mono select-none">
+                ...
+              </span>
+              <button
+                v-else
+                type="button"
+                @click="currentPage = p"
+                class="w-8 h-8 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center font-mono"
+                :class="[
+                  currentPage === p
+                    ? 'bg-[#FFD700] text-black font-extrabold shadow-md shadow-yellow-500/20'
+                    : 'bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 hover:border-white/25 text-neutral-300 hover:text-white'
+                ]"
+              >
+                {{ p }}
+              </button>
+            </template>
+
+            <!-- Next Button -->
+            <button
+              type="button"
+              :disabled="currentPage === totalPages"
+              @click="currentPage++"
+              class="px-2.5 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1"
+              :class="[
+                currentPage === totalPages
+                  ? 'border-white/5 text-neutral-600 cursor-not-allowed'
+                  : 'border-white/10 hover:border-white/25 text-neutral-300 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] cursor-pointer'
+              ]"
+            >
+              <span class="hidden sm:inline">Next</span>
+              <ChevronRight class="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <!-- Right: Page Size Selector -->
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] text-neutral-400 font-medium">Per page:</span>
+            <div class="inline-flex rounded-xl p-0.5 bg-black/60 border border-white/10">
+              <button
+                v-for="opt in pageSizeOptions"
+                :key="opt"
+                type="button"
+                @click="pageSize = opt"
+                class="px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer"
+                :class="[
+                  pageSize === opt
+                    ? 'bg-white/20 text-white font-extrabold shadow-sm'
+                    : 'text-neutral-400 hover:text-white'
+                ]"
+              >
+                {{ opt }}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1522,3 +1795,10 @@ function deselectAll() {
     </Teleport>
   </div>
 </template>
+
+<style scoped>
+.photo-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 200px 240px;
+}
+</style>

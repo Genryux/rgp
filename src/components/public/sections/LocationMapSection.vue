@@ -1,8 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useSettings } from '../../../composables/useSettings';
 import { useInquiries } from '../../../composables/useInquiries';
 import { usePackages } from '../../../composables/usePackages';
+import { useInquiryAttachment } from '../../../composables/useInquiryAttachment';
+import { useTurnstile } from '../../../composables/useTurnstile';
+import AttachedPackageCard from './AttachedPackageCard.vue';
 import {
   Phone,
   Mail,
@@ -35,6 +38,8 @@ defineProps({
 const { settings } = useSettings();
 const { submitInquiry } = useInquiries();
 const { packageCategories, fetchPackages } = usePackages();
+const { attachedBundle } = useInquiryAttachment();
+const { turnstileContainer, turnstileToken, resetTurnstile } = useTurnstile();
 
 onMounted(() => {
   fetchPackages();
@@ -44,10 +49,38 @@ const form = ref({
   name: '',
   email: '',
   phone: '',
-  event_type: (packageCategories.value && packageCategories.value[0]) || 'Weddings',
+  event_type: attachedBundle.value?.category || (packageCategories.value && packageCategories.value[0]) || 'Weddings',
   event_date: '',
   message: '',
   _gotcha: '', // Honeypot field
+});
+
+// Auto-select event_type when attached bundle category changes
+watch(
+  () => attachedBundle.value?.category,
+  (newCat) => {
+    if (newCat) {
+      form.value.event_type = newCat;
+    }
+  },
+  { immediate: true }
+);
+
+watch(
+  packageCategories,
+  (cats) => {
+    if (!form.value.event_type && cats.length > 0) {
+      form.value.event_type = attachedBundle.value?.category || cats[0];
+    }
+  },
+  { immediate: true }
+);
+
+const hasAttachedBundle = computed(() => {
+  return Boolean(
+    attachedBundle.value?.package ||
+    (attachedBundle.value?.addons && attachedBundle.value.addons.length > 0)
+  );
 });
 
 const submitting = ref(false);
@@ -62,12 +95,40 @@ async function handleSubmit() {
     return;
   }
 
+  // Cloudflare Turnstile verification check
+  if (typeof window !== 'undefined' && window.turnstile && !turnstileToken.value) {
+    statusMessage.value = 'Please complete the security verification below.';
+    isSuccess.value = false;
+    return;
+  }
+
   submitting.value = true;
   statusMessage.value = '';
 
-  const { error } = await submitInquiry(form.value);
+  const pkg = attachedBundle.value?.package || null;
+  const addons = attachedBundle.value?.addons || [];
+  const addonsTotal = addons.reduce((sum, item) => {
+    const cleaned = String(item.price || item.rawPrice || '').replace(/[^\d.]/g, '');
+    const num = parseFloat(cleaned);
+    return sum + (isNaN(num) ? 0 : num);
+  }, 0);
+
+  const inquiryPayload = {
+    ...form.value,
+    turnstile_token: turnstileToken.value,
+    package_name: pkg ? (pkg.title || pkg.name || '') : '',
+    package_price: pkg ? (typeof pkg.price === 'number' ? (pkg.promo_price || pkg.price) : (parseFloat(String(pkg.promo_price || pkg.price || 0).replace(/[^\d.]/g, '')) || 0)) : 0,
+    package_inclusions: pkg && Array.isArray(pkg.features) ? pkg.features : [],
+    addons: addons,
+    addons_total: addonsTotal,
+    message: form.value.message,
+  };
+
+  const { error } = await submitInquiry(inquiryPayload);
 
   submitting.value = false;
+  resetTurnstile();
+
   if (!error) {
     isSuccess.value = true;
     statusMessage.value = 'Thank you! Your message has been sent successfully. We will get back to you shortly.';
@@ -75,7 +136,7 @@ async function handleSubmit() {
       name: '',
       email: '',
       phone: '',
-      event_type: (packageCategories.value && packageCategories.value[0]) || 'Weddings',
+      event_type: attachedBundle.value?.category || (packageCategories.value && packageCategories.value[0]) || 'Weddings',
       event_date: '',
       message: '',
       _gotcha: '',
@@ -92,7 +153,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <section class="py-24 bg-[#141414] border-b border-white/5 relative overflow-hidden font-manrope">
+  <section id="contact" class="py-24 bg-[#141414] border-b border-white/5 relative overflow-hidden font-manrope">
     <!-- Ambient Glow Accents -->
     <div class="absolute -top-40 -left-40 w-96 h-96 bg-[#FFD700]/5 rounded-full blur-3xl pointer-events-none"></div>
     <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-[#1877F2]/05 rounded-full blur-3xl pointer-events-none"></div>
@@ -114,93 +175,114 @@ async function handleSubmit() {
       <!-- 2-Column Split: Studio Info (Left) + Booking Form (Right) -->
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
         
-        <!-- LEFT COLUMN: Studio Information & Highlighted Facebook Messenger -->
+        <!-- LEFT COLUMN: Studio Information OR Attached Package + Add-ons -->
         <div class="lg:col-span-5 space-y-6">
-          <!-- Studio Details Cards Container -->
-          <div class="p-6 sm:p-8 rounded-3xl bg-[#141414]/90 backdrop-blur-xl border border-white/[0.12] space-y-5 shadow-2xl">
-            <!-- Studio Card Header to align with Form Card Header -->
-            <div class="border-b border-white/[0.08] pb-4">
-              <h3 class="text-2xl sm:text-3xl font-bebas text-white tracking-wider">
-                DIRECT CONTACT
-              </h3>
-              <p class="text-neutral-400 font-nuosu text-xs sm:text-sm mt-1 leading-relaxed">
-                Connect directly with our studio directors and booking team.
-              </p>
+          <Transition
+            enter-active-class="transition duration-300 ease-out"
+            enter-from-class="opacity-0 scale-95"
+            enter-to-class="opacity-100 scale-100"
+            leave-active-class="transition duration-200 ease-in"
+            leave-from-class="opacity-100 scale-100"
+            leave-to-class="opacity-0 scale-95"
+            mode="out-in"
+          >
+            <!-- Attached Package & Add-ons Card (Shown when an attachment exists) -->
+            <div v-if="hasAttachedBundle" key="attached-package">
+              <AttachedPackageCard
+                :current-category="form.event_type"
+                :allow-clear="true"
+              />
             </div>
 
-            <!-- Phone / Viber -->
-            <div class="flex items-start gap-4">
-              <div class="w-10 h-10 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center shrink-0 mt-0.5">
-                <Phone class="w-5 h-5 text-[#FFD700]" />
-              </div>
-              <div class="min-w-0 flex-1">
-                <span class="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block font-semibold">Direct Call / Viber</span>
-                <a
-                  :href="'tel:' + (settings.contact_phone || '+639000000000')"
-                  class="text-sm font-semibold text-white hover:text-[#FFD700] transition mt-0.5 block leading-snug"
-                >
-                  {{ settings.contact_phone || '+63 900 000 0000' }}
-                </a>
-              </div>
-            </div>
+            <!-- Direct Contact & Facebook Cards (Shown when NO package is attached) -->
+            <div v-else key="direct-contact" class="space-y-6">
+              <!-- Studio Details Cards Container -->
+              <div class="p-6 sm:p-8 rounded-3xl bg-[#141414]/90 backdrop-blur-xl border border-white/[0.12] space-y-5 shadow-2xl">
+                <!-- Studio Card Header to align with Form Card Header -->
+                <div class="border-b border-white/[0.08] pb-4">
+                  <h3 class="text-2xl sm:text-3xl font-bebas text-white tracking-wider">
+                    DIRECT CONTACT
+                  </h3>
+                  <p class="text-neutral-400 font-nuosu text-xs sm:text-sm mt-1 leading-relaxed">
+                    Connect directly with our studio directors and booking team.
+                  </p>
+                </div>
 
-            <div class="h-px bg-white/[0.06] w-full"></div>
-
-            <!-- Email Inquiries -->
-            <div class="flex items-start gap-4">
-              <div class="w-10 h-10 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center shrink-0 mt-0.5">
-                <Mail class="w-5 h-5 text-[#FFD700]" />
-              </div>
-              <div class="min-w-0 flex-1">
-                <span class="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block font-semibold">Email Inquiries</span>
-                <a
-                  :href="'mailto:' + (settings.contact_email || 'contact@rgpfilmsstudio.site')"
-                  class="text-sm font-semibold text-white hover:text-[#FFD700] transition mt-0.5 block leading-snug truncate"
-                >
-                  {{ settings.contact_email || 'contact@rgpfilmsstudio.site' }}
-                </a>
-              </div>
-            </div>
-          </div>
-
-          <!-- HIGHLIGHTED: "Or message us on facebook" Callout Card -->
-          <div class="pt-2">
-            <a
-              :href="settings.facebook_url || 'https://www.facebook.com/profile.php?id=61586681783932'"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Configured in Settings > Facebook Page URL"
-              class="relative group block p-5 rounded-3xl bg-gradient-to-r from-[#1877F2]/12 via-[#1877F2]/06 to-transparent border border-[#1877F2]/35 hover:border-[#1877F2]/70 shadow-lg shadow-black/40 hover:shadow-blue-500/10 transition-all duration-300 overflow-hidden cursor-pointer active:scale-[0.99]"
-            >
-              <!-- Subtle ambient glow inside button -->
-              <div class="absolute -right-6 -top-6 w-24 h-24 bg-[#1877F2]/10 rounded-full blur-xl group-hover:scale-125 transition-transform duration-500"></div>
-
-              <div class="relative z-10 flex items-center justify-between gap-4">
-                <div class="flex items-center gap-4">
-                  <!-- Branded Facebook Icon -->
-                  <div class="w-11 h-11 rounded-2xl bg-[#1877F2] text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform duration-300">
-                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                    </svg>
+                <!-- Phone / Viber -->
+                <div class="flex items-start gap-4">
+                  <div class="w-10 h-10 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center shrink-0 mt-0.5">
+                    <Phone class="w-5 h-5 text-[#FFD700]" />
                   </div>
-
-                  <div>
-                    <span class="text-sm font-bold text-white uppercase tracking-wider font-manrope block">
-                      {{ content.facebook_cta_text || 'Or Message Us on Facebook' }}
-                    </span>
-                    <p class="text-xs text-neutral-400 font-nuosu mt-0.5">
-                      Prefer direct chat? Connect with our studio team instantly via Messenger.
-                    </p>
+                  <div class="min-w-0 flex-1">
+                    <span class="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block font-semibold">Direct Call / Viber</span>
+                    <a
+                      :href="'tel:' + (settings.contact_phone || '+639000000000')"
+                      class="text-sm font-semibold text-white hover:text-[#FFD700] transition mt-0.5 block leading-snug"
+                    >
+                      {{ settings.contact_phone || '+63 900 000 0000' }}
+                    </a>
                   </div>
                 </div>
 
-                <!-- Action Arrow Badge -->
-                <div class="w-9 h-9 rounded-xl bg-white/[0.06] group-hover:bg-[#1877F2] text-neutral-300 group-hover:text-white flex items-center justify-center shrink-0 transition-colors duration-300 shadow-sm">
-                  <ArrowUpRight class="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                <div class="h-px bg-white/[0.06] w-full"></div>
+
+                <!-- Email Inquiries -->
+                <div class="flex items-start gap-4">
+                  <div class="w-10 h-10 rounded-xl bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center shrink-0 mt-0.5">
+                    <Mail class="w-5 h-5 text-[#FFD700]" />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <span class="text-[10px] font-mono uppercase tracking-wider text-neutral-400 block font-semibold">Email Inquiries</span>
+                    <a
+                      :href="'mailto:' + (settings.contact_email || 'contact@rgpfilmsstudio.site')"
+                      class="text-sm font-semibold text-white hover:text-[#FFD700] transition mt-0.5 block leading-snug truncate"
+                    >
+                      {{ settings.contact_email || 'contact@rgpfilmsstudio.site' }}
+                    </a>
+                  </div>
                 </div>
               </div>
-            </a>
-          </div>
+
+              <!-- HIGHLIGHTED: "Or message us on facebook" Callout Card -->
+              <div class="pt-2">
+                <a
+                  :href="settings.facebook_url || 'https://www.facebook.com/profile.php?id=61586681783932'"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Configured in Settings > Facebook Page URL"
+                  class="relative group block p-5 rounded-3xl bg-gradient-to-r from-[#1877F2]/12 via-[#1877F2]/06 to-transparent border border-[#1877F2]/35 hover:border-[#1877F2]/70 shadow-lg shadow-black/40 hover:shadow-blue-500/10 transition-all duration-300 overflow-hidden cursor-pointer active:scale-[0.99]"
+                >
+                  <!-- Subtle ambient glow inside button -->
+                  <div class="absolute -right-6 -top-6 w-24 h-24 bg-[#1877F2]/10 rounded-full blur-xl group-hover:scale-125 transition-transform duration-500"></div>
+
+                  <div class="relative z-10 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-4">
+                      <!-- Branded Facebook Icon -->
+                      <div class="w-11 h-11 rounded-2xl bg-[#1877F2] text-white flex items-center justify-center shrink-0 shadow-md group-hover:scale-105 transition-transform duration-300">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                        </svg>
+                      </div>
+
+                      <div>
+                        <span class="text-sm font-bold text-white uppercase tracking-wider font-manrope block">
+                          {{ content.facebook_cta_text || 'Or Message Us on Facebook' }}
+                        </span>
+                        <p class="text-xs text-neutral-400 font-nuosu mt-0.5">
+                          Prefer direct chat? Connect with our studio team instantly via Messenger.
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Action Arrow Badge -->
+                    <div class="w-9 h-9 rounded-xl bg-white/[0.06] group-hover:bg-[#1877F2] text-neutral-300 group-hover:text-white flex items-center justify-center shrink-0 transition-colors duration-300 shadow-sm">
+                      <ArrowUpRight class="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                    </div>
+                  </div>
+                </a>
+              </div>
+            </div>
+          </Transition>
         </div>
 
         <!-- RIGHT COLUMN: Luxury Booking & Inquiry Form Card -->
@@ -344,6 +426,11 @@ async function handleSubmit() {
                   placeholder="Tell us about your event location, preferred coverage hours, guest count, or creative vision..."
                   class="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/10 text-white text-sm placeholder-neutral-500 focus:outline-none focus:border-[#FFD700] focus:ring-1 focus:ring-[#FFD700]/25 transition leading-relaxed"
                 ></textarea>
+              </div>
+
+              <!-- Cloudflare Turnstile Spam Protection Widget -->
+              <div class="flex justify-center py-1">
+                <div ref="turnstileContainer"></div>
               </div>
 
               <!-- Submit Button -->

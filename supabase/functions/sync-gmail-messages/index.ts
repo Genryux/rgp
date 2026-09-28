@@ -320,10 +320,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 5. If no known threadId, search Gmail threads matching this client's email
+    // 5. If no known threadId, search Gmail threads strictly matching this client's email AFTER inquiry creation
     if (!targetThreadId && inquiry.email) {
+      const inqDate = inquiry.created_at ? new Date(inquiry.created_at) : new Date();
+      // Allow 1 day buffer for timezones
+      const afterDate = new Date(inqDate.getTime() - 86400000);
+      const afterStr = `${afterDate.getUTCFullYear()}/${String(afterDate.getUTCMonth() + 1).padStart(2, '0')}/${String(afterDate.getUTCDate()).padStart(2, '0')}`;
+      const searchQuery = `${inquiry.email} after:${afterStr}`;
+
       const searchResp = await fetch(
-        `https://gmail.googleapis.com/gmail/v1/users/me/threads?q=${encodeURIComponent(inquiry.email)}`,
+        `https://gmail.googleapis.com/gmail/v1/users/me/threads?q=${encodeURIComponent(searchQuery)}`,
         { headers: { Authorization: `Bearer ${access_token}` } }
       );
 
@@ -404,6 +410,14 @@ Deno.serve(async (req) => {
 
       const { body: messageBody, attachments: messageAttachments } = extractMessageContentAndAttachments(msg);
       const msgTimestamp = dateHeader ? new Date(dateHeader).toISOString() : new Date(parseInt(msg.internalDate)).toISOString();
+      const msgTimeMs = new Date(msgTimestamp).getTime();
+      const inqTimeMs = inquiry.created_at ? new Date(inquiry.created_at).getTime() - 86400000 : 0;
+
+      // Discard any messages dated before the inquiry was created (prevents pulling old personal emails)
+      if (inqTimeMs > 0 && msgTimeMs < inqTimeMs) {
+        console.warn(`[sync-gmail] Skipping message ${msg.id} dated ${msgTimestamp} because it predates inquiry (${inquiry.created_at})`);
+        continue;
+      }
 
       newMessagesToInsert.push({
         inquiry_id: inquiryId,

@@ -3,7 +3,9 @@ import { ref, computed, watch, watchEffect, nextTick, onMounted, onUnmounted } f
 import { usePackages, formatMaskedPrice } from '../../../composables/usePackages';
 import { useGallery } from '../../../composables/useGallery';
 import { adminModalTokens } from '../../../lib/designTokens';
-import { Check, Sparkles, Plus, Star, ShieldCheck, ArrowRight } from '@lucide/vue';
+import { Check, Sparkles, Plus, Star, ShieldCheck, ArrowRight, ChevronDown } from '@lucide/vue';
+import { useInquiryAttachment, extractNumericPrice } from '../../../composables/useInquiryAttachment';
+import CategoryAddonsCard from './CategoryAddonsCard.vue';
 
 const props = defineProps({
   content: {
@@ -266,6 +268,39 @@ function formatMaskedAddonPrice(amount) {
   return formatMaskedPrice(amount);
 }
 
+function isAddonPackage(pkg) {
+  if (!pkg) return false;
+  return Boolean(
+    pkg.is_addon ||
+    (typeof pkg.title === 'string' && pkg.title.toUpperCase().includes('ADDITIONAL'))
+  );
+}
+
+function parseAddonFeature(feat) {
+  if (!feat) return { title: '', price: '' };
+  if (typeof feat === 'object') {
+    const title = feat.title || feat.name || '';
+    const price = feat.price ? `₱${Number(feat.price).toLocaleString('en-PH')}` : '';
+    return { title, price };
+  }
+  if (typeof feat !== 'string') return { title: String(feat), price: '' };
+  if (feat.includes('+')) {
+    const parts = feat.split('+');
+    const title = parts[0].trim();
+    let pricePart = parts.slice(1).join('+').trim();
+    if (!pricePart.startsWith('₱') && !pricePart.startsWith('PHP')) {
+      const num = Number(pricePart.replace(/[^\d.]/g, ''));
+      if (!isNaN(num) && num > 0) {
+        pricePart = `₱${num.toLocaleString('en-PH')}`;
+      } else {
+        pricePart = `+ ${pricePart}`;
+      }
+    }
+    return { title, price: pricePart };
+  }
+  return { title: feat.trim(), price: '' };
+}
+
 // A La Carte Deliverables Dynamic Folder Showcase Background
 const { gallery } = useGallery();
 
@@ -386,52 +421,78 @@ const defaultSpotlightPlans = [
 
 const spotlightPlans = computed(() => {
   if (props.content?.plans && props.content.plans.length > 0) {
-    return props.content.plans.map((p) => ({
-      ...p,
-      display_price: p.hide_price || isGlobalPriceMasked.value
-        ? `₱${formatMaskedPrice(p.raw_price || p.price)}`
-        : (typeof p.price === 'number' ? `₱${formatPrice(p.promo_price || p.price)}` : p.price),
-      original_price: !p.hide_price && !isGlobalPriceMasked.value && p.promo_price
-        ? `₱${formatPrice(p.price)}`
-        : null,
-    }));
+    return props.content.plans.map((p) => {
+      const title = p.title || p.name || 'Selected Package';
+      const numPrice = extractNumericPrice(p.raw_price !== undefined ? p.raw_price : p.price);
+      const numPromo = p.promo_price ? extractNumericPrice(p.promo_price) : (p.raw_promo_price ? extractNumericPrice(p.raw_promo_price) : null);
+      return {
+        ...p,
+        title,
+        name: title,
+        price: numPrice,
+        raw_price: numPrice,
+        promo_price: numPromo,
+        raw_promo_price: numPromo,
+        display_price: p.hide_price || isGlobalPriceMasked.value
+          ? `₱${formatMaskedPrice(numPrice)}`
+          : (typeof numPrice === 'number' ? `₱${formatPrice(numPromo || numPrice)}` : p.price),
+        original_price: !p.hide_price && !isGlobalPriceMasked.value && numPromo
+          ? `₱${formatPrice(numPrice)}`
+          : null,
+      };
+    });
   }
 
-  const sourcePackages = filteredPackages.value && filteredPackages.value.length > 0
-    ? filteredPackages.value
-    : activePackages.value;
+  const sourcePackages = categoryCorePackages.value;
 
   if (sourcePackages && sourcePackages.length > 0) {
-    return sourcePackages.map((pkg) => ({
-      id: pkg.id,
-      name: pkg.title,
-      category: pkg.category,
-      raw_price: pkg.price,
-      raw_promo_price: pkg.promo_price,
-      display_price: pkg.hide_price || isGlobalPriceMasked.value
-        ? `₱${formatMaskedPrice(pkg.price)}`
-        : `₱${formatPrice(pkg.promo_price || pkg.price)}`,
-      original_price: !pkg.hide_price && !isGlobalPriceMasked.value && pkg.promo_price
-        ? `₱${formatPrice(pkg.price)}`
-        : null,
-      period: '/event',
-      discountBadge: pkg.badge || (pkg.promo_price ? 'Promo Offer' : null),
-      features: pkg.features && pkg.features.length > 0
-        ? pkg.features
-        : [
-            'Professional event photo & cinema coverage',
-            'Enhanced high-resolution digital masters',
-            'Private cloud gallery access',
-          ],
-      is_featured: pkg.is_featured,
-      hide_price: pkg.hide_price,
-    }));
+    return sourcePackages.map((pkg) => {
+      const title = pkg.title || pkg.name || 'Selected Package';
+      const numPrice = extractNumericPrice(pkg.price);
+      const numPromo = pkg.promo_price ? extractNumericPrice(pkg.promo_price) : null;
+      return {
+        ...pkg,
+        id: pkg.id,
+        title,
+        name: title,
+        category: pkg.category,
+        price: numPrice,
+        raw_price: numPrice,
+        promo_price: numPromo,
+        raw_promo_price: numPromo,
+        display_price: pkg.hide_price || isGlobalPriceMasked.value
+          ? `₱${formatMaskedPrice(numPrice)}`
+          : `₱${formatPrice(numPromo || numPrice)}`,
+        original_price: !pkg.hide_price && !isGlobalPriceMasked.value && numPromo
+          ? `₱${formatPrice(numPrice)}`
+          : null,
+        period: '/event',
+        discountBadge: pkg.badge || (numPromo ? 'Promo Offer' : null),
+        features: pkg.features && pkg.features.length > 0
+          ? pkg.features
+          : [
+              'Professional event photo & cinema coverage',
+              'Enhanced high-resolution digital masters',
+              'Private cloud gallery access',
+            ],
+        is_featured: pkg.is_featured,
+        hide_price: pkg.hide_price,
+      };
+    });
   }
 
-  return defaultSpotlightPlans.map((p) => ({
-    ...p,
-    display_price: isGlobalPriceMasked.value ? `₱${formatMaskedPrice(p.price)}` : p.price,
-  }));
+  return defaultSpotlightPlans.map((p) => {
+    const title = p.title || p.name || 'Selected Package';
+    const numPrice = extractNumericPrice(p.price);
+    return {
+      ...p,
+      title,
+      name: title,
+      price: numPrice,
+      raw_price: numPrice,
+      display_price: isGlobalPriceMasked.value ? `₱${formatMaskedPrice(numPrice)}` : p.price,
+    };
+  });
 });
 
 const spotlightSelectedPlanId = ref('');
@@ -451,13 +512,32 @@ const currentSpotlightFeatures = computed(() => {
   );
 });
 
-// Comparison Matrix Data & Helpers
-const matrixPackages = computed(() => {
+// Category Core Packages (Excludes Add-on Packages)
+const categoryCorePackages = computed(() => {
   const source = filteredPackages.value && filteredPackages.value.length > 0
     ? filteredPackages.value
     : activePackages.value;
-  return source;
+  return source.filter((p) => !isAddonPackage(p));
 });
+
+// Category Add-on Packages
+const categoryAddonPackages = computed(() => {
+  const source = filteredPackages.value && filteredPackages.value.length > 0
+    ? filteredPackages.value
+    : activePackages.value;
+  return source.filter((p) => isAddonPackage(p));
+});
+
+// Comparison Matrix Data & Helpers (Aliases for compatibility)
+const matrixPackages = categoryCorePackages;
+const matrixCategoryAddonPackages = categoryAddonPackages;
+
+const { attachPackage } = useInquiryAttachment();
+
+function handleInquirePackage(pkg) {
+  if (!pkg) return;
+  attachPackage(pkg, selectedCategory.value || pkg.category || '');
+}
 
 const matrixFeatures = computed(() => {
   const set = new Set();
@@ -551,83 +631,94 @@ function packageHasFeature(pkg, featureName) {
 
       <!-- Packages Grid with Smooth Transition -->
       <Transition name="pricing-view" mode="out-in">
-        <div
-          v-if="filteredPackages.length > 0"
-          :key="selectedCategory"
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start"
-        >
+        <div :key="selectedCategory" class="space-y-10 sm:space-y-12">
+          <!-- 3-Tier Luxury Cards Grid -->
           <div
-            v-for="pkg in filteredPackages"
-            :key="pkg.id"
-            class="rounded-3xl p-8 flex flex-col justify-between transition-all duration-300 relative group h-fit self-start"
-            :class="[
-              pkg.badge || pkg.is_featured
-                ? 'bg-gradient-to-b from-white/10 to-white/5 border-2 border-[#FFD700] shadow-2xl shadow-yellow-500/10'
-                : 'bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/[0.07]'
-            ]"
+            v-if="categoryCorePackages.length > 0"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start"
           >
-            <!-- Badge -->
             <div
-              v-if="pkg.badge"
-              class="absolute -top-3.5 right-6 px-3.5 py-1 rounded-full bg-[#FFD700] text-[#141414] text-[11px] font-bold uppercase tracking-wider shadow-md"
-            >
-              {{ pkg.badge }}
-            </div>
-
-            <div>
-              <span class="text-xs font-mono uppercase tracking-widest text-[#FFD700]">{{ pkg.category }}</span>
-              <h3 class="text-2xl font-bebas text-white tracking-wide mt-1 mb-4">{{ pkg.title }}</h3>
-
-              <!-- Price Display (Masked vs Standard) -->
-              <div class="flex items-baseline gap-2 mb-6">
-                <template v-if="pkg.hide_price || isGlobalPriceMasked">
-                  <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
-                    ₱{{ formatMaskedPrice(pkg.price) }}
-                  </span>
-                </template>
-                <template v-else>
-                  <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
-                    ₱{{ formatPrice(pkg.promo_price || pkg.price) }}
-                  </span>
-                  <span v-if="pkg.promo_price" class="text-sm font-mono text-gray-500 line-through">
-                    ₱{{ formatPrice(pkg.price) }}
-                  </span>
-                </template>
-              </div>
-
-              <!-- Inclusions Checklist -->
-              <ul v-if="pkg.features && pkg.features.length > 0" class="space-y-3 text-sm text-gray-300 font-nuosu mb-8">
-                <li v-for="(feature, idx) in pkg.features" :key="idx" class="flex items-start gap-3">
-                  <Check class="w-4 h-4 text-[#FFD700] flex-shrink-0 mt-0.5" />
-                  <span>{{ feature }}</span>
-                </li>
-              </ul>
-              <div v-else class="text-xs text-neutral-500 italic mb-8 font-nuosu">
-                No deliverables or inclusions listed for this package.
-              </div>
-            </div>
-
-            <a
-              href="#contact"
-              class="w-full py-3 rounded-full text-center text-xs font-nuosu font-bold tracking-wider uppercase transition-all duration-300 block cursor-pointer mt-auto"
+              v-for="pkg in categoryCorePackages"
+              :key="pkg.id"
+              class="rounded-3xl p-8 flex flex-col justify-between transition-all duration-300 relative group h-fit self-start"
               :class="[
                 pkg.badge || pkg.is_featured
-                  ? 'bg-[#FFD700] text-[#141414] hover:bg-yellow-400 shadow-md'
-                  : 'bg-white/10 text-white hover:bg-[#FFD700] hover:text-[#141414]'
+                  ? 'bg-gradient-to-b from-white/10 to-white/5 border-2 border-[#FFD700] shadow-2xl shadow-yellow-500/10'
+                  : 'bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/[0.07]'
               ]"
             >
-              {{ pkg.hide_price || isGlobalPriceMasked ? 'Inquire to unlock price' : (content.button_text || 'Inquire / Book Package') }}
-            </a>
-          </div>
-        </div>
+              <!-- Badge -->
+              <div
+                v-if="pkg.badge"
+                class="absolute -top-3.5 right-6 px-3.5 py-1 rounded-full bg-[#FFD700] text-[#141414] text-[11px] font-bold uppercase tracking-wider shadow-md"
+              >
+                {{ pkg.badge }}
+              </div>
 
-        <!-- Empty State -->
-        <div
-          v-else
-          :key="'empty-' + selectedCategory"
-          class="text-center py-16 px-4 rounded-3xl border border-white/10 bg-white/[0.02]"
-        >
-          <p class="text-neutral-400 font-nuosu text-sm">No active packages found in this category.</p>
+              <div>
+                <span class="text-xs font-mono uppercase tracking-widest text-[#FFD700]">{{ pkg.category }}</span>
+                <h3 class="text-2xl font-bebas text-white tracking-wide mt-1 mb-4">{{ pkg.title }}</h3>
+
+                <!-- Price Display (Masked vs Standard) -->
+                <div class="flex items-baseline gap-2 mb-6">
+                  <template v-if="pkg.hide_price || isGlobalPriceMasked">
+                    <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
+                      ₱{{ formatMaskedPrice(pkg.price) }}
+                    </span>
+                  </template>
+                  <template v-else>
+                    <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
+                      ₱{{ formatPrice(pkg.promo_price || pkg.price) }}
+                    </span>
+                    <span v-if="pkg.promo_price" class="text-sm font-mono text-gray-500 line-through">
+                      ₱{{ formatPrice(pkg.price) }}
+                    </span>
+                  </template>
+                </div>
+
+                <!-- Inclusions Checklist -->
+                <ul v-if="pkg.features && pkg.features.length > 0" class="space-y-3 text-sm text-gray-300 font-nuosu mb-8">
+                  <li v-for="(feature, idx) in pkg.features" :key="idx" class="flex items-start gap-3">
+                    <Check class="w-4 h-4 text-[#FFD700] flex-shrink-0 mt-0.5" />
+                    <span>{{ feature }}</span>
+                  </li>
+                </ul>
+                <div v-else class="text-xs text-neutral-500 italic mb-8 font-nuosu">
+                  No deliverables or inclusions listed for this package.
+                </div>
+              </div>
+
+              <a
+                href="#contact"
+                @click.prevent="handleInquirePackage(pkg)"
+                class="w-full py-3 rounded-full text-center text-xs font-nuosu font-bold tracking-wider uppercase transition-all duration-300 block cursor-pointer mt-auto"
+                :class="[
+                  pkg.badge || pkg.is_featured
+                    ? 'bg-[#FFD700] text-[#141414] hover:bg-yellow-400 shadow-md'
+                    : 'bg-white/10 text-white hover:bg-[#FFD700] hover:text-[#141414]'
+                ]"
+              >
+                {{ pkg.hide_price || isGlobalPriceMasked ? 'Inquire to unlock price' : (content.button_text || 'Inquire / Book Package') }}
+              </a>
+            </div>
+          </div>
+
+          <!-- Add-ons Cards Below 3-Tier Luxury Cards -->
+          <CategoryAddonsCard
+            v-if="categoryAddonPackages.length > 0"
+            :addon-packages="categoryAddonPackages"
+            :available-packages="categoryCorePackages"
+            :selected-category="selectedCategory"
+            :initial-selected-package-id="categoryCorePackages[0]?.id"
+          />
+
+          <!-- Empty State (Only if NO packages AND NO add-ons exist in this category) -->
+          <div
+            v-else-if="categoryCorePackages.length === 0"
+            class="text-center py-16 px-4 rounded-3xl border border-white/10 bg-white/[0.02]"
+          >
+            <p class="text-neutral-400 font-nuosu text-sm">No active packages found in this category.</p>
+          </div>
         </div>
       </Transition>
     </div>
@@ -643,13 +734,15 @@ function packageHasFeature(pkg, featureName) {
   >
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
       <!-- Section Header -->
-      <div class="text-center max-w-3xl mx-auto mb-10">
-        <h2 class="text-3xl md:text-5xl font-bebas tracking-wider text-[#f8f8f8]">
-          {{ content.title || 'FIND THE PERFECT PLAN FOR YOU' }}
-        </h2>
-        <p class="mt-3 text-sm md:text-base font-nuosu text-gray-400 max-w-2xl mx-auto">
-          {{ content.subtitle || 'Explore our wide range of packages, compare features, and select the one that perfectly matches your vision and budget.' }}
-        </p>
+      <div class="text-center mb-10">
+        <div class="max-w-3xl mx-auto">
+          <h2 class="text-3xl md:text-5xl font-bebas tracking-wider text-[#f8f8f8]">
+            {{ content.title || 'FIND THE PERFECT PLAN FOR YOU' }}
+          </h2>
+          <p class="mt-3 text-sm md:text-base font-nuosu text-gray-400 max-w-2xl mx-auto">
+            {{ content.subtitle || 'Explore our wide range of packages, compare features, and select the one that perfectly matches your vision and budget.' }}
+          </p>
+        </div>
 
         <!-- Category Filter Pills (if multiple categories available) -->
         <div v-if="categories.length > 1" :class="adminModalTokens.filterWrapper">
@@ -685,113 +778,134 @@ function packageHasFeature(pkg, featureName) {
 
       <!-- Main Pricing Card Container with Smooth Transition -->
       <Transition name="pricing-view" mode="out-in">
-        <div
-          :key="selectedCategory"
-          class="rounded-3xl bg-gradient-to-b from-[#181818] to-[#121212] border border-white/10 p-6 sm:p-8 lg:p-10 shadow-2xl relative overflow-hidden"
-        >
-          <!-- Ambient Gold Glow Accent -->
-          <div class="absolute -top-24 -right-24 w-80 h-80 bg-[#FFD700]/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div :key="selectedCategory" class="space-y-10 sm:space-y-12">
+          <!-- Spotlight Pricing Box -->
+          <div
+            v-if="spotlightPlans.length > 0"
+            class="rounded-3xl bg-gradient-to-b from-[#181818] to-[#121212] border border-white/10 p-6 sm:p-8 lg:p-10 shadow-2xl relative overflow-hidden"
+          >
+            <!-- Ambient Gold Glow Accent -->
+            <div class="absolute -top-24 -right-24 w-80 h-80 bg-[#FFD700]/10 rounded-full blur-3xl pointer-events-none"></div>
 
-          <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
-            
-            <!-- LEFT COLUMN: Plan Selection Cards (6 cols) -->
-            <div class="lg:col-span-6 space-y-3.5">
-              <div
-                v-for="plan in spotlightPlans"
-                :key="plan.id"
-                @click="spotlightSelectedPlanId = plan.id"
-                :class="[
-                  'flex items-center justify-between p-4 sm:p-5 rounded-2xl border transition-all duration-300 cursor-pointer select-none relative group',
-                  activeSpotlightPlan?.id === plan.id
-                    ? 'border-[#FFD700] bg-gradient-to-r from-[#FFD700]/15 via-white/[0.04] to-transparent shadow-lg shadow-yellow-500/10'
-                    : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]'
-                ]"
-              >
-                <!-- Radio Circle & Plan Info -->
-                <div class="flex items-center gap-3.5 sm:gap-4">
-                  <!-- Custom Radio Indicator -->
-                  <div class="relative flex items-center justify-center shrink-0">
-                    <div
-                      :class="[
-                        'w-5 h-5 rounded-full border-2 transition-colors flex items-center justify-center',
-                        activeSpotlightPlan?.id === plan.id
-                          ? 'border-[#FFD700]'
-                          : 'border-white/30 group-hover:border-white/50'
-                      ]"
-                    >
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+              
+              <!-- LEFT COLUMN: Plan Selection Cards (6 cols) -->
+              <div class="lg:col-span-6 space-y-3.5">
+                <div
+                  v-for="plan in spotlightPlans"
+                  :key="plan.id"
+                  @click="spotlightSelectedPlanId = plan.id"
+                  :class="[
+                    'flex items-center justify-between p-4 sm:p-5 rounded-2xl border transition-all duration-300 cursor-pointer select-none relative group',
+                    activeSpotlightPlan?.id === plan.id
+                      ? 'border-[#FFD700] bg-gradient-to-r from-[#FFD700]/15 via-white/[0.04] to-transparent shadow-lg shadow-yellow-500/10'
+                      : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]'
+                  ]"
+                >
+                  <!-- Radio Circle & Plan Info -->
+                  <div class="flex items-center gap-3.5 sm:gap-4">
+                    <!-- Custom Radio Indicator -->
+                    <div class="relative flex items-center justify-center shrink-0">
                       <div
-                        v-if="activeSpotlightPlan?.id === plan.id"
-                        class="w-2.5 h-2.5 rounded-full bg-[#FFD700]"
-                      ></div>
+                        :class="[
+                          'w-5 h-5 rounded-full border-2 transition-colors flex items-center justify-center',
+                          activeSpotlightPlan?.id === plan.id
+                            ? 'border-[#FFD700]'
+                            : 'border-white/30 group-hover:border-white/50'
+                        ]"
+                      >
+                        <div
+                          v-if="activeSpotlightPlan?.id === plan.id"
+                          class="w-2.5 h-2.5 rounded-full bg-[#FFD700]"
+                        ></div>
+                      </div>
+                    </div>
+
+                    <!-- Plan Name & Discount Badge -->
+                    <div>
+                      <h3
+                        class="text-base sm:text-lg font-bebas tracking-wide transition-colors"
+                        :class="activeSpotlightPlan?.id === plan.id ? 'text-white' : 'text-neutral-200 group-hover:text-white'"
+                      >
+                        {{ plan.name }}
+                      </h3>
+                      <div v-if="plan.discountBadge" class="mt-0.5">
+                        <span class="inline-block text-[10px] font-bold font-nuosu uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#FFD700] text-[#141414] shadow-sm">
+                          {{ plan.discountBadge }}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <!-- Plan Name & Discount Badge -->
-                  <div>
-                    <h3
-                      class="text-base sm:text-lg font-bebas tracking-wide transition-colors"
-                      :class="activeSpotlightPlan?.id === plan.id ? 'text-white' : 'text-neutral-200 group-hover:text-white'"
-                    >
-                      {{ plan.name }}
-                    </h3>
-                    <div v-if="plan.discountBadge" class="mt-0.5">
-                      <span class="inline-block text-[10px] font-bold font-nuosu uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#FFD700] text-[#141414] shadow-sm">
-                        {{ plan.discountBadge }}
+                  <!-- Price (Supports Masking & Promo Original Price) -->
+                  <div class="text-right">
+                    <div class="flex flex-col items-end">
+                      <span class="text-2xl sm:text-3xl font-bebas tracking-wider text-[#FFD700]">
+                        {{ plan.display_price }}
+                      </span>
+                      <span v-if="plan.original_price" class="text-xs font-mono text-gray-500 line-through">
+                        {{ plan.original_price }}
                       </span>
                     </div>
                   </div>
                 </div>
-
-                <!-- Price (Supports Masking & Promo Original Price) -->
-                <div class="text-right">
-                  <div class="flex flex-col items-end">
-                    <span class="text-2xl sm:text-3xl font-bebas tracking-wider text-[#FFD700]">
-                      {{ plan.display_price }}
-                    </span>
-                    <span v-if="plan.original_price" class="text-xs font-mono text-gray-500 line-through">
-                      {{ plan.original_price }}
-                    </span>
-                  </div>
-                </div>
               </div>
+
+              <!-- RIGHT COLUMN: Included Features List (6 cols) -->
+              <div class="lg:col-span-6 bg-white/[0.03] border border-white/10 rounded-2xl p-6 sm:p-8">
+                <h4 class="text-lg font-bebas tracking-wider text-white mb-5 flex items-center justify-between">
+                  <span>INCLUDES :</span>
+                  <span v-if="activeSpotlightPlan?.category" class="text-xs font-mono uppercase tracking-widest text-[#FFD700]">
+                    {{ activeSpotlightPlan.category }}
+                  </span>
+                </h4>
+
+                <ul class="space-y-3.5 sm:space-y-4">
+                  <li
+                    v-for="(feature, index) in currentSpotlightFeatures"
+                    :key="index"
+                    class="flex items-center justify-between text-xs sm:text-sm text-neutral-300 font-nuosu"
+                  >
+                    <span>{{ feature }}</span>
+                    <!-- Circular Checkmark Icon matching studio aesthetics -->
+                    <div class="w-5 h-5 rounded-full border border-[#FFD700]/70 bg-[#FFD700]/15 flex items-center justify-center shrink-0 ml-3">
+                      <Check class="w-3 h-3 text-[#FFD700] stroke-[2.5]" />
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
             </div>
 
-            <!-- RIGHT COLUMN: Included Features List (6 cols) -->
-            <div class="lg:col-span-6 bg-white/[0.03] border border-white/10 rounded-2xl p-6 sm:p-8">
-              <h4 class="text-lg font-bebas tracking-wider text-white mb-5 flex items-center justify-between">
-                <span>INCLUDES :</span>
-                <span v-if="activeSpotlightPlan?.category" class="text-xs font-mono uppercase tracking-widest text-[#FFD700]">
-                  {{ activeSpotlightPlan.category }}
-                </span>
-              </h4>
-
-              <ul class="space-y-3.5 sm:space-y-4">
-                <li
-                  v-for="(feature, index) in currentSpotlightFeatures"
-                  :key="index"
-                  class="flex items-center justify-between text-xs sm:text-sm text-neutral-300 font-nuosu"
-                >
-                  <span>{{ feature }}</span>
-                  <!-- Circular Checkmark Icon matching studio aesthetics -->
-                  <div class="w-5 h-5 rounded-full border border-[#FFD700]/70 bg-[#FFD700]/15 flex items-center justify-center shrink-0 ml-3">
-                    <Check class="w-3 h-3 text-[#FFD700] stroke-[2.5]" />
-                  </div>
-                </li>
-              </ul>
+            <!-- BOTTOM BAR: Centered Action CTA Button -->
+            <div class="mt-8 pt-6 border-t border-white/10 flex justify-center items-center">
+              <a
+                href="#contact"
+                @click.prevent="handleInquirePackage(activeSpotlightPlan)"
+                class="w-full sm:w-auto px-10 py-3.5 bg-[#FFD700] hover:bg-yellow-400 text-[#141414] font-bold font-nuosu text-xs sm:text-sm uppercase tracking-wider rounded-full shadow-lg shadow-yellow-500/20 transition-all text-center cursor-pointer"
+              >
+                {{ activeSpotlightPlan?.hide_price || isGlobalPriceMasked ? 'Inquire to unlock price' : (content.button_text || 'Inquire / Book Package') }}
+              </a>
             </div>
 
           </div>
 
-          <!-- BOTTOM BAR: Centered Action CTA Button -->
-          <div class="mt-8 pt-6 border-t border-white/10 flex justify-center items-center">
-            <a
-              href="#contact"
-              class="w-full sm:w-auto px-10 py-3.5 bg-[#FFD700] hover:bg-yellow-400 text-[#141414] font-bold font-nuosu text-xs sm:text-sm uppercase tracking-wider rounded-full shadow-lg shadow-yellow-500/20 transition-all text-center cursor-pointer"
-            >
-              {{ activeSpotlightPlan?.hide_price || isGlobalPriceMasked ? 'Inquire to unlock price' : (content.button_text || 'Inquire / Book Package') }}
-            </a>
-          </div>
+          <!-- Add-ons Cards Below Single Spotlight Pricing -->
+          <CategoryAddonsCard
+            v-if="categoryAddonPackages.length > 0"
+            :addon-packages="categoryAddonPackages"
+            :available-packages="categoryCorePackages"
+            :selected-category="selectedCategory"
+            :initial-selected-package-id="activeSpotlightPlan?.id"
+          />
 
+          <!-- Empty State (Only if NO packages AND NO add-ons exist in this category) -->
+          <div
+            v-else-if="spotlightPlans.length === 0"
+            class="text-center py-16 px-4 rounded-3xl border border-white/10 bg-white/[0.02]"
+          >
+            <p class="text-neutral-400 font-nuosu text-sm">No active packages found in this category.</p>
+          </div>
         </div>
       </Transition>
     </div>
@@ -893,99 +1007,112 @@ function packageHasFeature(pkg, featureName) {
 
       <!-- Packages Grid with Smooth Transition (Wired to Rates & Packages Manager) -->
       <Transition name="pricing-view" mode="out-in">
-        <div
-          v-if="filteredPackages.length > 0"
-          :key="selectedCategory"
-          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start"
-        >
+        <div :key="selectedCategory" class="space-y-10 sm:space-y-12">
+          <!-- Packages Grid (Core Packages) -->
           <div
-            v-for="pkg in filteredPackages"
-            :key="pkg.id"
-            class="rounded-2xl p-7 flex flex-col justify-between transition-all duration-300 relative group h-fit self-start backdrop-blur-md transform-gpu"
-            :class="[
-              pkg.badge || pkg.is_featured
-                ? 'bg-gradient-to-b from-white/[0.14] via-white/[0.07] to-white/[0.04] border-2 border-[#FFD700] shadow-[0_8px_32px_rgba(255,215,0,0.15),inset_0_1px_0_rgba(255,255,255,0.2)]'
-                : 'bg-white/[0.06] hover:bg-white/[0.09] border border-white/[0.14] hover:border-white/25 shadow-[0_8px_32px_rgba(0,0,0,0.37),inset_0_1px_0_rgba(255,255,255,0.1)]'
-            ]"
+            v-if="categoryCorePackages.length > 0"
+            class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 items-start"
           >
-            <!-- Badge: Lowered and pushed more to the right, aligned with the package title -->
             <div
-              v-if="pkg.badge"
-              class="absolute top-6 sm:top-7 -right-3 sm:-right-4 px-3.5 py-1 rounded-lg bg-[#FFD700] text-[#141414] text-[11px] font-bold uppercase tracking-wider shadow-xl z-20 ring-2 ring-black/40"
+              v-for="pkg in categoryCorePackages"
+              :key="pkg.id"
+              class="rounded-2xl p-7 flex flex-col justify-between transition-all duration-300 relative group h-fit self-start backdrop-blur-md transform-gpu"
+              :class="[
+                (pkg.badge || pkg.is_featured)
+                  ? 'bg-gradient-to-b from-white/[0.14] via-white/[0.07] to-white/[0.04] border-2 border-[#FFD700] shadow-[0_8px_32px_rgba(255,215,0,0.15),inset_0_1px_0_rgba(255,255,255,0.2)]'
+                  : 'bg-white/[0.06] hover:bg-white/[0.09] border border-white/[0.14] hover:border-white/25 shadow-[0_8px_32px_rgba(0,0,0,0.37),inset_0_1px_0_rgba(255,255,255,0.1)]'
+              ]"
             >
-              {{ pkg.badge }}
-            </div>
-
-            <div class="flex-1 flex flex-col">
-              <!-- 1. Title -->
-              <h3 class="text-2xl font-bebas text-white tracking-wide pr-14">
-                {{ pkg.title }}
-              </h3>
-
-              <!-- 2. Subtext -->
-              <p class="text-xs text-neutral-400 font-nuosu leading-relaxed mt-1 mb-5">
-                {{ pkg.category || 'Package Coverage' }}
-              </p>
-
-              <!-- 3. Price -->
-              <div class="flex items-baseline gap-2 mb-6">
-                <template v-if="pkg.hide_price || isGlobalPriceMasked">
-                  <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
-                    ₱{{ formatMaskedPrice(pkg.price) }}
-                  </span>
-                </template>
-                <template v-else>
-                  <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
-                    ₱{{ formatPrice(pkg.promo_price || pkg.price) }}
-                  </span>
-                  <span v-if="pkg.promo_price" class="text-sm font-mono text-gray-500 line-through">
-                    ₱{{ formatPrice(pkg.price) }}
-                  </span>
-                </template>
+              <!-- Badge: Lowered and pushed more to the right, aligned with the package title -->
+              <div
+                v-if="pkg.badge"
+                class="absolute top-6 sm:top-7 -right-3 sm:-right-4 px-3.5 py-1 rounded-lg bg-[#FFD700] text-[#141414] text-[11px] font-bold uppercase tracking-wider shadow-xl z-20 ring-2 ring-black/40"
+              >
+                {{ pkg.badge }}
               </div>
 
-              <!-- 4. CTA Button (Reduced radius: rounded-xl) -->
-              <a
-                href="#contact"
-                class="w-full py-3 rounded-xl text-center text-xs font-nuosu font-bold tracking-wider uppercase transition-all duration-300 block cursor-pointer mb-6"
-                :class="[
-                  pkg.badge || pkg.is_featured
-                    ? 'bg-[#FFD700] text-[#141414] hover:bg-yellow-400 shadow-md shadow-yellow-500/20'
-                    : 'bg-white/10 text-white hover:bg-[#FFD700] hover:text-[#141414]'
-                ]"
-              >
-                {{ pkg.hide_price || isGlobalPriceMasked ? 'Inquire to unlock price' : (content.button_text || 'Inquire / Book Package') }}
-              </a>
+              <div class="flex-1 flex flex-col">
+                <!-- 1. Title -->
+                <h3 class="text-2xl font-bebas text-white tracking-wide pr-14">
+                  {{ pkg.title }}
+                </h3>
 
-              <!-- 5. Separator -->
-              <div class="border-t border-white/10 w-full mb-6"></div>
+                <!-- 2. Subtext -->
+                <p class="text-xs text-neutral-400 font-nuosu leading-relaxed mt-1 mb-5">
+                  {{ pkg.category || 'Package Coverage' }}
+                </p>
 
-              <!-- 6. Inclusion Text -->
-              <p class="text-xs font-semibold uppercase tracking-wider text-neutral-300 mb-3.5">
-                What's Included:
-              </p>
+                <!-- 3. Price -->
+                <div class="flex flex-col mb-6">
+                  <div class="flex items-baseline gap-2">
+                    <template v-if="pkg.hide_price || isGlobalPriceMasked">
+                      <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
+                        ₱{{ formatMaskedPrice(pkg.price) }}
+                      </span>
+                    </template>
+                    <template v-else>
+                      <span class="text-3xl md:text-4xl font-bebas text-[#FFD700] tracking-wider">
+                        ₱{{ formatPrice(pkg.promo_price || pkg.price) }}
+                      </span>
+                      <span v-if="pkg.promo_price" class="text-sm font-mono text-gray-500 line-through">
+                        ₱{{ formatPrice(pkg.price) }}
+                      </span>
+                    </template>
+                  </div>
+                </div>
 
-              <!-- 7. Inclusion List with Dot (clean solid dot without glow) -->
-              <ul v-if="pkg.features && pkg.features.length > 0" class="space-y-3 text-sm text-gray-300 font-nuosu">
-                <li v-for="(feature, fIdx) in pkg.features" :key="fIdx" class="flex items-start gap-3">
-                  <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700] shrink-0 mt-2"></span>
-                  <span class="leading-relaxed">{{ feature }}</span>
-                </li>
-              </ul>
-              <div v-else class="text-xs text-neutral-500 italic font-nuosu">
-                No deliverables or inclusions listed for this package.
+                <!-- 4. CTA Button (Reduced radius: rounded-xl) -->
+                <a
+                  href="#contact"
+                  @click.prevent="handleInquirePackage(pkg)"
+                  class="w-full py-3 rounded-xl text-center text-xs font-nuosu font-bold tracking-wider uppercase transition-all duration-300 block cursor-pointer mb-6"
+                  :class="[
+                    pkg.badge || pkg.is_featured
+                      ? 'bg-[#FFD700] text-[#141414] hover:bg-yellow-400 shadow-md shadow-yellow-500/20'
+                      : 'bg-white/10 text-white hover:bg-[#FFD700] hover:text-[#141414]'
+                  ]"
+                >
+                  {{ (pkg.hide_price || isGlobalPriceMasked) ? 'Inquire to unlock price' : (content.button_text || 'Inquire / Book Package') }}
+                </a>
+
+                <!-- 5. Separator -->
+                <div class="border-t border-white/10 w-full mb-6"></div>
+
+                <!-- 6. Inclusion Text -->
+                <p class="text-xs font-semibold uppercase tracking-wider text-neutral-300 mb-3.5">
+                  What's Included:
+                </p>
+
+                <!-- 7. Inclusion List with Dot -->
+                <ul v-if="pkg.features && pkg.features.length > 0" class="space-y-3 text-sm text-gray-300 font-nuosu">
+                  <li v-for="(feature, fIdx) in pkg.features" :key="fIdx" class="flex items-start gap-3">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700] shrink-0 mt-2"></span>
+                    <span class="leading-relaxed">{{ feature }}</span>
+                  </li>
+                </ul>
+                <div v-else class="text-xs text-neutral-500 italic font-nuosu">
+                  No deliverables or inclusions listed for this package.
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Empty State -->
-        <div
-          v-else
-          :key="'empty-' + selectedCategory"
-          class="text-center py-16 px-4 rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl"
-        >
-          <p class="text-neutral-400 font-nuosu text-sm">No active packages found in this category.</p>
+          <!-- Add-ons Cards Below Pricing Cards -->
+          <CategoryAddonsCard
+            v-if="categoryAddonPackages.length > 0"
+            :addon-packages="categoryAddonPackages"
+            :available-packages="categoryCorePackages"
+            :selected-category="selectedCategory"
+            :initial-selected-package-id="categoryCorePackages[0]?.id"
+          />
+
+          <!-- Empty State (Only if NO packages AND NO add-ons exist in this category) -->
+          <div
+            v-else-if="categoryCorePackages.length === 0"
+            class="text-center py-16 px-4 rounded-2xl border border-white/10 bg-white/[0.02] backdrop-blur-xl"
+          >
+            <p class="text-neutral-400 font-nuosu text-sm">No active packages found in this category.</p>
+          </div>
         </div>
       </Transition>
 
@@ -1049,156 +1176,166 @@ function packageHasFeature(pkg, featureName) {
 
       <!-- Comparison Table Container with Smooth Transition -->
       <Transition name="pricing-view" mode="out-in">
-        <div
-          v-if="matrixPackages.length > 0"
-          :key="selectedCategory"
-          class="overflow-x-auto rounded-3xl border border-white/10 bg-[#0f0f0f] shadow-2xl"
-        >
-          <table class="w-full text-left text-xs sm:text-sm border-collapse min-w-[720px]">
-            <thead>
-              <tr class="border-b border-white/10 bg-white/[0.02]">
-                <!-- Feature Column Header -->
-                <th class="p-4 sm:p-5 font-bebas text-base sm:text-lg tracking-wider text-white w-1/4 align-bottom">
-                  <span>Deliverables & Inclusions</span>
-                </th>
+        <div :key="selectedCategory" class="space-y-8 sm:space-y-10">
+          <div
+            v-if="matrixPackages.length > 0"
+            class="overflow-x-auto rounded-3xl border border-white/10 bg-[#0f0f0f] shadow-2xl"
+          >
+            <table class="w-full text-left text-xs sm:text-sm border-collapse min-w-[720px]">
+              <thead>
+                <tr class="border-b border-white/10 bg-white/[0.02]">
+                  <!-- Feature Column Header -->
+                  <th class="p-4 sm:p-5 font-bebas text-base sm:text-lg tracking-wider text-white w-1/4 align-bottom">
+                    <span>Deliverables & Inclusions</span>
+                  </th>
 
-                <!-- Package Column Headers -->
-                <th
-                  v-for="pkg in matrixPackages"
-                  :key="pkg.id"
-                  class="p-4 sm:p-5 text-center align-top relative transition-colors duration-200"
-                  :class="[
-                    pkg.badge || pkg.is_featured
-                      ? 'bg-gradient-to-b from-[#FFD700]/15 via-[#FFD700]/[0.06] to-[#FFD700]/[0.03] border-x-2 border-t-2 border-[#FFD700]/40 shadow-lg'
-                      : 'bg-transparent'
-                  ]"
-                >
-                  <h3 class="text-xl sm:text-2xl font-bebas text-white tracking-wide mb-1.5">
-                    {{ pkg.title }}
-                  </h3>
+                  <!-- Package Column Headers -->
+                  <th
+                    v-for="pkg in matrixPackages"
+                    :key="pkg.id"
+                    class="p-4 sm:p-5 text-center align-top relative transition-colors duration-200"
+                    :class="[
+                      pkg.badge || pkg.is_featured
+                        ? 'bg-gradient-to-b from-[#FFD700]/15 via-[#FFD700]/[0.06] to-[#FFD700]/[0.03] border-x-2 border-t-2 border-[#FFD700]/40 shadow-lg'
+                        : 'bg-transparent'
+                    ]"
+                  >
+                    <h3 class="text-xl sm:text-2xl font-bebas text-white tracking-wide mb-1.5">
+                      {{ pkg.title }}
+                    </h3>
 
-                  <!-- Price -->
-                  <div class="flex items-baseline justify-center gap-1">
-                    <template v-if="pkg.hide_price || isGlobalPriceMasked">
-                      <span class="text-2xl sm:text-3xl font-bebas text-[#FFD700] tracking-wider">
-                        ₱{{ formatMaskedPrice(pkg.price) }}
-                      </span>
-                    </template>
-                    <template v-else>
-                      <span
-                        v-if="pkg.promo_price"
-                        class="text-xs text-neutral-500 line-through mr-1 font-mono"
-                      >
-                        ₱{{ formatPrice(pkg.price) }}
-                      </span>
-                      <span class="text-2xl sm:text-3xl font-bebas text-[#FFD700] tracking-wider">
-                        ₱{{ formatPrice(pkg.promo_price || pkg.price) }}
-                      </span>
-                    </template>
-                  </div>
-
-                  <!-- Select Tier CTA Button (Directly below price) -->
-                  <div class="mt-3.5">
-                    <a
-                      href="#contact"
-                      class="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-bold tracking-wider uppercase transition-all duration-300 cursor-pointer shadow-md"
-                      :class="[
-                        pkg.badge || pkg.is_featured
-                          ? 'bg-[#FFD700] text-[#141414] hover:bg-[#ffe234] shadow-yellow-500/20'
-                          : 'bg-white/5 text-white hover:bg-white/15 border border-white/10'
-                      ]"
-                    >
+                    <!-- Price -->
+                    <div class="flex items-baseline justify-center gap-1">
                       <template v-if="pkg.hide_price || isGlobalPriceMasked">
-                        <span>Inquire Price</span>
-                        <ArrowRight class="w-3.5 h-3.5" />
+                        <span class="text-2xl sm:text-3xl font-bebas text-[#FFD700] tracking-wider">
+                          ₱{{ formatMaskedPrice(pkg.price) }}
+                        </span>
                       </template>
                       <template v-else>
-                        <span>{{ content.button_text || 'Select Tier' }}</span>
-                        <ArrowRight class="w-3.5 h-3.5" />
+                        <span
+                          v-if="pkg.promo_price"
+                          class="text-xs text-neutral-500 line-through mr-1 font-mono"
+                        >
+                          ₱{{ formatPrice(pkg.price) }}
+                        </span>
+                        <span class="text-2xl sm:text-3xl font-bebas text-[#FFD700] tracking-wider">
+                          ₱{{ formatPrice(pkg.promo_price || pkg.price) }}
+                        </span>
                       </template>
-                    </a>
-                  </div>
-                </th>
-              </tr>
-            </thead>
+                    </div>
 
-            <tbody class="divide-y divide-white/[0.06] text-neutral-300">
-              <tr
-                v-for="(feature, idx) in matrixFeatures"
-                :key="idx"
-                class="hover:bg-white/[0.02] transition-colors"
-              >
-                <!-- Feature Row Name (Clean without icon) -->
-                <td class="py-3 px-4 sm:py-3 sm:px-5 font-nuosu font-medium text-white/90 text-xs sm:text-sm">
-                  <span>{{ feature }}</span>
-                </td>
+                    <!-- Select Tier CTA Button (Directly below price) -->
+                    <div class="mt-3.5">
+                      <a
+                        href="#contact"
+                        @click.prevent="handleInquirePackage(pkg)"
+                        class="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-bold tracking-wider uppercase transition-all duration-300 cursor-pointer shadow-md"
+                        :class="[
+                          pkg.badge || pkg.is_featured
+                            ? 'bg-[#FFD700] text-[#141414] hover:bg-[#ffe234] shadow-yellow-500/20'
+                            : 'bg-white/5 text-white hover:bg-white/15 border border-white/10'
+                        ]"
+                      >
+                        <template v-if="pkg.hide_price || isGlobalPriceMasked">
+                          <span>Inquire Price</span>
+                          <ArrowRight class="w-3.5 h-3.5" />
+                        </template>
+                        <template v-else>
+                          <span>{{ content.button_text || 'Select Tier' }}</span>
+                          <ArrowRight class="w-3.5 h-3.5" />
+                        </template>
+                      </a>
+                    </div>
+                  </th>
+                </tr>
+              </thead>
 
-                <!-- Feature Checks per Package (Slightly illuminated if badge/featured) -->
-                <td
-                  v-for="pkg in matrixPackages"
-                  :key="pkg.id"
-                  class="py-3 px-4 sm:py-3 sm:px-5 text-center transition-colors"
-                  :class="[
-                    pkg.badge || pkg.is_featured
-                      ? 'bg-[#FFD700]/[0.05] border-x border-[#FFD700]/20'
-                      : ''
-                  ]"
+              <tbody class="divide-y divide-white/[0.06] text-neutral-300">
+                <tr
+                  v-for="(feature, idx) in matrixFeatures"
+                  :key="idx"
+                  class="hover:bg-white/[0.02] transition-colors"
                 >
-                  <div v-if="packageHasFeature(pkg, feature)" class="inline-flex items-center justify-center w-5 h-5 rounded-full border border-[#FFD700]/60 bg-transparent text-[#FFD700]">
-                    <Check class="w-3 h-3 stroke-[2.5]" />
-                  </div>
-                  <span v-else class="text-neutral-600 font-mono text-sm">—</span>
-                </td>
-              </tr>
-            </tbody>
+                  <!-- Feature Row Name (Clean without icon) -->
+                  <td class="py-3 px-4 sm:py-3 sm:px-5 font-nuosu font-medium text-white/90 text-xs sm:text-sm">
+                    <span>{{ feature }}</span>
+                  </td>
 
-            <!-- Table Footer: Bottom Column Badges & Dynamic Note -->
-            <tfoot>
-              <tr class="border-t border-white/10 bg-white/[0.02]">
-                <!-- Bottom Empty Corner Cell -->
-                <td class="py-3 px-4 sm:py-3 sm:px-5"></td>
+                  <!-- Feature Checks per Package (Slightly illuminated if badge/featured) -->
+                  <td
+                    v-for="pkg in matrixPackages"
+                    :key="pkg.id"
+                    class="py-3 px-4 sm:py-3 sm:px-5 text-center transition-colors"
+                    :class="[
+                      pkg.badge || pkg.is_featured
+                        ? 'bg-[#FFD700]/[0.05] border-x border-[#FFD700]/20'
+                        : ''
+                    ]"
+                  >
+                    <div v-if="packageHasFeature(pkg, feature)" class="inline-flex items-center justify-center w-5 h-5 rounded-full border border-[#FFD700]/60 bg-transparent text-[#FFD700]">
+                      <Check class="w-3 h-3 stroke-[2.5]" />
+                    </div>
+                    <span v-else class="text-neutral-600 font-mono text-sm">—</span>
+                  </td>
+                </tr>
+              </tbody>
 
-                <!-- Bottom Column Badge Cell -->
-                <td
-                  v-for="pkg in matrixPackages"
-                  :key="pkg.id"
-                  class="py-3 px-4 sm:py-3 sm:px-5 text-center transition-colors"
-                  :class="[
-                    pkg.badge || pkg.is_featured
-                      ? 'bg-gradient-to-t from-[#FFD700]/15 via-[#FFD700]/[0.06] to-[#FFD700]/[0.03] border-x-2 border-b-2 border-[#FFD700]/40 shadow-lg'
-                      : 'bg-transparent'
-                  ]"
-                >
-                  <div v-if="pkg.badge" class="inline-flex items-center justify-center">
-                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FFD700] text-[#141414] text-[10px] font-bold uppercase tracking-wider shadow-sm">
-                      <Sparkles class="w-3 h-3" />
-                      {{ pkg.badge }}
-                    </span>
-                  </div>
-                  <span v-else class="text-neutral-500 font-mono text-xs">—</span>
-                </td>
-              </tr>
+              <!-- Table Footer: Bottom Column Badges & Dynamic Note -->
+              <tfoot>
+                <tr class="border-t border-white/10 bg-white/[0.02]">
+                  <!-- Bottom Empty Corner Cell -->
+                  <td class="py-3 px-4 sm:py-3 sm:px-5"></td>
 
-              <!-- Dynamic Footnote Row -->
-              <tr class="border-t border-white/10 bg-white/[0.01]">
-                <td
-                  :colspan="matrixPackages.length + 1"
-                  class="py-3.5 px-5 font-nuosu text-xs text-neutral-400 text-center"
-                >
-                  {{ content.footer_note || 'Custom add-ons and bespoke upgrades available upon consultation.' }}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+                  <!-- Bottom Column Badge Cell -->
+                  <td
+                    v-for="pkg in matrixPackages"
+                    :key="pkg.id"
+                    class="py-3 px-4 sm:py-3 sm:px-5 text-center transition-colors"
+                    :class="[
+                      pkg.badge || pkg.is_featured
+                        ? 'bg-gradient-to-t from-[#FFD700]/15 via-[#FFD700]/[0.06] to-[#FFD700]/[0.03] border-x-2 border-b-2 border-[#FFD700]/40 shadow-lg'
+                        : 'bg-transparent'
+                    ]"
+                  >
+                    <div v-if="pkg.badge" class="inline-flex items-center justify-center">
+                      <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FFD700] text-[#141414] text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                        <Sparkles class="w-3 h-3" />
+                        {{ pkg.badge }}
+                      </span>
+                    </div>
+                    <span v-else class="text-neutral-500 font-mono text-xs">—</span>
+                  </td>
+                </tr>
 
-        <!-- Empty State -->
-        <div
-          v-else
-          :key="'empty-' + selectedCategory"
-          class="text-center py-16 px-4 rounded-3xl border border-white/10 bg-white/[0.02]"
-        >
-          <p class="text-neutral-400 font-nuosu text-sm">No active packages found in this category.</p>
+                <!-- Dynamic Footnote Row -->
+                <tr class="border-t border-white/10 bg-white/[0.01]">
+                  <td
+                    :colspan="matrixPackages.length + 1"
+                    class="py-3.5 px-5 font-nuosu text-xs text-neutral-400 text-center"
+                  >
+                    {{ content.footer_note || 'Custom add-ons and bespoke upgrades available upon consultation.' }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Add-ons Cards Below Feature Matrix Table -->
+          <CategoryAddonsCard
+            v-if="categoryAddonPackages.length > 0"
+            :addon-packages="categoryAddonPackages"
+            :available-packages="categoryCorePackages"
+            :selected-category="selectedCategory"
+            :initial-selected-package-id="categoryCorePackages[0]?.id"
+          />
+
+          <!-- Empty State (Only if NO packages AND NO add-ons exist in this category) -->
+          <div
+            v-else-if="categoryCorePackages.length === 0"
+            class="text-center py-16 px-4 rounded-3xl border border-white/10 bg-white/[0.02]"
+          >
+            <p class="text-neutral-400 font-nuosu text-sm">No active packages found in this category.</p>
+          </div>
         </div>
       </Transition>
     </div>

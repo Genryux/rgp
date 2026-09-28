@@ -109,38 +109,125 @@ const row5Profiles = [
   { width: 'w-[280px] sm:w-[340px] md:w-[390px]', tag: 'Editorial' },
 ];
 
-function buildRowItems(rowOffset, profiles, rowKey) {
-  const base = normalizedBaseItems.value;
-  if (!base.length) return [];
-  const count = base.length;
-  const itemsPerRow = Math.max(6, count);
-  const rowBase = [];
-
-  for (let i = 0; i < itemsPerRow; i++) {
-    const rawIdx = (i + rowOffset) % count;
-    const raw = base[rawIdx];
-    const prof = profiles[i % profiles.length];
-    rowBase.push({
-      ...raw,
-      _rawIdx: rawIdx,
-      _rowIdx: i,
-      _profile: prof,
-    });
-  }
-
-  // Clone 4 sets for 100% gapless infinite loop
-  const set0 = rowBase.map((it, idx) => ({ ...it, _loopId: `${rowKey}_s0_${idx}` }));
-  const set1 = rowBase.map((it, idx) => ({ ...it, _loopId: `${rowKey}_s1_${idx}` }));
-  const set2 = rowBase.map((it, idx) => ({ ...it, _loopId: `${rowKey}_s2_${idx}` }));
-  const set3 = rowBase.map((it, idx) => ({ ...it, _loopId: `${rowKey}_s3_${idx}` }));
-  return [...set0, ...set1, ...set2, ...set3];
+// Mulberry32 deterministic PRNG for stable, reproducible row permutations
+function mulberry32(seed) {
+  return function () {
+    let t = (seed += 0x6d2b79f5);
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-const row1Items = computed(() => buildRowItems(0, row1Profiles, 'r1'));
-const row2Items = computed(() => buildRowItems(2, row2Profiles, 'r2'));
-const row3Items = computed(() => buildRowItems(4, row3Profiles, 'r3'));
-const row4Items = computed(() => buildRowItems(6, row4Profiles, 'r4'));
-const row5Items = computed(() => buildRowItems(8, row5Profiles, 'r5'));
+function generateRowSequence(items, targetLength, seed, forbiddenFirstId = null) {
+  if (!items.length) return [];
+  if (items.length === 1) return Array(targetLength).fill(items[0]);
+  const rng = mulberry32(seed);
+  const result = [];
+
+  while (result.length < targetLength) {
+    const chunk = [...items];
+    for (let i = chunk.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [chunk[i], chunk[j]] = [chunk[j], chunk[i]];
+    }
+
+    if (result.length > 0 && chunk[0].id === result[result.length - 1].id) {
+      if (chunk.length > 1) {
+        const swapIdx = 1 + Math.floor(rng() * (chunk.length - 1));
+        [chunk[0], chunk[swapIdx]] = [chunk[swapIdx], chunk[0]];
+      }
+    }
+
+    for (let k = 0; k < chunk.length && result.length < targetLength; k++) {
+      result.push(chunk[k]);
+    }
+  }
+
+  // Avoid matching forbiddenFirstId on the first card if multiple items exist
+  if (forbiddenFirstId && result[0].id === forbiddenFirstId && items.length > 1) {
+    const swapIdx = result.findIndex(
+      (x, idx) => idx > 0 && x.id !== forbiddenFirstId && x.id !== result[1]?.id
+    );
+    if (swapIdx > 0) {
+      [result[0], result[swapIdx]] = [result[swapIdx], result[0]];
+    }
+  }
+
+  // Prevent wrap-around clash between end of set and start of set
+  if (result.length > 2 && result[result.length - 1].id === result[0].id) {
+    const last = result.length - 1;
+    for (let k = last - 1; k >= 1; k--) {
+      if (
+        result[k].id !== result[0].id &&
+        result[k].id !== result[last - 1]?.id &&
+        result[last].id !== result[k - 1]?.id &&
+        result[last].id !== result[k + 1]?.id
+      ) {
+        [result[last], result[k]] = [result[k], result[last]];
+        break;
+      }
+    }
+  }
+
+  return result;
+}
+
+// 5-Row Multi-Layer Row Generation with Independent Shuffled Orderings
+const masonryRowSets = computed(() => {
+  const base = filteredBaseItems.value;
+  if (!base.length) {
+    return { r1: [], r2: [], r3: [], r4: [], r5: [] };
+  }
+
+  const targetLength = base.length < 12
+    ? Math.ceil(12 / base.length) * base.length
+    : base.length;
+
+  const rowConfigs = [
+    { key: 'r1', seed: 1013, profiles: row1Profiles },
+    { key: 'r2', seed: 2027, profiles: row2Profiles },
+    { key: 'r3', seed: 3049, profiles: row3Profiles },
+    { key: 'r4', seed: 4091, profiles: row4Profiles },
+    { key: 'r5', seed: 5119, profiles: row5Profiles },
+  ];
+
+  let prevFirstId = null;
+  const rows = {};
+
+  rowConfigs.forEach(({ key, seed, profiles }) => {
+    const seq = generateRowSequence(base, targetLength, seed, prevFirstId);
+    if (seq.length > 0) {
+      prevFirstId = seq[0].id;
+    }
+
+    const rowBase = seq.map((raw, i) => {
+      const prof = profiles[i % profiles.length];
+      const rawIdx = base.findIndex((p) => p.id === raw.id);
+      return {
+        ...raw,
+        _rawIdx: rawIdx >= 0 ? rawIdx : i % base.length,
+        _rowIdx: i,
+        _profile: prof,
+      };
+    });
+
+    const set0 = rowBase.map((it, idx) => ({ ...it, _loopId: `${key}_s0_${idx}` }));
+    const set1 = rowBase.map((it, idx) => ({ ...it, _loopId: `${key}_s1_${idx}` }));
+    const set2 = rowBase.map((it, idx) => ({ ...it, _loopId: `${key}_s2_${idx}` }));
+    const set3 = rowBase.map((it, idx) => ({ ...it, _loopId: `${key}_s3_${idx}` }));
+
+    rows[key] = [...set0, ...set1, ...set2, ...set3];
+  });
+
+  return rows;
+});
+
+const row1Items = computed(() => masonryRowSets.value.r1);
+const row2Items = computed(() => masonryRowSets.value.r2);
+const row3Items = computed(() => masonryRowSets.value.r3);
+const row4Items = computed(() => masonryRowSets.value.r4);
+const row5Items = computed(() => masonryRowSets.value.r5);
 
 // Slider Refs & States
 const sliderRef = ref(null);
@@ -388,14 +475,14 @@ function closeLightbox() {
 }
 
 function nextLightbox() {
-  const base = normalizedBaseItems.value;
+  const base = filteredBaseItems.value;
   if (!base.length) return;
   activeLightboxIndex.value = (activeLightboxIndex.value + 1) % base.length;
   activeLightboxItem.value = base[activeLightboxIndex.value];
 }
 
 function prevLightbox() {
-  const base = normalizedBaseItems.value;
+  const base = filteredBaseItems.value;
   if (!base.length) return;
   activeLightboxIndex.value = (activeLightboxIndex.value - 1 + base.length) % base.length;
   activeLightboxItem.value = base[activeLightboxIndex.value];
@@ -629,7 +716,7 @@ onUnmounted(() => {
       <!-- Top Control Bar -->
       <div class="max-w-7xl mx-auto w-full flex items-center justify-between z-10">
         <span class="text-xs text-neutral-400 font-mono">
-          {{ activeLightboxIndex + 1 }} / {{ normalizedBaseItems.length }}
+          {{ activeLightboxIndex + 1 }} / {{ filteredBaseItems.length }}
         </span>
 
         <!-- Close Button -->

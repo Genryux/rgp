@@ -45,7 +45,20 @@ Deno.serve(async (req) => {
 
     // 1. Parse inquiry payload
     const body = await req.json().catch(() => ({}));
-    const { inquiryId, name, email, phone, event_type, event_date, message } = body;
+    const {
+      inquiryId,
+      name,
+      email,
+      phone,
+      event_type,
+      event_date,
+      message,
+      package_name,
+      package_price,
+      package_inclusions,
+      addons,
+      addons_total,
+    } = body;
 
     if (!name || !email || !message) {
       return new Response(
@@ -101,6 +114,178 @@ Deno.serve(async (req) => {
       ? new Date(event_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
       : 'Flexible / TBD';
 
+    // Clean client message: strip any summary text, dividers, or hidden comments
+    const rawMessage = String(message || '');
+    const cleanMessage = rawMessage
+      .replace(/(?:─{3,}|_{3,}|\-{3,})[\s\S]*?ATTACHED PACKAGE & ADD-ONS:[\s\S]*?(?:─{3,}|_{3,}|\-{3,})/gi, '')
+      .replace(/PACKAGE:\s*[^\n]+[\s\S]*?TOTAL:\s*[^\n]+(?:\n*(?:─{3,}|_{3,}|\-{3,}))?/gi, '')
+      .replace(/ATTACHED PACKAGE & ADD-ONS:[\s\S]*?(?=\n\n|$)/gi, '')
+      .replace(/^[─_\-]{3,}\s*$/gm, '')
+      .replace(/<!--\s*RGP_ATTACHED_PACKAGE:[\s\S]*?-->/gi, '')
+      .replace(/\n*\[Inquired Package\]:[\s\S]*?(?=\n\[Add-ons\]:|$)/gi, '')
+      .replace(/\n*\[Add-ons\]:[\s\S]*?$/gi, '')
+      .trim();
+
+    // Extract package details with fallback to rawMessage JSON comment
+    let pkgName = package_name || '';
+    let pkgPrice = package_price || 0;
+    let pkgInclusions = Array.isArray(package_inclusions) ? package_inclusions : [];
+    let pkgAddons = Array.isArray(addons) ? addons : [];
+    let pkgAddonsTotal = addons_total || 0;
+
+    if (!pkgName && pkgAddons.length === 0 && rawMessage) {
+      const jsonMatch = rawMessage.match(/<!--\s*RGP_ATTACHED_PACKAGE:\s*([\s\S]*?)\s*-->/i);
+      if (jsonMatch && jsonMatch[1]) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          pkgName = parsed.package_name || '';
+          pkgPrice = parsed.package_price || 0;
+          pkgInclusions = Array.isArray(parsed.package_inclusions) ? parsed.package_inclusions : [];
+          pkgAddons = Array.isArray(parsed.addons) ? parsed.addons : [];
+          pkgAddonsTotal = parsed.addons_total || 0;
+        } catch (_) {}
+      }
+    }
+
+    // Format Attached Package & Add-ons Block as a clean separate card
+    let packageBlockHtml = '';
+    if (pkgName || pkgAddons.length > 0) {
+      const numPkgPrice = Number(pkgPrice) || 0;
+      const formattedPkgPrice = numPkgPrice.toLocaleString('en-PH');
+      const numAddonsTotal = Number(pkgAddonsTotal) || pkgAddons.reduce((sum: number, it: any) => {
+        const cleaned = String(it.price || it.rawPrice || '').replace(/[^\d.]/g, '');
+        const n = parseFloat(cleaned);
+        return sum + (isNaN(n) ? 0 : n);
+      }, 0);
+
+      const inclusionsList = pkgInclusions;
+      const inclusionsHtml = inclusionsList.length > 0 ? `
+        <div style="margin: 16px 0;">
+          <p style="margin: 0 0 8px 0; font-size: 10px; text-transform: uppercase; color: #888888; font-weight: 700; letter-spacing: 0.5px;">
+            DELIVERABLES &amp; INCLUSIONS (${inclusionsList.length}):
+          </p>
+          <table style="width: 100%; border-collapse: collapse;">
+            ${inclusionsList.map((inc: string) => `
+              <tr>
+                <td style="padding: 3px 0; font-size: 12px; color: #FFD700; vertical-align: top; width: 16px; font-weight: bold;">✓</td>
+                <td style="padding: 3px 0; font-size: 12px; color: #cccccc; line-height: 1.5;">${inc}</td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      ` : '';
+
+      const addonsList = pkgAddons;
+      const addonsHtml = addonsList.length > 0 ? `
+        <div style="margin-top: 14px; padding-top: 14px; border-top: 1px solid #262626;">
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 8px;">
+            <tr>
+              <td style="font-size: 10px; text-transform: uppercase; color: #888888; font-weight: 700; letter-spacing: 0.5px;">
+                SELECTED ADD-ONS (${addonsList.length}):
+              </td>
+              <td style="font-size: 11px; color: #FFD700; text-align: right; font-weight: 700; font-family: monospace;">
+                +₱${numAddonsTotal.toLocaleString('en-PH')}
+              </td>
+            </tr>
+          </table>
+          <table style="width: 100%; border-collapse: collapse;">
+            ${addonsList.map((ad: any) => `
+              <tr>
+                <td style="padding: 4px 0; font-size: 12px; color: #e5e5e5;">
+                  <span style="color: #666666; margin-right: 4px;">+</span> ${ad.title || ad.name}
+                </td>
+                <td style="padding: 4px 0; font-size: 12px; color: #FFD700; text-align: right; font-weight: 600; font-family: monospace;">
+                  ${ad.price}
+                </td>
+              </tr>
+            `).join('')}
+          </table>
+        </div>
+      ` : '';
+
+      let totalDisplay = `₱${formattedPkgPrice}`;
+      if (numPkgPrice > 0 && numAddonsTotal > 0) {
+        totalDisplay = `₱${formattedPkgPrice} + ₱${numAddonsTotal.toLocaleString('en-PH')} (₱${(numPkgPrice + numAddonsTotal).toLocaleString('en-PH')})`;
+      } else if (numAddonsTotal > 0) {
+        totalDisplay = `₱${numAddonsTotal.toLocaleString('en-PH')}`;
+      }
+
+      packageBlockHtml = `
+        <div style="margin-top: 24px;">
+          <p style="margin: 0 0 8px 0; font-size: 11px; text-transform: uppercase; color: #888888; font-weight: 600; letter-spacing: 0.5px;">
+            ATTACHED PACKAGE &amp; ADD-ONS:
+          </p>
+
+          <div style="background-color: #141414; border: 1px solid #2e2e2e; border-top: 3px solid #FFD700; border-radius: 12px; padding: 18px 20px;">
+            <!-- Header: Inquiring For & Total Value -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid #222222;">
+              <tr>
+                <td style="vertical-align: middle;">
+                  <span style="font-size: 10px; text-transform: uppercase; color: #888888; font-weight: 700; letter-spacing: 0.5px; display: block;">
+                    INQUIRING FOR
+                  </span>
+                  <span style="font-size: 14px; font-weight: 700; color: #ffffff;">
+                    ${event_type || 'General'}
+                  </span>
+                </td>
+                <td style="text-align: right; vertical-align: middle;">
+                  <span style="font-size: 10px; text-transform: uppercase; color: #888888; font-weight: 700; letter-spacing: 0.5px; display: block;">
+                    TOTAL VALUE
+                  </span>
+                  <span style="font-size: 16px; font-weight: 800; color: #FFD700; font-family: monospace;">
+                    ₱${(numPkgPrice + numAddonsTotal).toLocaleString('en-PH')}
+                  </span>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Base Package Row -->
+            ${pkgName ? `
+              <div style="background-color: #1c1c1c; border: 1px solid #2a2a2a; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td>
+                      <span style="font-size: 9px; text-transform: uppercase; color: #888888; font-weight: 600; letter-spacing: 0.5px; display: block;">
+                        ATTACHED PACKAGE TIER
+                      </span>
+                      <span style="font-size: 14px; font-weight: 700; color: #ffffff; text-transform: uppercase; letter-spacing: 0.3px;">
+                        ${pkgName}
+                      </span>
+                    </td>
+                    <td style="text-align: right; vertical-align: middle;">
+                      <span style="font-size: 14px; font-weight: bold; color: #FFD700; font-family: monospace;">
+                        ₱${formattedPkgPrice}
+                      </span>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            ` : ''}
+
+            <!-- Deliverables Checklist -->
+            ${inclusionsHtml}
+
+            <!-- Selected Add-ons -->
+            ${addonsHtml}
+
+            <!-- Final Calculation -->
+            <div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid #282828;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="font-size: 11px; text-transform: uppercase; color: #ffffff; font-weight: 700; letter-spacing: 0.5px;">
+                    TOTAL:
+                  </td>
+                  <td style="font-size: 15px; font-weight: 800; color: #FFD700; font-family: monospace; text-align: right;">
+                    ${totalDisplay}
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     const htmlBody = `
       <!DOCTYPE html>
       <html>
@@ -145,13 +330,15 @@ Deno.serve(async (req) => {
 
               <br>
 
-              <p style="margin: 16px 0 8px 0; font-size: 12px; text-transform: uppercase; color: #999999; font-weight: 600; letter-spacing: 0.5px;">
+              <p style="margin: 16px 0 8px 0; font-size: 11px; text-transform: uppercase; color: #888888; font-weight: 600; letter-spacing: 0.5px;">
                 Inquiry Message:
               </p>
 
               <div class="message-box" style="background: #222222; border-left: 3px solid #FFD700; padding: 14px 16px; border-radius: 0 10px 10px 0; margin: 4px 0 16px 0; font-size: 14px; line-height: 1.6; color: #e5e5e5;">
-                ${message.replace(/\n/g, '<br>')}
+                ${cleanMessage ? cleanMessage.replace(/\n/g, '<br>') : '<em style="color: #777777;">No additional message written.</em>'}
               </div>
+
+              ${packageBlockHtml}
 
               <br>
               <hr style="border: none; border-top: 1px solid #2e2e2e; margin: 20px 0 12px 0;">
@@ -209,7 +396,7 @@ Deno.serve(async (req) => {
         sender_email: email,
         recipient: connectedEmail,
         subject: subject,
-        body: message,
+        body: cleanMessage || 'No message provided',
         attachments: [],
         read: false,
         created_at: new Date().toISOString(),

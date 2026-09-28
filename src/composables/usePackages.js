@@ -133,6 +133,19 @@ const DEFAULT_MASTER_INCLUSIONS = [
 
 const PACKAGES_STORAGE_KEY = 'rgp_packages';
 const INCLUSIONS_STORAGE_KEY = 'rgp_master_inclusions';
+const ADDONS_STORAGE_KEY = 'rgp_master_addons';
+
+// Default master list of studio add-ons and extra deliverables
+export const DEFAULT_MASTER_ADDONS = [
+  { id: 'addon_sde', title: 'Same Day Edit (SDE) Video Reel', price: 7000 },
+  { id: 'addon_photo', title: 'Additional Professional Photographer', price: 5000 },
+  { id: 'addon_rush', title: 'Rush Edit Delivery', price: 1000 },
+  { id: 'addon_drone', title: 'Licensed 4K Aerial Drone Coverage', price: 8000 },
+  { id: 'addon_album', title: 'Luxury Hardbound Leather Photo Album', price: 12000 },
+  { id: 'addon_prenup', title: 'Pre-Wedding / Prenup Visual Session', price: 18000 },
+  { id: 'addon_raw', title: 'RAW Footage & Master Archives on SSD', price: 5000 },
+  { id: 'addon_overtime', title: 'Overtime Coverage (Per Hour)', price: 3500 },
+];
 
 function getInitialPackages() {
   if (typeof window !== 'undefined') {
@@ -149,6 +162,23 @@ function getInitialPackages() {
     }
   }
   return DEFAULT_PACKAGES;
+}
+
+function getInitialMasterAddons() {
+  if (typeof window !== 'undefined') {
+    try {
+      const saved = localStorage.getItem(ADDONS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('[Packages] Error loading master addons from localStorage:', e);
+    }
+  }
+  return [...DEFAULT_MASTER_ADDONS];
 }
 
 function getInitialMasterInclusions() {
@@ -205,6 +235,7 @@ const CONFIG_ROW_ID = '__master_config__';
 const packageCategories = ref([...DEFAULT_PACKAGE_CATEGORIES]);
 const packages = ref(getInitialPackages());
 const masterInclusions = ref(getInitialMasterInclusions());
+const masterAddons = ref(getInitialMasterAddons());
 const isGlobalPriceMasked = ref(typeof window !== 'undefined' ? localStorage.getItem('rgp_mask_prices') === 'true' : false);
 const loading = ref(false);
 
@@ -228,6 +259,16 @@ function persistMasterInclusions() {
   }
 }
 
+function persistMasterAddons() {
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.setItem(ADDONS_STORAGE_KEY, JSON.stringify(masterAddons.value));
+    } catch (e) {
+      console.error('[Packages] Error saving master addons to localStorage:', e);
+    }
+  }
+}
+
 function persistPriceMask() {
   if (typeof window !== 'undefined') {
     try {
@@ -240,6 +281,7 @@ function persistPriceMask() {
 
 async function persistConfigToSupabase() {
   persistMasterInclusions();
+  persistMasterAddons();
   persistPriceMask();
   if (!isSupabaseConfigured || !supabase) return;
   try {
@@ -251,6 +293,7 @@ async function persistConfigToSupabase() {
       features: {
         inclusions: masterInclusions.value,
         categories: packageCategories.value,
+        addons: masterAddons.value,
       },
       badge: 'CONFIG', // Fits safely within PostgreSQL VARCHAR(50) limit
       hide_price: isGlobalPriceMasked.value,
@@ -280,6 +323,13 @@ if (typeof window !== 'undefined') {
         masterInclusions.value = JSON.parse(e.newValue);
       } catch (err) {
         console.error('[Packages] Error synchronizing master inclusions across tabs:', err);
+      }
+    }
+    if (e.key === ADDONS_STORAGE_KEY && e.newValue) {
+      try {
+        masterAddons.value = JSON.parse(e.newValue);
+      } catch (err) {
+        console.error('[Packages] Error synchronizing master addons across tabs:', err);
       }
     }
     if (e.key === 'rgp_mask_prices') {
@@ -319,8 +369,12 @@ export function usePackages() {
               if (Array.isArray(configRow.features.categories) && configRow.features.categories.length > 0) {
                 packageCategories.value = configRow.features.categories;
               }
+              if (Array.isArray(configRow.features.addons) && configRow.features.addons.length > 0) {
+                masterAddons.value = configRow.features.addons;
+              }
             }
             persistMasterInclusions();
+            persistMasterAddons();
           }
           if (configRow.badge && configRow.badge !== 'CONFIG') {
             try {
@@ -633,10 +687,57 @@ export function usePackages() {
     await persistConfigToSupabase();
   }
 
+  async function addMasterAddon({ title, price }) {
+    if (!title) return null;
+    const trimmed = typeof title === 'string' ? title.trim() : String(title).trim();
+    if (!trimmed) return null;
+    const cleanPrice = Math.max(0, Number(price) || 0);
+
+    const id = `addon_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const newAddon = {
+      id,
+      title: trimmed,
+      price: cleanPrice,
+      created_at: new Date().toISOString(),
+    };
+
+    masterAddons.value.push(newAddon);
+    await persistConfigToSupabase();
+    return newAddon;
+  }
+
+  async function updateMasterAddon(id, { title, price }) {
+    if (!id) return null;
+    const idx = masterAddons.value.findIndex((a) => a.id === id);
+    if (idx === -1) return null;
+
+    const current = masterAddons.value[idx];
+    const trimmedTitle = title !== undefined ? String(title).trim() : current.title;
+    const cleanPrice = price !== undefined ? Math.max(0, Number(price) || 0) : current.price;
+
+    masterAddons.value[idx] = {
+      ...current,
+      title: trimmedTitle || current.title,
+      price: cleanPrice,
+      updated_at: new Date().toISOString(),
+    };
+
+    await persistConfigToSupabase();
+    return masterAddons.value[idx];
+  }
+
+  async function deleteMasterAddon(id) {
+    if (!id) return false;
+    masterAddons.value = masterAddons.value.filter((a) => a.id !== id);
+    await persistConfigToSupabase();
+    return true;
+  }
+
   return {
     packages,
     packageCategories,
     masterInclusions,
+    masterAddons,
     isGlobalPriceMasked,
     loading,
     toggleGlobalPriceMask,
@@ -650,6 +751,9 @@ export function usePackages() {
     removeMasterInclusion,
     updateMasterInclusion,
     resetMasterInclusions,
+    addMasterAddon,
+    updateMasterAddon,
+    deleteMasterAddon,
     addCategory,
     deleteCategory,
     renameCategory,

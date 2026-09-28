@@ -148,11 +148,15 @@ Deno.serve(async (req) => {
       let parentRfcMessageId: string | null = null;
       let threadReferences: string | null = null;
 
-      // If we don't have a known threadId, search for existing thread with this recipient
+      // If we don't have a known threadId, search for existing thread with this recipient within recent window
       if ((!gmailThreadId || gmailThreadId.startsWith('mock_')) && recipientEmail) {
         try {
+          const recentDate = new Date(Date.now() - 30 * 86400000);
+          const afterStr = `${recentDate.getUTCFullYear()}/${String(recentDate.getUTCMonth() + 1).padStart(2, '0')}/${String(recentDate.getUTCDate()).padStart(2, '0')}`;
+          const searchQuery = `${recipientEmail} after:${afterStr}`;
+
           const searchResp = await fetch(
-            `https://gmail.googleapis.com/gmail/v1/users/me/threads?q=${encodeURIComponent(recipientEmail)}`,
+            `https://gmail.googleapis.com/gmail/v1/users/me/threads?q=${encodeURIComponent(searchQuery)}`,
             { headers: { Authorization: `Bearer ${accessToken}` } }
           );
           if (searchResp.ok) {
@@ -200,9 +204,14 @@ Deno.serve(async (req) => {
                 threadReferences = existingRefs;
               }
             }
+          } else {
+            // Thread belongs to a different Gmail account (cross-account reply)
+            console.warn('[send-email-reply] Thread ID does not belong to currently connected Gmail account. Detaching thread constraint.');
+            gmailThreadId = null;
           }
         } catch (err) {
           console.warn('[send-email-reply] Error fetching thread metadata:', err);
+          gmailThreadId = null;
         }
       }
 
@@ -311,7 +320,7 @@ Deno.serve(async (req) => {
         sendPayload.threadId = gmailThreadId;
       }
 
-      const sendResp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      let sendResp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -319,6 +328,20 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify(sendPayload),
       });
+
+      // Fallback: If Gmail rejects with 403 or 404 because threadId is from a different mailbox, retry without threadId
+      if (!sendResp.ok && sendPayload.threadId) {
+        console.warn('[send-email-reply] Send with threadId failed (cross-account thread). Retrying without threadId constraint...');
+        delete sendPayload.threadId;
+        sendResp = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(sendPayload),
+        });
+      }
 
       if (!sendResp.ok) {
         const sendError = await sendResp.text();
